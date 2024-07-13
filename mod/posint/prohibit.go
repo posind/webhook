@@ -14,18 +14,26 @@ import (
 
 func GetProhibitedItems(Pesan itmodel.IteungMessage, db *mongo.Database) (reply string) {
 	country, err := GetCountryFromMessage(Pesan.Message, db)
+	var filter bson.M
 	if err != nil {
 		countryandkeyword := ExtractKeywords(Pesan.Message, []string{})
-		return countryandkeyword + "|" + err.Error()
+		keywords := strings.Split(countryandkeyword, " ")
+		country := keywords[0]
+		filter = bson.M{
+			"Destination": bson.M{"$regex": country, "$options": "i"},
+		}
+		reply, err = populateList(db, filter)
+		if err != nil {
+			return err.Error()
+		}
+		return
 	}
 	if country == "" {
 		return "Nama negara tidak ada kak di database kita"
 		//countryandkeyword := ExtractKeywords(Pesan.Message, []string{})
 		//countryname, err := atdb.GetOneDoc[Item](db, "prohibited_items_en", bson.M{"Destination": bson.M{"$regex": countryandkeyword, "$options": "i"}})
 	}
-
 	keyword := ExtractKeywords(Pesan.Message, []string{country})
-	var filter bson.M
 	if keyword != "" {
 		filter = bson.M{
 			"Destination":      country,
@@ -34,19 +42,27 @@ func GetProhibitedItems(Pesan itmodel.IteungMessage, db *mongo.Database) (reply 
 	} else {
 		filter = bson.M{"Destination": country}
 	}
-	listprob, err := atdb.GetAllDoc[[]Item](db, "prohibited_items_en", filter)
+	msg, err := populateList(db, filter)
 	if err != nil {
-		return "Terdapat kesalahan pada  GetAllDoc " + err.Error()
-	}
-	if len(listprob) == 0 {
-		return "Tidak ada prohibited items yang ditemukan untuk negara " + country + " dengan keyword " + keyword
-	}
-	msg := "ini dia list prohibited item dari negara yang kakak minta:\n"
-	for i, probitem := range listprob {
-		msg += strconv.Itoa(i+1) + ". " + probitem.ProhibitedItems + "\n"
+		return err.Error()
 	}
 	return msg
 
+}
+
+func populateList(db *mongo.Database, filter bson.M) (msg string, err error) {
+	listprob, err := atdb.GetAllDoc[[]Item](db, "prohibited_items_en", filter)
+	if err != nil {
+		return "Terdapat kesalahan pada  GetAllDoc ", err
+	}
+	if len(listprob) == 0 {
+		return "Tidak ada prohibited items yang ditemukan ", errors.New("zero results")
+	}
+	msg = "ini dia list prohibited item dari negara yang kakak minta:\n"
+	for i, probitem := range listprob {
+		msg += strconv.Itoa(i+1) + ". " + probitem.ProhibitedItems + "\n"
+	}
+	return
 }
 
 func GetCountryFromMessage(message string, db *mongo.Database) (country string, err error) {
