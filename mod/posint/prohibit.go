@@ -21,7 +21,7 @@ func GetProhibitedItems(Pesan itmodel.IteungMessage, db *mongo.Database) (reply 
 	if country == "" {
 		return "Nama negara tidak ada kak di database kita"
 		//countryandkeyword := ExtractKeywords(Pesan.Message, []string{})
-		//countryname, err := atdb.GetOneDoc[Item](db, "prohibited_items", bson.M{"Destination": bson.M{"$regex": countryandkeyword, "$options": "i"}})
+		//countryname, err := atdb.GetOneDoc[Item](db, "prohibited_items_en", bson.M{"Destination": bson.M{"$regex": countryandkeyword, "$options": "i"}})
 	}
 
 	keyword := ExtractKeywords(Pesan.Message, []string{country})
@@ -34,7 +34,7 @@ func GetProhibitedItems(Pesan itmodel.IteungMessage, db *mongo.Database) (reply 
 	} else {
 		filter = bson.M{"Destination": country}
 	}
-	listprob, err := atdb.GetAllDoc[[]Item](db, "prohibited_items", filter)
+	listprob, err := atdb.GetAllDoc[[]Item](db, "prohibited_items_en", filter)
 	if err != nil {
 		return "Terdapat kesalahan pada  GetAllDoc " + err.Error()
 	}
@@ -53,7 +53,7 @@ func GetCountryFromMessage(message string, db *mongo.Database) (country string, 
 	// Ubah pesan menjadi huruf kecil
 	lowerMessage := strings.ToLower(message)
 	// Mendapatkan nama negara
-	countries, err := atdb.GetAllDistinctDoc(db, bson.M{}, "Destination", "prohibited_items")
+	countries, err := atdb.GetAllDistinctDoc(db, bson.M{}, "Destination", "prohibited_items_en")
 	if err != nil {
 		return "", err
 	}
