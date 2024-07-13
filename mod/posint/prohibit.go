@@ -26,25 +26,18 @@ func GetProhibitedItems(Pesan itmodel.IteungMessage, db *mongo.Database) (reply 
 		} else if len(keywords) == 1 {
 			country = keywords[0]
 		}
-		//query dulu nama country yang bener di db dari yang mirip regex
-		filter = bson.M{
-			"Destination": bson.M{"$regex": country, "$options": "i"},
-		}
-		var dest string
-		_, dest, err = populateList(db, filter)
-		//reply = "💡" + reply
+		country, err = GetCountryNameLike(db, country)
 		if err != nil {
-			jsonData, _ := bson.Marshal(filter)
-			return "💡" + countryandkeyword + "|" + country + " : " + err.Error() + string(jsonData)
+			return "💡" + countryandkeyword + "|" + country + " : " + err.Error()
 		}
-		keyword := ExtractKeywords(Pesan.Message, []string{dest})
+		keyword := ExtractKeywords(Pesan.Message, []string{country})
 		if keyword != "" {
 			filter = bson.M{
-				"Destination":      dest,
+				"Destination":      country,
 				"Prohibited Items": bson.M{"$regex": keyword, "$options": "i"},
 			}
 		} else {
-			filter = bson.M{"Destination": dest}
+			filter = bson.M{"Destination": country}
 		}
 		reply, _, err = populateList(db, filter)
 		reply = "💡" + reply
