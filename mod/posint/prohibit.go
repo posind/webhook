@@ -18,6 +18,9 @@ func GetProhibitedItems(Pesan itmodel.IteungMessage, db *mongo.Database) (reply 
 	if err != nil {
 		countryandkeyword := ExtractKeywords(Pesan.Message, []string{})
 		keywords := strings.Split(countryandkeyword, " ")
+		if len(keywords) == 0 {
+			return "Nama negara tidak ada kak di database kita"
+		}
 		country := keywords[0]
 		filter = bson.M{
 			"Destination": bson.M{"$regex": country, "$options": "i"},
