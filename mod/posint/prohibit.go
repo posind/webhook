@@ -20,10 +20,13 @@ func GetProhibitedItems(Pesan itmodel.IteungMessage, db *mongo.Database) (reply 
 		words := strings.Split(countryandkeyword, " ")
 		var key []string
 		// Iterate through the slice, popping elements from the end
-		for len(words) > 0 || err == nil {
+		for len(words) > 0 {
 			// Join remaining elements back into a string
 			remainingMessage := strings.Join(words, " ")
 			country, err = GetCountryNameLike(db, remainingMessage)
+			if err == nil {
+				break
+			}
 			// Get the last element
 			lastWord := words[len(words)-1]
 			key = append(key, lastWord)
