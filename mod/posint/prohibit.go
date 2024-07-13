@@ -100,7 +100,7 @@ func GetCountryNameLike(db *mongo.Database, country string) (dest string, err er
 	if err != nil {
 		return
 	}
-	dest = itemprohb.Destination
+	dest = strings.ReplaceAll(itemprohb.Destination, "\u00A0", " ")
 	return
 }
 
