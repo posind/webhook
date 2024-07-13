@@ -56,18 +56,18 @@ To get an auth in Google Cloud, you can do the following:
    # Set Project ID Variable
    PROJECT_ID=yourprojectid
    # Create a service account
-   gcloud iam service-accounts create "whatsauth" --project "${PROJECT_ID}"
+   gcloud iam service-accounts create "posind" --project "${PROJECT_ID}"
    # Create JSON key for GOOGLE_CREDENTIALS variable in GitHub repo
-   gcloud iam service-accounts keys create "key.json" --iam-account "whatsauth@${PROJECT_ID}.iam.gserviceaccount.com"
+   gcloud iam service-accounts keys create "key.json" --iam-account "posind@${PROJECT_ID}.iam.gserviceaccount.com"
    # Read the key JSON file and copy the output, including the curl bracket, go to step 5.
    cat key.json
    # Authorize service account to act as admin in Cloud Run service
-   gcloud projects add-iam-policy-binding ${PROJECT_ID} --member=serviceAccount:whatsauth@${PROJECT_ID}.iam.gserviceaccount.com --role=roles/run.admin
+   gcloud projects add-iam-policy-binding ${PROJECT_ID} --member=serviceAccount:posind@${PROJECT_ID}.iam.gserviceaccount.com --role=roles/run.admin
    # Authorize service account to delete artifact registry
-   gcloud projects add-iam-policy-binding ${PROJECT_ID} --member=serviceAccount:whatsauth@${PROJECT_ID}.iam.gserviceaccount.com --role=roles/artifactregistry.admin
+   gcloud projects add-iam-policy-binding ${PROJECT_ID} --member=serviceAccount:posind@${PROJECT_ID}.iam.gserviceaccount.com --role=roles/artifactregistry.admin
    # Authorize service account to deploy cloud function
-   gcloud projects add-iam-policy-binding ${PROJECT_ID} --member=serviceAccount:whatsauth@${PROJECT_ID}.iam.gserviceaccount.com --role=roles/cloudfunctions.developer
-   gcloud projects add-iam-policy-binding ${PROJECT_ID} --member=serviceAccount:whatsauth@${PROJECT_ID}.iam.gserviceaccount.com --role=roles/logging.viewer
+   gcloud projects add-iam-policy-binding ${PROJECT_ID} --member=serviceAccount:posind@${PROJECT_ID}.iam.gserviceaccount.com --role=roles/cloudfunctions.developer
+   gcloud projects add-iam-policy-binding ${PROJECT_ID} --member=serviceAccount:posind@${PROJECT_ID}.iam.gserviceaccount.com --role=roles/logging.viewer
    ```
 
 3. Open Menu Cloud Build>settings, select the Service Account created by step 1, and enable Cloud Function Developer.  
