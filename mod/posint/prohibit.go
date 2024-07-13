@@ -33,7 +33,8 @@ func GetProhibitedItems(Pesan itmodel.IteungMessage, db *mongo.Database) (reply 
 		reply, err = populateList(db, filter)
 		reply = "💡" + reply
 		if err != nil {
-			return "💡" + countryandkeyword + "|" + country + " : " + err.Error()
+			jsonData, err := bson.Marshal(filter)
+			return "💡" + countryandkeyword + "|" + country + " : " + err.Error() + string(jsonData)
 		}
 		return
 	}
@@ -52,7 +53,8 @@ func GetProhibitedItems(Pesan itmodel.IteungMessage, db *mongo.Database) (reply 
 	reply, err = populateList(db, filter)
 	reply = "📚" + reply
 	if err != nil {
-		return "📚" + keyword + "|" + country + " : " + err.Error()
+		jsonData, err := bson.Marshal(filter)
+		return "📚" + keyword + "|" + country + " : " + err.Error() + string(jsonData)
 	}
 	return
 
