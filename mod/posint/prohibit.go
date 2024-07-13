@@ -89,7 +89,7 @@ func GetCountryFromMessage(message string, db *mongo.Database) (country string, 
 // Fungsi untuk menghilangkan semua kata kecuali keyword yang diinginkan
 func ExtractKeywords(message string, commonWordsAdd []string) string {
 	// Daftar kata umum yang mungkin ingin dihilangkan
-	commonWords := []string{"list", "prohibited", "items", "myika"}
+	commonWords := []string{"list", "prohibited", "items", "item", "mymy"}
 
 	// Gabungkan commonWords dengan commonWordsAdd
 	commonWords = append(commonWords, commonWordsAdd...)
