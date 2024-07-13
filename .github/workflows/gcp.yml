@@ -26,8 +26,8 @@ jobs:
         run: 'gcloud info'
       - name: 'Deploy a gen 2 cloud function'
         run: |
-          gcloud functions deploy wamyid \
-            --region=asia-southeast1 \
+          gcloud functions deploy webhook \
+            --region=asia-southeast2 \
             --allow-unauthenticated \
             --entry-point=WebHook \
             --gen2 \
@@ -35,8 +35,8 @@ jobs:
             --trigger-http \
             --set-env-vars=MONGOSTRING='${{ secrets.MONGOSTRING }}'
       - name: 'Cek eksistensi fungsi'
-        run: 'gcloud functions describe wamyid --region=asia-southeast1'
+        run: 'gcloud functions describe webhook --region=asia-southeast2'
       - name: 'Cek log debugging'
-        run: 'gcloud functions logs read wamyid --region=asia-southeast1'
+        run: 'gcloud functions logs read webhook --region=asia-southeast2'
       - name: 'Cleaning Artifact Registry'
-        run: 'gcloud artifacts repositories delete gcf-artifacts --location=asia-southeast1 --quiet'
+        run: 'gcloud artifacts repositories delete gcf-artifacts --location=asia-southeast2 --quiet'
