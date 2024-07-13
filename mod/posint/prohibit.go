@@ -17,21 +17,21 @@ func GetProhibitedItems(Pesan itmodel.IteungMessage, db *mongo.Database) (reply 
 	var filter bson.M
 	if err != nil {
 		countryandkeyword := ExtractKeywords(Pesan.Message, []string{})
-		keywords := strings.Split(countryandkeyword, " ")
-		if len(keywords) == 0 {
-			return "Nama negara tidak ada kak di database kita"
-		} else if len(keywords) > 2 {
-			country = keywords[0] + " " + keywords[1]
-
-		} else if len(keywords) == 1 {
-			country = keywords[0]
+		words := strings.Split(countryandkeyword, " ")
+		var key []string
+		// Iterate through the slice, popping elements from the end
+		for len(words) > 0 || err == nil {
+			// Join remaining elements back into a string
+			remainingMessage := strings.Join(words, " ")
+			country, err = GetCountryNameLike(db, remainingMessage)
+			// Get the last element
+			lastWord := words[len(words)-1]
+			key = append(key, lastWord)
+			// Remove the last element
+			words = words[:len(words)-1]
 		}
-		country, err = GetCountryNameLike(db, country)
-		if err != nil {
-			return "💡" + countryandkeyword + "|" + country + " : " + err.Error()
-		}
-		keyword := ExtractKeywords(Pesan.Message, []string{country})
-		if keyword != "" {
+		if len(key) > 0 {
+			keyword := strings.Join(key, " ")
 			filter = bson.M{
 				"Destination":      country,
 				"Prohibited Items": bson.M{"$regex": keyword, "$options": "i"},
@@ -43,7 +43,7 @@ func GetProhibitedItems(Pesan itmodel.IteungMessage, db *mongo.Database) (reply 
 		reply = "💡" + reply
 		if err != nil {
 			jsonData, _ := bson.Marshal(filter)
-			return "💡" + countryandkeyword + "|" + country + " : " + err.Error() + string(jsonData)
+			return "💡" + countryandkeyword + "|" + country + " : " + err.Error() + "\n" + string(jsonData)
 		}
 		return
 	}
@@ -63,7 +63,7 @@ func GetProhibitedItems(Pesan itmodel.IteungMessage, db *mongo.Database) (reply 
 	reply = "📚" + reply
 	if err != nil {
 		jsonData, _ := bson.Marshal(filter)
-		return "📚" + keyword + "|" + country + " : " + err.Error() + string(jsonData)
+		return "📚" + keyword + "|" + country + " : " + err.Error() + "\n" + string(jsonData)
 	}
 	return
 
