@@ -41,7 +41,7 @@ func GetProhibitedItems(Pesan itmodel.IteungMessage, db *mongo.Database) (reply 
 	if country == "" {
 		return "Nama negara tidak ada kak di database kita"
 	}
-	keyword := ExtractKeywords(Pesan.Message, []string{strings.ToLower(country)})
+	keyword := ExtractKeywords(Pesan.Message, []string{country})
 	if keyword != "" {
 		filter = bson.M{
 			"Destination":      country,
@@ -81,8 +81,9 @@ func GetCountryFromMessage(message string, db *mongo.Database) (country string, 
 	lowerMessage := strings.ToLower(message)
 	// Mengganti non-breaking space dengan spasi biasa
 	lowerMessage = strings.ReplaceAll(lowerMessage, "\u00A0", " ")
-	// Mengganti double space dengan spasi satu
-	lowerMessage = strings.ReplaceAll(lowerMessage, "  ", " ")
+	// Hapus spasi berlebih
+	lowerMessage = strings.TrimSpace(lowerMessage)
+	lowerMessage = regexp.MustCompile(`\s+`).ReplaceAllString(lowerMessage, " ")
 	// Mendapatkan nama negara
 	countries, err := atdb.GetAllDistinctDoc(db, bson.M{}, "Destination", "prohibited_items_en")
 	if err != nil {
@@ -113,9 +114,13 @@ func ExtractKeywords(message string, commonWordsAdd []string) string {
 	// Ubah pesan menjadi huruf kecil
 	message = strings.ToLower(message)
 
+	// Ganti non-breaking space dengan spasi biasa
+	message = strings.ReplaceAll(message, "\u00A0", " ")
+
 	// Hapus kata-kata umum dari pesan
 	for _, word := range commonWords {
-		message = strings.ReplaceAll(message, strings.ToLower(word), "")
+		word = strings.ToLower(strings.ReplaceAll(word, "\u00A0", " "))
+		message = strings.ReplaceAll(message, word, "")
 	}
 
 	// Hapus spasi berlebih
