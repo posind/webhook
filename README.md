@@ -58,6 +58,7 @@ To get an auth in Google Cloud, you can do the following:
    # Enable several api service
    gcloud services enable cloudfunctions.googleapis.com --project="${PROJECT_ID}"
    gcloud services enable cloudbuild.googleapis.com --project="${PROJECT_ID}"
+   gcloud services enable run.googleapis.com --project="${PROJECT_ID}"
 
    # Create a service account
    gcloud iam service-accounts create "posind" --project "${PROJECT_ID}"
@@ -65,9 +66,6 @@ To get an auth in Google Cloud, you can do the following:
    gcloud iam service-accounts keys create "key.json" --iam-account "posind@${PROJECT_ID}.iam.gserviceaccount.com"
    # Read the key JSON file and copy the output, including the curl bracket, go to step 5.
    cat key.json
-   # Activate and set
-   gcloud auth activate-service-account posind@${PROJECT_ID}.iam.gserviceaccount.com --key-file=~/key.json
-   gcloud config set account posind@${PROJECT_ID}.iam.gserviceaccount.com
    # Authorize service account as CF Dev
    gcloud projects add-iam-policy-binding ${PROJECT_ID} --member=serviceAccount:posind@${PROJECT_ID}.iam.gserviceaccount.com --role=roles/cloudfunctions.developer
 
