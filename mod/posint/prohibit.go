@@ -26,11 +26,27 @@ func GetProhibitedItems(Pesan itmodel.IteungMessage, db *mongo.Database) (reply 
 		} else if len(keywords) == 1 {
 			country = keywords[0]
 		}
-
+		//query dulu nama country yang bener di db dari yang mirip regex
 		filter = bson.M{
 			"Destination": bson.M{"$regex": country, "$options": "i"},
 		}
-		reply, err = populateList(db, filter)
+		var dest string
+		_, dest, err = populateList(db, filter)
+		//reply = "💡" + reply
+		if err != nil {
+			jsonData, _ := bson.Marshal(filter)
+			return "💡" + countryandkeyword + "|" + country + " : " + err.Error() + string(jsonData)
+		}
+		keyword := ExtractKeywords(Pesan.Message, []string{dest})
+		if keyword != "" {
+			filter = bson.M{
+				"Destination":      dest,
+				"Prohibited Items": bson.M{"$regex": keyword, "$options": "i"},
+			}
+		} else {
+			filter = bson.M{"Destination": dest}
+		}
+		reply, _, err = populateList(db, filter)
 		reply = "💡" + reply
 		if err != nil {
 			jsonData, _ := bson.Marshal(filter)
@@ -50,7 +66,7 @@ func GetProhibitedItems(Pesan itmodel.IteungMessage, db *mongo.Database) (reply 
 	} else {
 		filter = bson.M{"Destination": country}
 	}
-	reply, err = populateList(db, filter)
+	reply, _, err = populateList(db, filter)
 	reply = "📚" + reply
 	if err != nil {
 		jsonData, _ := bson.Marshal(filter)
@@ -60,19 +76,31 @@ func GetProhibitedItems(Pesan itmodel.IteungMessage, db *mongo.Database) (reply 
 
 }
 
-func populateList(db *mongo.Database, filter bson.M) (msg string, err error) {
+func populateList(db *mongo.Database, filter bson.M) (msg, dest string, err error) {
 	listprob, err := atdb.GetAllDoc[[]Item](db, "prohibited_items_en", filter)
 	if err != nil {
-		return "Terdapat kesalahan pada  GetAllDoc ", err
+		return "Terdapat kesalahan pada  GetAllDoc ", "", err
 	}
 	if len(listprob) == 0 {
-		return "Tidak ada prohibited items yang ditemukan ", errors.New("zero results")
+		return "Tidak ada prohibited items yang ditemukan ", "", errors.New("zero results")
 	}
-	dest := listprob[0].Destination
+	dest = listprob[0].Destination
 	msg = "ini dia list prohibited item dari negara *" + dest + "*:\n"
 	for i, probitem := range listprob {
 		msg += strconv.Itoa(i+1) + ". " + probitem.ProhibitedItems + "\n"
 	}
+	return
+}
+
+func GetCountryNameLike(db *mongo.Database, country string) (dest string, err error) {
+	filter := bson.M{
+		"Destination": bson.M{"$regex": country, "$options": "i"},
+	}
+	itemprohb, err := atdb.GetOneDoc[Item](db, "prohibited_items_en", filter)
+	if err != nil {
+		return
+	}
+	dest = itemprohb.Destination
 	return
 }
 
