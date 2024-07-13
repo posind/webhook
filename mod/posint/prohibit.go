@@ -58,7 +58,7 @@ func populateList(db *mongo.Database, filter bson.M) (msg string, err error) {
 	if len(listprob) == 0 {
 		return "Tidak ada prohibited items yang ditemukan ", errors.New("zero results")
 	}
-	msg = "ini dia list prohibited item dari negara yang kakak minta:\n"
+	msg = "ini dia list prohibited item dari negara *" + listprob[0].Destination + "*:\n"
 	for i, probitem := range listprob {
 		msg += strconv.Itoa(i+1) + ". " + probitem.ProhibitedItems + "\n"
 	}
