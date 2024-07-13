@@ -90,6 +90,8 @@ func GetCountryFromMessage(message string, db *mongo.Database) (country string, 
 	// Iterasi melalui daftar negara
 	for _, country := range countries {
 		lowerCountry := strings.ToLower(strings.TrimSpace(country.(string)))
+		// Mengganti non-breaking space dengan spasi biasa
+		lowerCountry = strings.ReplaceAll(lowerCountry, "\u00A0", " ")
 		strcountry += lowerCountry + ","
 		if strings.Contains(lowerMessage, lowerCountry) {
 			return country.(string), nil
