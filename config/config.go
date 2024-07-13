@@ -5,3 +5,5 @@ import (
 )
 
 var IPPort, Net = helper.GetAddress()
+
+var WAPhoneNumber string = "6281510040020"

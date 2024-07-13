@@ -36,7 +36,7 @@ func PostInboxNomor(respw http.ResponseWriter, req *http.Request) {
 			if err != nil {
 				resp.Response = err.Error()
 			}
-			resp, err = helper.WebHook(prof.QRKeyword, waphonenumber, config.WAAPIQRLogin, config.WAAPIMessage, msg, config.Mongoconn)
+			resp, err = helper.WebHook(prof.QRKeyword, waphonenumber, config.WAAPIQRLogin, config.WAAPIMessageText, msg, config.Mongoconn)
 			if err != nil {
 				resp.Response = err.Error()
 			}
