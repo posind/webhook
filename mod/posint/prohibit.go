@@ -20,15 +20,20 @@ func GetProhibitedItems(Pesan itmodel.IteungMessage, db *mongo.Database) (reply 
 		keywords := strings.Split(countryandkeyword, " ")
 		if len(keywords) == 0 {
 			return "Nama negara tidak ada kak di database kita"
+		} else if len(keywords) > 2 {
+			country = keywords[0] + " " + keywords[1]
+
+		} else if len(keywords) == 1 {
+			country = keywords[0]
 		}
-		country := keywords[0]
+
 		filter = bson.M{
 			"Destination": bson.M{"$regex": country, "$options": "i"},
 		}
 		reply, err = populateList(db, filter)
 		reply = "💡" + reply
 		if err != nil {
-			return countryandkeyword + "|" + country + " : " + err.Error()
+			return "💡" + countryandkeyword + "|" + country + " : " + err.Error()
 		}
 		return
 	}
@@ -47,7 +52,7 @@ func GetProhibitedItems(Pesan itmodel.IteungMessage, db *mongo.Database) (reply 
 	reply, err = populateList(db, filter)
 	reply = "📚" + reply
 	if err != nil {
-		return keyword + "|" + country + " : " + err.Error()
+		return "📚" + keyword + "|" + country + " : " + err.Error()
 	}
 	return
 
@@ -72,6 +77,10 @@ func populateList(db *mongo.Database, filter bson.M) (msg string, err error) {
 func GetCountryFromMessage(message string, db *mongo.Database) (country string, err error) {
 	// Ubah pesan menjadi huruf kecil
 	lowerMessage := strings.ToLower(message)
+	// Mengganti non-breaking space dengan spasi biasa
+	lowerMessage = strings.ReplaceAll(lowerMessage, "\u00A0", " ")
+	// Mengganti double space dengan spasi satu
+	lowerMessage = strings.ReplaceAll(lowerMessage, "  ", " ")
 	// Mendapatkan nama negara
 	countries, err := atdb.GetAllDistinctDoc(db, bson.M{}, "Destination", "prohibited_items_en")
 	if err != nil {
