@@ -15,6 +15,7 @@ import (
 func GetProhibitedItems(Pesan itmodel.IteungMessage, db *mongo.Database) (reply string) {
 	country, err := GetCountryFromMessage(Pesan.Message, db)
 	var filter bson.M
+	var dest string
 	if err != nil {
 		countryandkeyword := ExtractKeywords(Pesan.Message, []string{})
 		keywords := strings.Split(countryandkeyword, " ")
@@ -22,16 +23,14 @@ func GetProhibitedItems(Pesan itmodel.IteungMessage, db *mongo.Database) (reply 
 		filter = bson.M{
 			"Destination": bson.M{"$regex": country, "$options": "i"},
 		}
-		reply, err = populateList(db, filter)
+		reply, dest, err = populateList(db, filter)
 		if err != nil {
-			return err.Error()
+			return dest + " " + err.Error()
 		}
 		return
 	}
 	if country == "" {
 		return "Nama negara tidak ada kak di database kita"
-		//countryandkeyword := ExtractKeywords(Pesan.Message, []string{})
-		//countryname, err := atdb.GetOneDoc[Item](db, "prohibited_items_en", bson.M{"Destination": bson.M{"$regex": countryandkeyword, "$options": "i"}})
 	}
 	keyword := ExtractKeywords(Pesan.Message, []string{country})
 	if keyword != "" {
@@ -42,23 +41,24 @@ func GetProhibitedItems(Pesan itmodel.IteungMessage, db *mongo.Database) (reply 
 	} else {
 		filter = bson.M{"Destination": country}
 	}
-	msg, err := populateList(db, filter)
+	reply, dest, err = populateList(db, filter)
 	if err != nil {
-		return err.Error()
+		return dest + " " + err.Error()
 	}
-	return msg
+	return
 
 }
 
-func populateList(db *mongo.Database, filter bson.M) (msg string, err error) {
+func populateList(db *mongo.Database, filter bson.M) (msg string, dest string, err error) {
 	listprob, err := atdb.GetAllDoc[[]Item](db, "prohibited_items_en", filter)
 	if err != nil {
-		return "Terdapat kesalahan pada  GetAllDoc ", err
+		return "Terdapat kesalahan pada  GetAllDoc ", "", err
 	}
 	if len(listprob) == 0 {
-		return "Tidak ada prohibited items yang ditemukan ", errors.New("zero results")
+		return "Tidak ada prohibited items yang ditemukan ", "", errors.New("zero results")
 	}
-	msg = "ini dia list prohibited item dari negara *" + listprob[0].Destination + "*:\n"
+	dest = listprob[0].Destination
+	msg = "ini dia list prohibited item dari negara *" + dest + "*:\n"
 	for i, probitem := range listprob {
 		msg += strconv.Itoa(i+1) + ". " + probitem.ProhibitedItems + "\n"
 	}
