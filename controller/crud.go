@@ -8,6 +8,7 @@ import (
 	"github.com/gocroot/config"
 	"github.com/gocroot/model"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 func GetItems(w http.ResponseWriter, r *http.Request) {
@@ -29,5 +30,68 @@ func GetItems(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(items)
 }
 
+func CreateItem(w http.ResponseWriter, r *http.Request) {
+	var item model.ProhibitedItem
+	if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
+	collection := config.Mongoconn.Collection("prohibited_items_en")
+	_, err := collection.InsertOne(context.Background(), item)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(item)
+}
+
+func UpdateItem(w http.ResponseWriter, r *http.Request) {
+	id := r.URL.Query().Get("id")
+	objID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		http.Error(w, "Invalid ID", http.StatusBadRequest)
+		return
+	}
+
+	var item model.ProhibitedItem
+	if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	collection := config.Mongoconn.Collection("prohibited_items_en")
+	filter := bson.M{"_id": objID}
+	update := bson.M{"$set": item}
+
+	_, err = collection.UpdateOne(context.Background(), filter, update)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(item)
+}
+
+func DeleteItem(w http.ResponseWriter, r *http.Request) {
+	id := r.URL.Query().Get("id")
+	objID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		http.Error(w, "Invalid ID", http.StatusBadRequest)
+		return
+	}
+
+	collection := config.Mongoconn.Collection("prohibited_items_en")
+	filter := bson.M{"_id": objID}
+
+	_, err = collection.DeleteOne(context.Background(), filter)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
