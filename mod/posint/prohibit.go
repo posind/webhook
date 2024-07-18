@@ -37,7 +37,7 @@ func GetProhibitedItems(Pesan itmodel.IteungMessage, db *mongo.Database) (reply 
 		}
 		if len(key) > 0 {
 			keyword := strings.Join(key, " ")
-			regexPattern := BuildFlexibleRegex(ExtractKeywords(keyword, []string{}))
+			regexPattern := BuildFlexibleRegexWithTypos(ExtractKeywords(keyword, []string{}), db)
 			filter = bson.M{
 				"Destination":      country,
 				"Prohibited Items": bson.M{"$regex": regexPattern, "$options": "i"},
@@ -58,7 +58,7 @@ func GetProhibitedItems(Pesan itmodel.IteungMessage, db *mongo.Database) (reply 
 	}
 	keywords := ExtractKeywords(Pesan.Message, []string{country})
 	if len(keywords) > 0 {
-		regexPattern := BuildFlexibleRegex(keywords)
+		regexPattern := BuildFlexibleRegexWithTypos(keywords, db)
 		filter = bson.M{
 			"Destination":      country,
 			"Prohibited Items": bson.M{"$regex": regexPattern, "$options": "i"},
@@ -76,15 +76,15 @@ func GetProhibitedItems(Pesan itmodel.IteungMessage, db *mongo.Database) (reply 
 }
 
 func populateList(db *mongo.Database, filter bson.M, keyword string) (msg, dest string, err error) {
-	listprob, err := atdb.GetAllDoc[[]Item](db, "prohibited_items_en", filter)
+	listprob, err := atdb.GetAllDoc[Item](db, "prohibited_items_en", filter)
 	if err != nil {
-		return "Terdapat kesalahan pada  GetAllDoc ", "", err
+		return "Terdapat kesalahan pada GetAllDoc", "", err
 	}
 	if len(listprob) == 0 {
-		return "Tidak ada prohibited items yang ditemukan ", "", errors.New("zero results")
+		return "Tidak ada prohibited items yang ditemukan", "", errors.New("zero results")
 	}
 	dest = listprob[0].Destination
-	msg = "ini dia list prohibited item dari negara *" + dest + "*:\n"
+	msg = "Ini dia list prohibited item dari negara *" + dest + "*:\n"
 	if keyword != "" {
 		msg += "kata-kunci:_" + keyword + "_\n"
 	}
@@ -100,7 +100,7 @@ func GetCountryNameLike(db *mongo.Database, country string) (dest string, err er
 	}
 	itemprohb, err := atdb.GetOneDoc[Item](db, "prohibited_items_en", filter)
 	if err != nil {
-		return "", err
+		return
 	}
 	dest = strings.ReplaceAll(itemprohb.Destination, "\u00A0", " ")
 	return
@@ -133,16 +133,17 @@ func GetCountryFromMessage(message string, db *mongo.Database) (country string, 
 	return "", errors.New("tidak ditemukan nama negara di pesan berikut:" + lowerMessage + "|" + strcountry)
 }
 
+// Fungsi untuk menghilangkan semua kata kecuali keyword yang diinginkan
 func ExtractKeywords(message string, commonWordsAdd []string) []string {
 	// Daftar kata umum yang mungkin ingin dihilangkan
 	commonWords := []string{"list", "prohibited", "items", "item", "mymy"}
-
+	
 	// Gabungkan commonWords dengan commonWordsAdd
 	commonWords = append(commonWords, commonWordsAdd...)
-
+	
 	// Ubah pesan menjadi huruf kecil
 	message = strings.ToLower(message)
-
+	
 	// Ganti non-breaking space dengan spasi biasa
 	message = strings.ReplaceAll(message, "\u00A0", " ")
 
@@ -155,19 +156,15 @@ func ExtractKeywords(message string, commonWordsAdd []string) []string {
 	// Hapus spasi berlebih
 	message = strings.TrimSpace(message)
 	message = regexp.MustCompile(`\s+`).ReplaceAllString(message, " ")
-
-	// Split message into keywords
 	keywords := strings.Split(message, " ")
-
 	return keywords
 }
 
+// Fungsi untuk keyword regex yang fleksibel
 func BuildFlexibleRegex(keywords []string) string {
 	if len(keywords) == 0 {
 		return ""
 	}
-
-	// Gabungkan kata kunci dengan regex yang memungkinkan urutan apapun
 	var regexBuilder strings.Builder
 	for _, keyword := range keywords {
 		regexBuilder.WriteString("(?=.*\\b" + regexp.QuoteMeta(keyword) + "\\b)")
@@ -176,12 +173,13 @@ func BuildFlexibleRegex(keywords []string) string {
 	return regexBuilder.String()
 }
 
+// Fungsi untuk typo regex 
 func BuildFlexibleRegexWithTypos(keywords []string, db *mongo.Database) string {
 	var allKeywords []string
 	items, err := atdb.GetAllDoc[Item](db, "prohibited_items_en", bson.M{})
 	if err == nil {
-		for _, items := range items {
-			words := strings.Split(items.ProhibitedItems, " ")
+		for _, item := range items {
+			words := strings.Split(item.ProhibitedItems, " ")
 			allKeywords = append(allKeywords, words...)
 		}
 	}
