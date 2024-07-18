@@ -12,13 +12,13 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
+
 func GetProhibitedItems(Pesan itmodel.IteungMessage, db *mongo.Database) (reply string) {
 	country, err := GetCountryFromMessage(Pesan.Message, db)
 	var filter bson.M
-	var keyword string
 	if err != nil {
-		countryandkeyword := ExtractKeywords(Pesan.Message, []string{})
-		words := strings.Split(countryandkeyword, " ")
+		keywords := ExtractKeywords(Pesan.Message, []string{})
+		words := strings.Split(strings.Join(keywords, " "), " ")
 		var key []string
 		// Iterate through the slice, popping elements from the end
 		for len(words) > 0 {
@@ -35,42 +35,43 @@ func GetProhibitedItems(Pesan itmodel.IteungMessage, db *mongo.Database) (reply 
 			words = words[:len(words)-1]
 		}
 		if len(key) > 0 {
-			keyword = strings.Join(key, " ")
+			keyword := strings.Join(key, " ")
+			regexPattern := BuildFlexibleRegex(ExtractKeywords(keyword, []string{}))
 			filter = bson.M{
 				"Destination":      country,
-				"Prohibited Items": bson.M{"$regex": keyword, "$options": "i"},
+				"Prohibited Items": bson.M{"$regex": regexPattern, "$options": "i"},
 			}
 		} else {
 			filter = bson.M{"Destination": country}
 		}
-		reply, _, err = populateList(db, filter, keyword)
+		reply, _, err = populateList(db, filter, strings.Join(key, " "))
 		reply = "💡" + reply
 		if err != nil {
 			jsonData, _ := bson.Marshal(filter)
-			return "💡" + countryandkeyword + "|" + country + " : " + err.Error() + "\n" + string(jsonData)
+			return "💡" + strings.Join(keywords, " ") + "|" + country + " : " + err.Error() + "\n" + string(jsonData)
 		}
 		return
 	}
 	if country == "" {
 		return "Nama negara tidak ada kak di database kita"
 	}
-	keyword = ExtractKeywords(Pesan.Message, []string{country})
-	if keyword != "" {
+	keywords := ExtractKeywords(Pesan.Message, []string{country})
+	if len(keywords) > 0 {
+		regexPattern := BuildFlexibleRegex(keywords)
 		filter = bson.M{
 			"Destination":      country,
-			"Prohibited Items": bson.M{"$regex": keyword, "$options": "i"},
+			"Prohibited Items": bson.M{"$regex": regexPattern, "$options": "i"},
 		}
 	} else {
 		filter = bson.M{"Destination": country}
 	}
-	reply, _, err = populateList(db, filter, keyword)
+	reply, _, err = populateList(db, filter, strings.Join(keywords, " "))
 	reply = "📚" + reply
 	if err != nil {
 		jsonData, _ := bson.Marshal(filter)
-		return "📚" + keyword + "|" + country + " : " + err.Error() + "\n" + string(jsonData)
+		return "📚" + strings.Join(keywords, " ") + "|" + country + " : " + err.Error() + "\n" + string(jsonData)
 	}
 	return
-
 }
 
 func populateList(db *mongo.Database, filter bson.M, keyword string) (msg, dest string, err error) {
@@ -98,7 +99,7 @@ func GetCountryNameLike(db *mongo.Database, country string) (dest string, err er
 	}
 	itemprohb, err := atdb.GetOneDoc[Item](db, "prohibited_items_en", filter)
 	if err != nil {
-		return
+		return "", err
 	}
 	dest = strings.ReplaceAll(itemprohb.Destination, "\u00A0", " ")
 	return
@@ -131,8 +132,7 @@ func GetCountryFromMessage(message string, db *mongo.Database) (country string, 
 	return "", errors.New("tidak ditemukan nama negara di pesan berikut:" + lowerMessage + "|" + strcountry)
 }
 
-// Fungsi untuk menghilangkan semua kata kecuali keyword yang diinginkan
-func ExtractKeywords(message string, commonWordsAdd []string) string {
+func ExtractKeywords(message string, commonWordsAdd []string) []string {
 	// Daftar kata umum yang mungkin ingin dihilangkan
 	commonWords := []string{"list", "prohibited", "items", "item", "mymy"}
 
@@ -155,5 +155,22 @@ func ExtractKeywords(message string, commonWordsAdd []string) string {
 	message = strings.TrimSpace(message)
 	message = regexp.MustCompile(`\s+`).ReplaceAllString(message, " ")
 
-	return message
+	// Split message into keywords
+	keywords := strings.Split(message, " ")
+
+	return keywords
+}
+
+func BuildFlexibleRegex(keywords []string) string {
+	if len(keywords) == 0 {
+		return ""
+	}
+
+	// Gabungkan kata kunci dengan regex yang memungkinkan urutan apapun
+	var regexBuilder strings.Builder
+	for _, keyword := range keywords {
+		regexBuilder.WriteString("(?=.*\\b" + regexp.QuoteMeta(keyword) + "\\b)")
+	}
+	regexBuilder.WriteString(".*")
+	return regexBuilder.String()
 }
