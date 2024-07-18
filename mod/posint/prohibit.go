@@ -8,6 +8,7 @@ import (
 
 	"github.com/gocroot/helper/atdb"
 	"github.com/whatsauth/itmodel"
+	"github.com/xrash/smetrics"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -173,4 +174,36 @@ func BuildFlexibleRegex(keywords []string) string {
 	}
 	regexBuilder.WriteString(".*")
 	return regexBuilder.String()
+}
+
+func BuildFlexibleRegexWithTypos(keywords []string, db *mongo.Database) string {
+	var allKeywords []string
+	items, err := atdb.GetAllDoc[Item](db, "prohibited_items_en", bson.M{})
+	if err == nil {
+		for _, item := range items {
+			words := strings.Split(item.ProhibitedItems, " ")
+			allKeywords = append(allKeywords, words...)
+		}
+	}
+
+	var regexBuilder strings.Builder
+	for _, keyword := range keywords {
+		closestKeyword := findClosestKeyword(keyword, allKeywords)
+		regexBuilder.WriteString("(?=.*\\b" + regexp.QuoteMeta(closestKeyword) + "\\b)")
+	}
+	regexBuilder.WriteString(".*")
+	return regexBuilder.String()
+}
+
+func findClosestKeyword(keyword string, allKeywords []string) string {
+	closestKeyword := keyword
+	minDistance := len(keyword) + 1
+	for _, kw := range allKeywords {
+		distance := smetrics.WagnerFischer(keyword, kw, 1, 1, 2)
+		if distance < minDistance {
+			minDistance = distance
+			closestKeyword = kw
+		}
+	}
+	return closestKeyword
 }
