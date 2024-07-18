@@ -80,18 +80,18 @@ func DeleteManyDocs(db *mongo.Database, collection string, filter bson.M) (delet
 	return
 }
 
-func GetAllDoc[T any](db *mongo.Database, collection string, filter bson.M) (doc T, err error) {
+func GetAllDoc[T any](db *mongo.Database, collection string, filter bson.M) (docs []T, err error) {
 	ctx := context.Background()
 	cur, err := db.Collection(collection).Find(ctx, filter)
 	if err != nil {
-		return
+		return nil, err
 	}
 	defer cur.Close(ctx)
-	err = cur.All(ctx, &doc)
+	err = cur.All(ctx, &docs)
 	if err != nil {
-		return
+		return nil, err
 	}
-	return
+	return docs, nil
 }
 
 func GetAllDistinctDoc(db *mongo.Database, filter bson.M, fieldname, collection string) (doc []any, err error) {
@@ -139,8 +139,8 @@ func UpdateDoc(db *mongo.Database, collection string, filter bson.M, updatefield
 	return
 }
 
-func ReplaceOneDoc(db *mongo.Database, collection string, filter bson.M, doc interface{}) (updatereseult *mongo.UpdateResult, err error) {
-	updatereseult, err = db.Collection(collection).ReplaceOne(context.TODO(), filter, doc)
+func ReplaceOneDoc(db *mongo.Database, collection string, filter bson.M, doc interface{}) (updateresult *mongo.UpdateResult, err error) {
+	updateresult, err = db.Collection(collection).ReplaceOne(context.TODO(), filter, doc)
 	if err != nil {
 		return
 	}
