@@ -180,8 +180,8 @@ func BuildFlexibleRegexWithTypos(keywords []string, db *mongo.Database) string {
 	var allKeywords []string
 	items, err := atdb.GetAllDoc[Item](db, "prohibited_items_en", bson.M{})
 	if err == nil {
-		for _, item := range items {
-			words := strings.Split(item.ProhibitedItems, " ")
+		for _, items := range items {
+			words := strings.Split(items.ProhibitedItems, " ")
 			allKeywords = append(allKeywords, words...)
 		}
 	}
