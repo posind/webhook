@@ -28,6 +28,14 @@ func URL(w http.ResponseWriter, r *http.Request) {
 		controller.Login(w, r)
 	case method == "POST" && helper.URLParam(path, "/webhook/endpoint/user"):
 		controller.Register(w, r)
+	case method == "POST" && helper.URLParam(path, "/webhook/crud/item"):
+		controller.CreateItem(w, r)
+	case method == "PUT" && helper.URLParam(path, "/webhook/crud/item"):
+		controller.UpdateItem(w, r)
+	case method == "GET" && helper.URLParam(path, "/webhook/crud/items"):
+		controller.GetItems(w, r)
+	case method == "DELETE" && helper.URLParam(path, "/webhook/crud"):
+		controller.DeleteItem(w, r)
 	default:
 		controller.NotFound(w, r)
 	}
