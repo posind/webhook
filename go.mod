@@ -5,6 +5,7 @@ go 1.22.3
 require (
 	github.com/GoogleCloudPlatform/functions-framework-go v1.8.1
 	github.com/whatsauth/itmodel v0.0.4
+	github.com/xrash/smetrics v0.0.0-20240521201337-686a1a2994c1
 	go.mongodb.org/mongo-driver v1.15.1
 	golang.org/x/crypto v0.24.0
 )
