@@ -42,35 +42,14 @@ func GetProhibitedItems(Pesan itmodel.IteungMessage, db *mongo.Database) (reply 
 
 // GetCountryAndItemFromKeywords determines the country and item from the given keywords
 func GetCountryAndItemFromKeywords(keywords []string, db *mongo.Database) (country, item string, err error) {
-	// If there are exactly two keywords, check combinations of them for country and item
-	if len(keywords) == 2 {
-		country, err = GetCountryNameLike(db, keywords[0])
+	for i := 0; i < len(keywords); i++ {
+		country, err = GetCountryNameLike(db, keywords[i])
 		if err == nil {
-			item, _ = GetItemNameLike(db, keywords[1])
-			return
-		}
-		country, err = GetCountryNameLike(db, keywords[1])
-		if err == nil {
-			item, _ = GetItemNameLike(db, keywords[0])
+			item = strings.Join(append(keywords[:i], keywords[i+1:]...), " ")
 			return
 		}
 	}
 
-	// Try to find a country using the full message
-	remainingKeywords := make([]string, len(keywords))
-	copy(remainingKeywords, keywords)
-	for len(remainingKeywords) > 0 {
-		remainingMessage := strings.Join(remainingKeywords, " ")
-		country, err = GetCountryNameLike(db, remainingMessage)
-		if err == nil {
-			item = strings.Join(keywords[len(remainingKeywords):], " ")
-			item, _ = GetItemNameLike(db, item)
-			return
-		}
-		remainingKeywords = remainingKeywords[:len(remainingKeywords)-1]
-	}
-
-	// If no country found, return an error
 	err = errors.New("nama negaranya mana kak?")
 	return
 }
