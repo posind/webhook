@@ -11,41 +11,81 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
+
 func GetItems(w http.ResponseWriter, r *http.Request) {
-	collection := config.Mongoconn.Collection("prohibited_items_en")
-	cursor, err := collection.Find(context.Background(), bson.M{})
+	collectionEn := config.Mongoconn.Collection("prohibited_items_en")
+	collectionId := config.Mongoconn.Collection("prohibited_items_id")
+
+	cursorEn, err := collectionEn.Find(context.Background(), bson.M{})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer cursor.Close(context.Background())
+	defer cursorEn.Close(context.Background())
 
-	var items []model.ProhibitedItem
-	if err := cursor.All(context.Background(), &items); err != nil {
+	cursorId, err := collectionId.Find(context.Background(), bson.M{})
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
+	}
+	defer cursorId.Close(context.Background())
+
+	var itemsEn []model.ProhibitedItem_en
+	var itemsId []model.ProhibitedItem_id
+
+	if err := cursorEn.All(context.Background(), &itemsEn); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if err := cursorId.All(context.Background(), &itemsId); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	var combinedItems []interface{}
+	for _, item := range itemsEn {
+		combinedItems = append(combinedItems, item)
+	}
+	for _, item := range itemsId {
+		combinedItems = append(combinedItems, item)
 	}
 
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(items)
+	json.NewEncoder(w).Encode(combinedItems)
 }
 
+
 func CreateItem(w http.ResponseWriter, r *http.Request) {
-	var item model.ProhibitedItem
-	if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+	var itemEn model.ProhibitedItem_en
+	var itemId model.ProhibitedItem_id
+
+	if err := json.NewDecoder(r.Body).Decode(&itemEn); err != nil {
+		if err := json.NewDecoder(r.Body).Decode(&itemId); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 	}
 
-	collection := config.Mongoconn.Collection("prohibited_items_en")
-	_, err := collection.InsertOne(context.Background(), item)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+	if itemEn.Destination != "" {
+		collection := config.Mongoconn.Collection("prohibited_items_en")
+		_, err := collection.InsertOne(context.Background(), itemEn)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(itemEn)
+	} else {
+		collection := config.Mongoconn.Collection("prohibited_items_id")
+		_, err := collection.InsertOne(context.Background(), itemId)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(itemId)
 	}
-
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(item)
 }
 
 func UpdateItem(w http.ResponseWriter, r *http.Request) {
@@ -56,24 +96,40 @@ func UpdateItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var item model.ProhibitedItem
-	if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+	var itemEn model.ProhibitedItem_en
+	var itemId model.ProhibitedItem_id
+
+	if err := json.NewDecoder(r.Body).Decode(&itemEn); err != nil {
+		if err := json.NewDecoder(r.Body).Decode(&itemId); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 	}
 
-	collection := config.Mongoconn.Collection("prohibited_items_en")
 	filter := bson.M{"_id": objID}
-	update := bson.M{"$set": item}
+	var update bson.M
 
-	_, err = collection.UpdateOne(context.Background(), filter, update)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+	if itemEn.Destination != "" {
+		collection := config.Mongoconn.Collection("prohibited_items_en")
+		update = bson.M{"$set": itemEn}
+		_, err := collection.UpdateOne(context.Background(), filter, update)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(itemEn)
+	} else {
+		collection := config.Mongoconn.Collection("prohibited_items_id")
+		update = bson.M{"$set": itemId}
+		_, err := collection.UpdateOne(context.Background(), filter, update)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(itemId)
 	}
-
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(item)
 }
 
 func DeleteItem(w http.ResponseWriter, r *http.Request) {
@@ -84,13 +140,18 @@ func DeleteItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	collection := config.Mongoconn.Collection("prohibited_items_en")
 	filter := bson.M{"_id": objID}
 
-	_, err = collection.DeleteOne(context.Background(), filter)
+	collectionEn := config.Mongoconn.Collection("prohibited_items_en")
+	collectionId := config.Mongoconn.Collection("prohibited_items_id")
+
+	_, err = collectionEn.DeleteOne(context.Background(), filter)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		_, err = collectionId.DeleteOne(context.Background(), filter)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
 
 	w.WriteHeader(http.StatusOK)

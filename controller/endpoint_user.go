@@ -20,7 +20,6 @@ func Register(w http.ResponseWriter, r *http.Request) {
 	var user model.User
 	_ = json.NewDecoder(r.Body).Decode(&user)
 
-	// Hash password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
