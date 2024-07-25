@@ -17,26 +17,26 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	var userRegister model.User
-	_ = json.NewDecoder(r.Body).Decode(&userRegister)
+	var user model.User
+	_ = json.NewDecoder(r.Body).Decode(&user)
 
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(userRegister.Password), bcrypt.DefaultCost)
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	userRegister.Password = string(hashedPassword)
-	userRegister.ID = primitive.NewObjectID()
+	user.Password = string(hashedPassword)
+	user.ID = primitive.NewObjectID()
 
 	collection := config.Mongoconn.Collection("users")
-	_, err = collection.InsertOne(context.Background(), userRegister)
+	_, err = collection.InsertOne(context.Background(), user)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(userRegister)
+	json.NewEncoder(w).Encode(user)
 }
 
 func Login(w http.ResponseWriter, r *http.Request) {
@@ -48,19 +48,19 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewDecoder(r.Body).Decode(&loginRequest)
 
 	collection := config.Mongoconn.Collection("users")
-	var userLogin model.User
-	err := collection.FindOne(context.Background(), bson.M{"email": loginRequest.Email}).Decode(&userLogin)
+	var user model.User
+	err := collection.FindOne(context.Background(), bson.M{"email": loginRequest.Email}).Decode(&user)
 	if err != nil {
 		http.Error(w, "Invalid email or password", http.StatusUnauthorized)
 		return
 	}
 
-	err = bcrypt.CompareHashAndPassword([]byte(userLogin.Password), []byte(loginRequest.Password))
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(loginRequest.Password))
 	if err != nil {
 		http.Error(w, "Invalid email or password", http.StatusUnauthorized)
 		return
 	}
 
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(userLogin)
+	json.NewEncoder(w).Encode(user)
 }
