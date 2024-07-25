@@ -42,6 +42,8 @@ func Caller(Profile itmodel.Profile, Modulename string, Pesan itmodel.IteungMess
 		reply = posintid.GetProhibitedItems(Pesan, db)
 	case "countrylist":
 		reply = countrylist.CountryList(Pesan)
+	default:
+		reply = "Modul tidak ditemukan"
 	}
 	return
 }
