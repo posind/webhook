@@ -42,26 +42,38 @@ func GetProhibitedItems(Pesan itmodel.IteungMessage, db *mongo.Database) (reply 
 
 // GetCountryAndItemFromKeywords determines the country and item from the given keywords
 func GetCountryAndItemFromKeywords(keywords []string, db *mongo.Database) (country, item string, err error) {
+	// First, attempt to find a country using the full message
 	remainingKeywords := make([]string, len(keywords))
 	copy(remainingKeywords, keywords)
-
 	for len(remainingKeywords) > 0 {
 		remainingMessage := strings.Join(remainingKeywords, " ")
 		country, err = GetCountryNameLike(db, remainingMessage)
 		if err == nil {
-			break
+			item = strings.Join(keywords[len(remainingKeywords):], " ")
+			return
 		}
 		remainingKeywords = remainingKeywords[:len(remainingKeywords)-1]
 	}
 
-	if country != "" {
-		item = strings.Join(keywords[len(remainingKeywords):], " ")
-	} else {
-		err = errors.New("nama negaranya mana kak?")
+	// If no country found, attempt to find a country and item in combinations of two keywords
+	if len(keywords) == 2 {
+		country, err = GetCountryNameLike(db, keywords[0])
+		if err == nil {
+			item = keywords[1]
+			return
+		}
+		country, err = GetCountryNameLike(db, keywords[1])
+		if err == nil {
+			item = keywords[0]
+			return
+		}
 	}
 
+	// If still no country found, return an error
+	err = errors.New("nama negaranya mana kak?")
 	return
 }
+
 
 // populateList creates a list of prohibited items based on the filter
 func populateList(db *mongo.Database, filter bson.M, keyword string) (msg, dest string, err error) {
@@ -111,8 +123,14 @@ func ExtractKeywords(message string, commonWordsAdd []string) []string {
 	message = strings.TrimSpace(message)
 	message = regexp.MustCompile(`\s+`).ReplaceAllString(message, " ")
 	keywords := strings.Split(message, " ")
+
+	if len(keywords) > 2 {
+		keywords = keywords[:2]
+	}
+
 	return keywords
 }
+
 
 // BuildFlexibleRegex constructs a regex pattern that matches all given keywords
 func BuildFlexibleRegex(keywords []string) string {
