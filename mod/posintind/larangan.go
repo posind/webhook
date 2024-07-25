@@ -14,59 +14,50 @@ import (
 )
 
 func GetProhibitedItems(Pesan itmodel.IteungMessage, db *mongo.Database) (reply string) {
-	country, err := GetCountryFromMessage(Pesan.Message, db)
-	var filter bson.M
+	keywords := ExtractKeywords(Pesan.Message, []string{})
+	country, item, err := GetCountryAndItemFromKeywords(keywords, db)
 	if err != nil {
-		keywords := ExtractKeywords(Pesan.Message, []string{})
-		words := strings.Split(strings.Join(keywords, " "), " ")
-		var key []string
-		for len(words) > 0 {
-			remainingMessage := strings.Join(words, " ")
-			country, err = GetCountryNameLike(db, remainingMessage)
-			if err == nil {
-				break
-			}
-			lastWord := words[len(words)-1]
-			key = append(key, lastWord)
-			words = words[:len(words)-1]
-		}
-		if len(key) > 0 {
-			keyword := strings.Join(key, " ")
-			regexPattern := BuildFlexibleRegexWithTypos(ExtractKeywords(keyword, []string{}), db)
-			filter = bson.M{
-				"Destinasi":        country,
-				"Barang Terlarang": bson.M{"$regex": regexPattern, "$options": "i"},
-			}
-		} else {
-			filter = bson.M{"Destinasi": country}
-		}
-		reply, _, err = populateList(db, filter, strings.Join(key, " "))
-		reply = "💡" + reply
-		if err != nil {
-			jsonData, _ := bson.Marshal(filter)
-			return "💡" + strings.Join(keywords, " ") + "|" + country + " : " + err.Error() + "\n" + string(jsonData)
-		}
-		return
+		return "Error: " + err.Error()
 	}
+	
 	if country == "" {
 		return "Nama negara tidak ada kak di database kita"
 	}
-	keywords := ExtractKeywords(Pesan.Message, []string{country})
-	if len(keywords) > 0 {
-		regexPattern := BuildFlexibleRegexWithTypos(keywords, db)
-		filter = bson.M{
-			"Destinasi":        country,
-			"Barang Terlarang": bson.M{"$regex": regexPattern, "$options": "i"},
-		}
-	} else {
-		filter = bson.M{"Destinasi": country}
+
+	filter := bson.M{"Destinasi": country}
+	if item != "" {
+		regexPattern := BuildFlexibleRegexWithTypos([]string{item}, db)
+		filter["Barang Terlarang"] = bson.M{"$regex": regexPattern, "$options": "i"}
 	}
-	reply, _, err = populateList(db, filter, strings.Join(keywords, " "))
+
+	reply, _, err = populateList(db, filter, item)
 	reply = "📚" + reply
 	if err != nil {
 		jsonData, _ := bson.Marshal(filter)
 		return "📚" + strings.Join(keywords, " ") + "|" + country + " : " + err.Error() + "\n" + string(jsonData)
 	}
+	return
+}
+
+func GetCountryAndItemFromKeywords(keywords []string, db *mongo.Database) (country, item string, err error) {
+	remainingKeywords := make([]string, len(keywords))
+	copy(remainingKeywords, keywords)
+
+	for len(remainingKeywords) > 0 {
+		remainingMessage := strings.Join(remainingKeywords, " ")
+		country, err = GetCountryNameLike(db, remainingMessage)
+		if err == nil {
+			break
+		}
+		remainingKeywords = remainingKeywords[:len(remainingKeywords)-1]
+	}
+
+	if country != "" {
+		item = strings.Join(keywords[len(remainingKeywords):], " ")
+	} else {
+		err = errors.New("negara tidak ditemukan di pesan")
+	}
+
 	return
 }
 
@@ -99,27 +90,6 @@ func GetCountryNameLike(db *mongo.Database, country string) (dest string, err er
 	}
 	dest = strings.ReplaceAll(itemprohb.Destinasi, "\u00A0", " ")
 	return
-}
-
-func GetCountryFromMessage(message string, db *mongo.Database) (country string, err error) {
-	lowerMessage := strings.ToLower(message)
-	lowerMessage = strings.ReplaceAll(lowerMessage, "\u00A0", " ")
-	lowerMessage = strings.TrimSpace(lowerMessage)
-	lowerMessage = regexp.MustCompile(`\s+`).ReplaceAllString(lowerMessage, " ")
-	countries, err := atdb.GetAllDistinctDoc(db, bson.M{}, "Destinasi", "prohibited_items_id")
-	if err != nil {
-		return "", err
-	}
-	var strcountry string
-	for _, country := range countries {
-		lowerCountry := strings.ToLower(strings.TrimSpace(country.(string)))
-		lowerCountry = strings.ReplaceAll(lowerCountry, "\u00A0", " ")
-		strcountry += lowerCountry + ","
-		if strings.Contains(lowerMessage, lowerCountry) {
-			return country.(string), nil
-		}
-	}
-	return "", errors.New("tidak ditemukan nama negara di pesan berikut:" + lowerMessage + "|" + strcountry)
 }
 
 func ExtractKeywords(message string, commonWordsAdd []string) []string {
