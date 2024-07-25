@@ -27,13 +27,13 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = atdb.InsertOneDoc(config.Mongoconn, "users", registrationData)
+	_, err = atdb.InsertOneDoc(config.DB, "users", registrationData)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	response := map[string]string{"message": "Registrasi berhasil"}
+	response := map[string]string{"message": "Registrasi berhasil Jang!"}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -48,9 +48,9 @@ func GetUser(respw http.ResponseWriter, req *http.Request) {
 
 	var login model.User
 	filter := bson.M{"email": loginDetails.Email, "password": loginDetails.Password}
-	login, err := atdb.GetOneDoc[model.User](config.Mongoconn, "users", filter)
+	login, err := atdb.GetOneDoc[model.User](config.DB, "users", filter)
 	if err != nil {
-		helper.WriteJSON(respw, http.StatusUnauthorized, "Email atau password salah")
+		helper.WriteJSON(respw, http.StatusUnauthorized, "Email atau password salah Jang!")
 		return
 	}
 
