@@ -18,42 +18,57 @@ func URL(w http.ResponseWriter, r *http.Request) {
 		return // preflight request selesai
 	}
 
-	var method, path string = r.Method, r.URL.Path
-	switch {
-	case method == "GET" && path == "/":
-		controller.GetHome(w, r)
-	case method == "GET" && path == "/refresh/token":
-		controller.GetNewToken(w, r)
-	case method == "POST" && helper.URLParam(path, "/webhook/nomor/:nomorwa"):
-		controller.PostInboxNomor(w, r)
-	case method == "POST" && helper.URLParam(path, "/webhook/telebot/:nomorwa"):
-		controller.TelebotWebhook(w, r)
-	case method == "POST" && helper.URLParam(path, "/webhook/endpoint_user/user"):
-		controller.Login(w, r)
-	case method == "POST" && helper.URLParam(path, "/webhook/endpoint_user/user"):
-		controller.Register(w, r)
-
-	// CRUD for English version
-	case method == "POST" && helper.URLParam(path, "/webhook/crud/item/en"):
-		controller.CreateItemEn(w, r)
-	case method == "PUT" && helper.URLParam(path, "/webhook/crud/item/en"):
-		controller.UpdateItemEn(w, r)
-	case method == "GET" && helper.URLParam(path, "/webhook/crud/items/en"):
-		controller.GetItemsEn(w, r)
-	case method == "DELETE" && helper.URLParam(path, "/webhook/crud/item/en"):
-		controller.DeleteItemEn(w, r)
-
-	// CRUD for Indonesian version
-	case method == "POST" && helper.URLParam(path, "/webhook/crud/item/id"):
-		controller.CreateItemId(w, r)
-	case method == "PUT" && helper.URLParam(path, "/webhook/crud/item/id"):
-		controller.UpdateItemId(w, r)
-	case method == "GET" && helper.URLParam(path, "/webhook/crud/items/id"):
-		controller.GetItemsId(w, r)
-	case method == "DELETE" && helper.URLParam(path, "/webhook/crud/item/id"):
-		controller.DeleteItemId(w, r)
-
+	switch r.Method {
+		
+	case http.MethodGet:
+		switch r.URL.Path {
+		case "/":
+			controller.GetHome(w, r)
+		case "/refresh/token":
+			controller.GetNewToken(w, r)
+		case "/webhook/crud/items/en":
+			controller.GetItemsEn(w, r)
+		case "/webhook/crud/items/id":
+			controller.GetItemsId(w, r)
+		default:
+			controller.NotFound(w, r)
+		}
+	case http.MethodPost:
+		switch {
+		case helper.URLParam(r.URL.Path, "/webhook/nomor/:nomorwa"):
+			controller.PostInboxNomor(w, r)
+		case helper.URLParam(r.URL.Path, "/webhook/telebot/:nomorwa"):
+			controller.TelebotWebhook(w, r)
+		case helper.URLParam(r.URL.Path, "/webhook/endpoint_user/user"):
+			controller.Register(w, r)
+		case helper.URLParam(r.URL.Path, "/webhook/endpoint_user/login"):
+			controller.Login(w, r)
+		case helper.URLParam(r.URL.Path, "/webhook/crud/item/en"):
+			controller.CreateItemEn(w, r)
+		case helper.URLParam(r.URL.Path, "/webhook/crud/item/id"):
+			controller.CreateItemId(w, r)
+		default:
+			controller.NotFound(w, r)
+		}
+	case http.MethodPut:
+		switch {
+		case helper.URLParam(r.URL.Path, "/webhook/crud/item/en"):
+			controller.UpdateItemEn(w, r)
+		case helper.URLParam(r.URL.Path, "/webhook/crud/item/id"):
+			controller.UpdateItemId(w, r)
+		default:
+			controller.NotFound(w, r)
+		}
+	case http.MethodDelete:
+		switch {
+		case helper.URLParam(r.URL.Path, "/webhook/crud/item/en"):
+			controller.DeleteItemEn(w, r)
+		case helper.URLParam(r.URL.Path, "/webhook/crud/item/id"):
+			controller.DeleteItemId(w, r)
+		default:
+			controller.NotFound(w, r)
+		}
 	default:
-		http.Error(w, "Not Found", http.StatusNotFound)
+		controller.NotFound(w, r)
 	}
 }
