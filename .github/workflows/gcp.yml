@@ -33,6 +33,7 @@ jobs:
             --gen2 \
             --runtime=go122 \
             --trigger-http \
+            --service-account ${{ secrets.SERVICE_ACCOUNT_EMAIL }} \
             --set-env-vars=MONGOSTRING='${{ secrets.MONGOSTRING }}'
       - name: 'Cek eksistensi fungsi'
         run: 'gcloud functions describe webhook --region=asia-southeast2'
