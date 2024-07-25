@@ -1,5 +1,9 @@
 package config
 
+import (
+	"net/http"
+)
+
 var Origins = []string{
 	"https://naskah.bukupedia.co.id",
 	"https://auth.ulbi.ac.id",
@@ -25,4 +29,33 @@ var Headers = []string{
 	"Access-Control-Allow-Origin",
 	"Bearer",
 	"X-Requested-With",
+}
+
+func isAllowedOrigin(origin string) bool {
+	for _, o := range Origins {
+		if o == origin {
+			return true
+		}
+	}
+	return false
+}
+
+func SetAccessControlHeaders(w http.ResponseWriter, r *http.Request) bool {
+	origin := r.Header.Get("Origin")
+
+	if isAllowedOrigin(origin) {
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Login, Authorization, Access-Control-Request-Headers")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, DELETE, PUT, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+
+		if r.Method == http.MethodOptions {
+			w.Header().Set("Access-Control-Max-Age", "3600")
+			w.WriteHeader(http.StatusNoContent)
+			return true
+		}
+		return true
+	}
+
+	return false
 }
