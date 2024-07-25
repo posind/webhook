@@ -19,7 +19,7 @@ func URL(w http.ResponseWriter, r *http.Request) {
 	}
 
 	switch r.Method {
-		
+
 	case http.MethodGet:
 		switch r.URL.Path {
 		case "/":

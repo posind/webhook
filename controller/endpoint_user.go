@@ -48,19 +48,19 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewDecoder(r.Body).Decode(&loginRequest)
 
 	collection := config.Mongoconn.Collection("users")
-	var user model.User
-	err := collection.FindOne(context.Background(), bson.M{"email": loginRequest.Email}).Decode(&user)
+	var login model.User
+	err := collection.FindOne(context.Background(), bson.M{"email": loginRequest.Email}).Decode(&login)
 	if err != nil {
 		http.Error(w, "Invalid email or password", http.StatusUnauthorized)
 		return
 	}
 
-	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(loginRequest.Password))
+	err = bcrypt.CompareHashAndPassword([]byte(login.Password), []byte(loginRequest.Password))
 	if err != nil {
 		http.Error(w, "Invalid email or password", http.StatusUnauthorized)
 		return
 	}
 
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(user)
+	json.NewEncoder(w).Encode(login)
 }
