@@ -2,7 +2,6 @@ package countrylist
 
 import "github.com/whatsauth/itmodel"
 
-// Pdm generates a reply string based on the provided IteungMessage.
 func CountryList(Pesan itmodel.IteungMessage) (reply string) {
 	return ` 📚 The following is a list of available countries:
 
