@@ -24,9 +24,9 @@ func URL(w http.ResponseWriter, r *http.Request) {
 		controller.PostInboxNomor(w, r)
 	case method == "POST" && helper.URLParam(path, "/webhook/telebot/:nomorwa"):
 		controller.TelebotWebhook(w, r)
-	case method == "POST" && helper.URLParam(path, "/webhook/endpoint/user"):
+	case method == "POST" && helper.URLParam(path, "/webhook/endpoint_user/user"):
 		controller.Login(w, r)
-	case method == "POST" && helper.URLParam(path, "/webhook/endpoint/user"):
+	case method == "POST" && helper.URLParam(path, "/webhook/endpoint_user/user"):
 		controller.Register(w, r)
 	case method == "POST" && helper.URLParam(path, "/webhook/crud/item"):
 		controller.CreateItem(w, r)
