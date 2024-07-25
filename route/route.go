@@ -13,6 +13,10 @@ func URL(w http.ResponseWriter, r *http.Request) {
 	if config.ErrorMongoconn != nil {
 		log.Println(config.ErrorMongoconn.Error())
 	}
+	
+	if config.SetAccessControlHeaders(w, r) && r.Method == http.MethodOptions {
+		return // preflight request selesai
+	}
 
 	var method, path string = r.Method, r.URL.Path
 	switch {
