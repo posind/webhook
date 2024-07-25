@@ -158,14 +158,3 @@ func filterToString(filter bson.M) string {
 	jsonData, _ := bson.Marshal(filter)
 	return string(jsonData)
 }
-
-// Validate ensures that the Item struct contains valid data.
-func (i *Item) Validate() error {
-	if i.Destinasi == "" {
-		return errors.New("destinasi tidak boleh kosong")
-	}
-	if i.BrangTerlarang == "" {
-		return errors.New("barang terlarang tidak boleh kosong")
-	}
-	return nil
-}
