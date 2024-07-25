@@ -42,7 +42,21 @@ func GetProhibitedItems(Pesan itmodel.IteungMessage, db *mongo.Database) (reply 
 
 // GetCountryAndItemFromKeywords determines the country and item from the given keywords
 func GetCountryAndItemFromKeywords(keywords []string, db *mongo.Database) (country, item string, err error) {
-	// First, attempt to find a country using the full message
+	// If there are exactly two keywords, check combinations of them for country and item
+	if len(keywords) == 2 {
+		country, err = GetCountryNameLike(db, keywords[0])
+		if err == nil {
+			item, _ = GetItemNameLike(db, keywords[1])
+			return
+		}
+		country, err = GetCountryNameLike(db, keywords[1])
+		if err == nil {
+			item, _ = GetItemNameLike(db, keywords[0])
+			return
+		}
+	}
+
+	// Try to find a country using the full message
 	remainingKeywords := make([]string, len(keywords))
 	copy(remainingKeywords, keywords)
 	for len(remainingKeywords) > 0 {
@@ -50,30 +64,42 @@ func GetCountryAndItemFromKeywords(keywords []string, db *mongo.Database) (count
 		country, err = GetCountryNameLike(db, remainingMessage)
 		if err == nil {
 			item = strings.Join(keywords[len(remainingKeywords):], " ")
+			item, _ = GetItemNameLike(db, item)
 			return
 		}
 		remainingKeywords = remainingKeywords[:len(remainingKeywords)-1]
 	}
 
-	// If no country found, attempt to find a country and item in combinations of two keywords
-	if len(keywords) == 2 {
-		country, err = GetCountryNameLike(db, keywords[0])
-		if err == nil {
-			item = keywords[1]
-			return
-		}
-		country, err = GetCountryNameLike(db, keywords[1])
-		if err == nil {
-			item = keywords[0]
-			return
-		}
-	}
-
-	// If still no country found, return an error
+	// If no country found, return an error
 	err = errors.New("nama negaranya mana kak?")
 	return
 }
 
+// GetCountryNameLike searches for a country name in the database
+func GetCountryNameLike(db *mongo.Database, country string) (dest string, err error) {
+	filter := bson.M{
+		"Destinasi": bson.M{"$regex": country, "$options": "i"},
+	}
+	itemprohb, err := atdb.GetOneDoc[Item](db, "prohibited_items_id", filter)
+	if err != nil {
+		return
+	}
+	dest = strings.ReplaceAll(itemprohb.Destinasi, "\u00A0", " ")
+	return
+}
+
+// GetItemNameLike searches for an item name in the database
+func GetItemNameLike(db *mongo.Database, item string) (dest string, err error) {
+	filter := bson.M{
+		"Barang Terlarang": bson.M{"$regex": item, "$options": "i"},
+	}
+	itemprohb, err := atdb.GetOneDoc[Item](db, "prohibited_items_id", filter)
+	if err != nil {
+		return
+	}
+	dest = strings.ReplaceAll(itemprohb.BarangTerlarang, "\u00A0", " ")
+	return
+}
 
 // populateList creates a list of prohibited items based on the filter
 func populateList(db *mongo.Database, filter bson.M, keyword string) (msg, dest string, err error) {
@@ -92,19 +118,6 @@ func populateList(db *mongo.Database, filter bson.M, keyword string) (msg, dest 
 	for i, probitem := range listprob {
 		msg += strconv.Itoa(i+1) + ". " + probitem.BarangTerlarang + "\n"
 	}
-	return
-}
-
-// GetCountryNameLike searches for a country name in the database
-func GetCountryNameLike(db *mongo.Database, country string) (dest string, err error) {
-	filter := bson.M{
-		"Destinasi": bson.M{"$regex": country, "$options": "i"},
-	}
-	itemprohb, err := atdb.GetOneDoc[Item](db, "prohibited_items_id", filter)
-	if err != nil {
-		return
-	}
-	dest = strings.ReplaceAll(itemprohb.Destinasi, "\u00A0", " ")
 	return
 }
 
@@ -130,7 +143,6 @@ func ExtractKeywords(message string, commonWordsAdd []string) []string {
 
 	return keywords
 }
-
 
 // BuildFlexibleRegex constructs a regex pattern that matches all given keywords
 func BuildFlexibleRegex(keywords []string) string {
