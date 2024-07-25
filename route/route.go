@@ -39,9 +39,9 @@ func URL(w http.ResponseWriter, r *http.Request) {
 			controller.PostInboxNomor(w, r)
 		case helper.URLParam(r.URL.Path, "/webhook/telebot/:nomorwa"):
 			controller.TelebotWebhook(w, r)
-		case helper.URLParam(r.URL.Path, "/webhook/endpoint_user/user"):
+		case helper.URLParam(r.URL.Path, "/webhook/register"):
 			controller.Register(w, r)
-		case helper.URLParam(r.URL.Path, "/webhook/endpoint_user/login"):
+		case helper.URLParam(r.URL.Path, "/webhook/login"):
 			controller.Login(w, r)
 		case helper.URLParam(r.URL.Path, "/webhook/crud/item/en"):
 			controller.CreateItemEn(w, r)

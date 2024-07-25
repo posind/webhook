@@ -17,26 +17,26 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	var user model.User
-	_ = json.NewDecoder(r.Body).Decode(&user)
+	var register model.User
+	_ = json.NewDecoder(r.Body).Decode(&register)
 
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(register.Password), bcrypt.DefaultCost)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	user.Password = string(hashedPassword)
-	user.ID = primitive.NewObjectID()
+	register.Password = string(hashedPassword)
+	register.ID = primitive.NewObjectID()
 
 	collection := config.Mongoconn.Collection("users")
-	_, err = collection.InsertOne(context.Background(), user)
+	_, err = collection.InsertOne(context.Background(), register)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(user)
+	json.NewEncoder(w).Encode(register)
 }
 
 func Login(w http.ResponseWriter, r *http.Request) {
