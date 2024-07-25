@@ -7,7 +7,6 @@ require (
 	github.com/whatsauth/itmodel v0.0.4
 	github.com/xrash/smetrics v0.0.0-20240521201337-686a1a2994c1
 	go.mongodb.org/mongo-driver v1.15.1
-	golang.org/x/crypto v0.24.0
 )
 
 require (
@@ -26,6 +25,7 @@ require (
 	github.com/youmark/pkcs8 v0.0.0-20240424034433-3c2c7870ae76 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
+	golang.org/x/crypto v0.24.0 // indirect
 	golang.org/x/sync v0.7.0 // indirect
 	golang.org/x/text v0.16.0 // indirect
 )

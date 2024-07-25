@@ -28,3 +28,9 @@ func WriteResponse(respw http.ResponseWriter, statusCode int, responseStruct int
 	respw.WriteHeader(statusCode)
 	respw.Write([]byte(Jsonstr(responseStruct)))
 }
+
+func WriteJSON(respw http.ResponseWriter, statusCode int, content interface{}) {
+	respw.Header().Set("Content-Type", "application/json")
+	respw.WriteHeader(statusCode)
+	respw.Write([]byte(Jsonstr(content)))
+}

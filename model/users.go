@@ -1,4 +1,4 @@
-package model 
+package model
 
 import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -11,6 +11,7 @@ type User struct {
 	Password string             `json:"password,omitempty" bson:"password,omitempty"`
 }
 type LoginRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
+	ID       primitive.ObjectID `json:"id,omitempty" bson:"_id,omitempty"`
+	Email    string             `json:"email,omitempty" bson:"email,omitempty"`
+	Password string             `json:"password,omitempty" bson:"password,omitempty"`
 }

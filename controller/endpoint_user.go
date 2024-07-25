@@ -1,66 +1,58 @@
 package controller
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 
 	"github.com/gocroot/config"
+	"github.com/gocroot/helper"
+	"github.com/gocroot/helper/atdb"
 	"github.com/gocroot/model"
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
-	"golang.org/x/crypto/bcrypt"
 )
 
-func Register(w http.ResponseWriter, r *http.Request) {
+// RegisterHandler menghandle permintaan registrasi admin.
+func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		http.Error(w, "Metode tidak diizinkan", http.StatusMethodNotAllowed)
 		return
 	}
-	var register model.User
-	_ = json.NewDecoder(r.Body).Decode(&register)
 
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(register.Password), bcrypt.DefaultCost)
+	var registrationData model.LoginRequest
+
+	decoder := json.NewDecoder(r.Body)
+	err := decoder.Decode(&registrationData)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	_, err = atdb.InsertOneDoc(config.Mongoconn, "users", registrationData)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	register.Password = string(hashedPassword)
-	register.ID = primitive.NewObjectID()
 
-	collection := config.Mongoconn.Collection("users")
-	_, err = collection.InsertOne(context.Background(), register)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(register)
+	response := map[string]string{"message": "Registrasi berhasil"}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }
 
-func Login(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+// GetUser mengambil informasi user dari database berdasarkan email dan password.
+func GetUser(respw http.ResponseWriter, req *http.Request) {
+	var loginDetails model.User
+	if err := json.NewDecoder(req.Body).Decode(&loginDetails); err != nil {
+		helper.WriteJSON(respw, http.StatusBadRequest, err.Error())
 		return
 	}
-	var loginRequest model.LoginRequest
-	_ = json.NewDecoder(r.Body).Decode(&loginRequest)
 
-	collection := config.Mongoconn.Collection("users")
 	var login model.User
-	err := collection.FindOne(context.Background(), bson.M{"email": loginRequest.Email}).Decode(&login)
+	filter := bson.M{"email": loginDetails.Email, "password": loginDetails.Password}
+	login, err := atdb.GetOneDoc[model.User](config.Mongoconn, "users", filter)
 	if err != nil {
-		http.Error(w, "Invalid email or password", http.StatusUnauthorized)
+		helper.WriteJSON(respw, http.StatusUnauthorized, "Email atau password salah")
 		return
 	}
 
-	err = bcrypt.CompareHashAndPassword([]byte(login.Password), []byte(loginRequest.Password))
-	if err != nil {
-		http.Error(w, "Invalid email or password", http.StatusUnauthorized)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(login)
+	helper.WriteJSON(respw, http.StatusOK, login)
 }
