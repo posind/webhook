@@ -1,7 +1,8 @@
 package mod
 
 import (
-	"github.com/gocroot/mod/countrylist"
+	"github.com/gocroot/mod/listcountry"
+	"github.com/gocroot/mod/listnegara"
 	"github.com/gocroot/mod/daftar"
 	"github.com/gocroot/mod/idgrup"
 	"github.com/gocroot/mod/kyc"
@@ -40,8 +41,10 @@ func Caller(Profile itmodel.Profile, Modulename string, Pesan itmodel.IteungMess
 		reply = posint.GetProhibitedItems(Pesan, db)
 	case "prohibited-items-id":
 		reply = posintid.GetProhibitedItems(Pesan, db)
-	case "countrylist":
-		reply = countrylist.CountryList(Pesan)
+	case "listcountry":
+		reply = listcountry.ListCountry(Pesan)
+	case "listnegara":
+		reply = listnegara.ListNegara(Pesan)
 	default:
 		reply = "Modul tidak ditemukan"
 	}

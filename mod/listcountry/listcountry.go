@@ -1,8 +1,8 @@
-package countrylist
+package listcountry
 
 import "github.com/whatsauth/itmodel"
 
-func CountryList(Pesan itmodel.IteungMessage) (reply string) {
+func ListCountry(Pesan itmodel.IteungMessage) (reply string) {
 	return ` 📚 The following is a list of available countries:
 
 Afghanistan
