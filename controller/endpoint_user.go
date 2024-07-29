@@ -16,7 +16,7 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Metode tidak diizinkan", http.StatusMethodNotAllowed)
 		return
-	}
+	} 	
 
 	var registrationData model.LoginRequest
 
