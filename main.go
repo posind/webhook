@@ -10,6 +10,7 @@ import (
 )
 
 func init() {
+	config.InitDB()
 	functions.HTTP("WebHook", func(w http.ResponseWriter, r *http.Request) {
 		if config.SetAccessControlHeaders(w, r) && r.Method == http.MethodOptions {
 			return 

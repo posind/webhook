@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gocroot/config"
 	"github.com/gocroot/model"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -14,7 +13,11 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-var userCollection *mongo.Collection = config.Client.Database("webhook").Collection("user_email")
+var userCollection *mongo.Collection
+
+func InitUserCollection(db *mongo.Database) {
+    userCollection = db.Collection("user_email")
+}
 
 /// func register
 func Register(w http.ResponseWriter, r *http.Request) {
@@ -45,7 +48,6 @@ func Register(w http.ResponseWriter, r *http.Request) {
     w.WriteHeader(http.StatusOK)
     json.NewEncoder(w).Encode(map[string]string{"message": "User registered successfully"})
 }
-
 /// func login
 func Login(w http.ResponseWriter, r *http.Request) {
     var user model.User
@@ -74,4 +76,3 @@ func Login(w http.ResponseWriter, r *http.Request) {
     w.WriteHeader(http.StatusOK)
     json.NewEncoder(w).Encode(map[string]string{"message": "Logged in successfully"})
 }
-
