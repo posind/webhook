@@ -40,9 +40,9 @@ func URL(w http.ResponseWriter, r *http.Request) {
 		case helper.URLParam(r.URL.Path, "/webhook/telebot/:nomorwa"):
 			controller.TelebotWebhook(w, r)
 		case helper.URLParam(r.URL.Path, "/webhook/register"):
-			controller.RegisterHandler(w, r)
+			controller.Register(w, r)
 		case helper.URLParam(r.URL.Path, "/webhook/login"):
-			controller.GetUser(w, r)
+			controller.Login(w, r)
 		case helper.URLParam(r.URL.Path, "/webhook/crud/item/en"):
 			controller.CreateItemEn(w, r)
 		case helper.URLParam(r.URL.Path, "/webhook/crud/item/id"):
