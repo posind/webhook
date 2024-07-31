@@ -42,9 +42,9 @@ func URL(w http.ResponseWriter, r *http.Request) {
 			controller.Register(w, r)
 		case "/login":
 			controller.Login(w, r)
-		case "/webhook/crud/item/en":
+		case "/en":
 			controller.CreateItemEn(w, r)
-		case "/webhook/crud/item/id":
+		case "/id":
 			controller.CreateItemId(w, r)
 		default:
 			controller.NotFound(w, r)
