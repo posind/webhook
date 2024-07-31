@@ -11,7 +11,6 @@ import (
 	"github.com/o1egl/paseto"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"golang.org/x/crypto/bcrypt"
 )
 
 var pasetoKey = []byte("YELLOW SUBMARINE, BLACK WIZARDRY")
@@ -34,31 +33,9 @@ func Register(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    // Hash password
-    hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
-    if err != nil {
-        http.Error(w, "Error hashing password", http.StatusInternalServerError)
-        return
-    }
-    user.Password = string(hashedPassword)
     user.ID = primitive.NewObjectID()
 
-    // Generate PASETO token
-    now := time.Now()
-    expiration := now.Add(24 * time.Hour)
-    jsonToken := paseto.JSONToken{
-        Expiration: expiration,
-        Subject:    user.ID.Hex(),
-    }
-    footer := "some footer"
-    token, err := paseto.NewV2().Encrypt(pasetoKey, jsonToken, footer)
-    if err != nil {
-        http.Error(w, "Error generating token", http.StatusInternalServerError)
-        return
-    }
-    user.Token = token
-
-    err = SaveUserToDB(&user)
+    err := SaveUserToDB(&user)
     if err != nil {
         http.Error(w, "Error inserting user", http.StatusInternalServerError)
         return
@@ -66,7 +43,6 @@ func Register(w http.ResponseWriter, r *http.Request) {
 
     response := map[string]string{
         "message": "Registration successful",
-        "token":   token,
     }
 
     w.Header().Set("Content-Type", "application/json")
@@ -94,8 +70,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(loginRequest.Password))
-    if err != nil {
+    if user.Password != loginRequest.Password {
         http.Error(w, "Invalid email or password", http.StatusUnauthorized)
         return
     }
