@@ -43,7 +43,7 @@ func Caller(Profile itmodel.Profile, Modulename string, Pesan itmodel.IteungMess
 		reply = posint.GetProhibitedItems(Pesan, db)
 	case "prohibited-items-id":
 		reply = posintid.GetProhibitedItems(Pesan, db)
-	case "allowed_items":
+	case "allowed-items":
 		reply = alloweditems.GetAllowedItems(Pesan, db)
 
 	case "listcountry":
