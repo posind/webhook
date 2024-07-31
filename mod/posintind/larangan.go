@@ -1,4 +1,4 @@
-package posintid
+package posintind
 
 import (
 	"errors"
