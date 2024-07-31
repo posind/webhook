@@ -21,21 +21,25 @@ func GetAllowedItems(Pesan itmodel.IteungMessage, db *mongo.Database) (reply str
 		keywords := ExtractKeywords(Pesan.Message, []string{})
 		words := strings.Split(strings.Join(keywords, " "), " ")
 		var key []string
+		// Iterate through the slice, popping elements from the end
 		for len(words) > 0 {
+			// Join remaining elements back into a string
 			remainingMessage := strings.Join(words, " ")
 			country, err = GetCountryNameLike(db, remainingMessage)
 			if err == nil {
 				break
 			}
+			// Get the last element
 			lastWord := words[len(words)-1]
 			key = append(key, lastWord)
+			// Remove the last element
 			words = words[:len(words)-1]
 		}
 		if len(key) > 0 {
 			keyword := strings.Join(key, " ")
 			regexPattern := BuildFlexibleRegexWithTypos(ExtractKeywords(keyword, []string{}), db)
 			filter = bson.M{
-				"Destination":  country,
+				"Destination":      country,
 				"Allowed Items": bson.M{"$regex": regexPattern, "$options": "i"},
 			}
 		} else {
@@ -56,7 +60,7 @@ func GetAllowedItems(Pesan itmodel.IteungMessage, db *mongo.Database) (reply str
 	if len(keywords) > 0 {
 		regexPattern := BuildFlexibleRegexWithTypos(keywords, db)
 		filter = bson.M{
-			"Destination":  country,
+			"Destination":      country,
 			"Allowed Items": bson.M{"$regex": regexPattern, "$options": "i"},
 		}
 	} else {
@@ -73,7 +77,7 @@ func GetAllowedItems(Pesan itmodel.IteungMessage, db *mongo.Database) (reply str
 
 // populateList fetches and constructs the allowed items list based on the given filter
 func populateList(db *mongo.Database, filter bson.M, keyword string) (msg, dest string, err error) {
-	listallowed, err := atdb.GetAllDoc[Allowed_Items](db, "allowed_items", filter)
+	listallowed, err := atdb.GetAllDoc[Item](db, "allowed_items", filter)
 	if err != nil {
 		return "Terdapat kesalahan pada GetAllDoc", "", err
 	}
@@ -85,18 +89,17 @@ func populateList(db *mongo.Database, filter bson.M, keyword string) (msg, dest 
 	if keyword != "" {
 		msg += "kata-kunci:_" + keyword + "_\n"
 	}
-	for i, allowitem := range listallowed {
-		msg += strconv.Itoa(i+1) + ". " + allowitem.AllowedItems + "\n"
+	for i, alloweditem := range listallowed {
+		msg += strconv.Itoa(i+1) + ". " + alloweditem.AllowedItems + "\n"
 	}
 	return
 }
 
-// GetCountryNameLike fetches a country name similar to the input string from the database
 func GetCountryNameLike(db *mongo.Database, country string) (dest string, err error) {
 	filter := bson.M{
 		"Destination": bson.M{"$regex": country, "$options": "i"},
 	}
-	itemallowed, err := atdb.GetOneDoc[Allowed_Items](db, "allowed_items", filter)
+	itemallowed, err := atdb.GetOneDoc[Item](db, "allowed_items", filter)
 	if err != nil {
 		return
 	}
@@ -106,18 +109,23 @@ func GetCountryNameLike(db *mongo.Database, country string) (dest string, err er
 
 // GetCountryFromMessage extracts the country name from a message string
 func GetCountryFromMessage(message string, db *mongo.Database) (country string, err error) {
+	// Ubah pesan menjadi huruf kecil
 	lowerMessage := strings.ToLower(message)
+	// Mengganti non-breaking space dengan spasi biasa
 	lowerMessage = strings.ReplaceAll(lowerMessage, "\u00A0", " ")
+	// Hapus spasi berlebih
 	lowerMessage = strings.TrimSpace(lowerMessage)
 	lowerMessage = regexp.MustCompile(`\s+`).ReplaceAllString(lowerMessage, " ")
-
+	// Mendapatkan nama negara
 	countries, err := atdb.GetAllDistinctDoc(db, bson.M{}, "Destination", "allowed_items")
 	if err != nil {
 		return "", err
 	}
 	var strcountry string
+	// Iterasi melalui daftar negara
 	for _, country := range countries {
 		lowerCountry := strings.ToLower(strings.TrimSpace(country.(string)))
+		// Mengganti non-breaking space dengan spasi biasa
 		lowerCountry = strings.ReplaceAll(lowerCountry, "\u00A0", " ")
 		strcountry += lowerCountry + ","
 		if strings.Contains(lowerMessage, lowerCountry) {
@@ -129,15 +137,25 @@ func GetCountryFromMessage(message string, db *mongo.Database) (country string, 
 
 // ExtractKeywords removes common words from a message and returns the remaining keywords
 func ExtractKeywords(message string, commonWordsAdd []string) []string {
+	// Daftar kata umum yang mungkin ingin dihilangkan
 	commonWords := []string{"list", "allowed", "items", "item", "mymy"}
+	
+	// Gabungkan commonWords dengan commonWordsAdd
 	commonWords = append(commonWords, commonWordsAdd...)
+	
+	// Ubah pesan menjadi huruf kecil
 	message = strings.ToLower(message)
+	
+	// Ganti non-breaking space dengan spasi biasa
 	message = strings.ReplaceAll(message, "\u00A0", " ")
 
+	// Hapus kata-kata umum dari pesan
 	for _, word := range commonWords {
 		word = strings.ToLower(strings.ReplaceAll(word, "\u00A0", " "))
 		message = strings.ReplaceAll(message, word, "")
 	}
+
+	// Hapus spasi berlebih
 	message = strings.TrimSpace(message)
 	message = regexp.MustCompile(`\s+`).ReplaceAllString(message, " ")
 	keywords := strings.Split(message, " ")
@@ -160,7 +178,7 @@ func BuildFlexibleRegex(keywords []string) string {
 // BuildFlexibleRegexWithTypos creates a regex pattern that accounts for typos
 func BuildFlexibleRegexWithTypos(keywords []string, db *mongo.Database) string {
 	var allKeywords []string
-	items, err := atdb.GetAllDoc[Allowed_Items](db, "allowed_items", bson.M{})
+	items, err := atdb.GetAllDoc[Item](db, "allowed_items", bson.M{})
 	if err == nil {
 		for _, item := range items {
 			words := strings.Split(item.AllowedItems, " ")
@@ -190,4 +208,3 @@ func findClosestKeyword(keyword string, allKeywords []string) string {
 	}
 	return closestKeyword
 }
-
