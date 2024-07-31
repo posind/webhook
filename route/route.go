@@ -6,7 +6,6 @@ import (
 
 	"github.com/gocroot/config"
 	"github.com/gocroot/controller"
-	"github.com/gocroot/helper"
 )
 
 func URL(w http.ResponseWriter, r *http.Request) {
@@ -34,41 +33,41 @@ func URL(w http.ResponseWriter, r *http.Request) {
 			controller.NotFound(w, r)
 		}
 	case http.MethodPost:
-		switch {
-		case helper.URLParam(r.URL.Path, "/webhook/nomor/:nomorwa"):
+		switch r.URL.Path {
+		case "/webhook/nomor/:nomorwa":
 			controller.PostInboxNomor(w, r)
-		case helper.URLParam(r.URL.Path, "/webhook/telebot/:nomorwa"):
+		case "/webhook/telebot/:nomorwa":
 			controller.TelebotWebhook(w, r)
-		case helper.URLParam(r.URL.Path, "/webhook/register"):
+		case "/register":
 			controller.Register(w, r)
-		case helper.URLParam(r.URL.Path, "/webhook/login"):
+		case "/login":
 			controller.Login(w, r)
-		case helper.URLParam(r.URL.Path, "/webhook/crud/item/en"):
+		case "/webhook/crud/item/en":
 			controller.CreateItemEn(w, r)
-		case helper.URLParam(r.URL.Path, "/webhook/crud/item/id"):
+		case "/webhook/crud/item/id":
 			controller.CreateItemId(w, r)
 		default:
 			controller.NotFound(w, r)
 		}
+
 	case http.MethodPut:
-		switch {
-		case helper.URLParam(r.URL.Path, "/webhook/crud/item/en"):
+		switch r.URL.Path {
+		case "/webhook/crud/item/en":
 			controller.UpdateItemEn(w, r)
-		case helper.URLParam(r.URL.Path, "/webhook/crud/item/id"):
+		case "/webhook/crud/item/id":
 			controller.UpdateItemId(w, r)
 		default:
 			controller.NotFound(w, r)
 		}
+	
 	case http.MethodDelete:
-		switch {
-		case helper.URLParam(r.URL.Path, "/webhook/crud/item/en"):
+		switch r.URL.Path {
+		case "/webhook/crud/item/en":
 			controller.DeleteItemEn(w, r)
-		case helper.URLParam(r.URL.Path, "/webhook/crud/item/id"):
+		case "/webhook/crud/item/id":
 			controller.DeleteItemId(w, r)
 		default:
 			controller.NotFound(w, r)
 		}
-	default:
-		controller.NotFound(w, r)
 	}
 }
