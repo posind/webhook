@@ -17,7 +17,7 @@ import (
 var pasetoKey = []byte("YELLOW SUBMARINE, BLACK WIZARDRY")
 
 func SaveUserToDB(user *model.User) error {
-    collection := config.GetCollection("user_email")
+    collection := config.DB.Collection("user_email")
     _, err := collection.InsertOne(context.Background(), user)
     return err
 }
