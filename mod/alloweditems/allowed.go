@@ -1,4 +1,4 @@
-package posintid
+package alloweditemsen
 
 import (
 	"errors"
@@ -13,8 +13,8 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-// GetProhibitedItems fetches prohibited items based on the message and database
-func GetProhibitedItems(Pesan itmodel.IteungMessage, db *mongo.Database) (reply string) {
+// GetAllowedItems fetches and returns the list of allowed items for a specified country
+func GetAllowedItems(Pesan itmodel.IteungMessage, db *mongo.Database) (reply string) {
 	keywords := ExtractKeywords(Pesan.Message, nil)
 	country, item, err := GetCountryAndItemFromKeywords(keywords, db)
 	if err != nil {
@@ -25,10 +25,10 @@ func GetProhibitedItems(Pesan itmodel.IteungMessage, db *mongo.Database) (reply 
 		return "Nama negaranya tidak ada di database kita kakak"
 	}
 
-	filter := bson.M{"Destinasi": country}
+	filter := bson.M{"Destination": country}
 	if item != "" {
 		regexPattern := BuildFlexibleRegexWithTypos([]string{item}, db)
-		filter["Barang Terlarang"] = bson.M{"$regex": regexPattern, "$options": "i"}
+		filter["Allowed Items"] = bson.M{"$regex": regexPattern, "$options": "i"}
 	}
 
 	reply, _, err = populateList(db, filter, item)
@@ -57,52 +57,52 @@ func GetCountryAndItemFromKeywords(keywords []string, db *mongo.Database) (count
 // GetCountryNameLike searches for a country name in the database
 func GetCountryNameLike(db *mongo.Database, country string) (dest string, err error) {
 	filter := bson.M{
-		"Destinasi": bson.M{"$regex": country, "$options": "i"},
+		"Destination": bson.M{"$regex": country, "$options": "i"},
 	}
-	itemprohb, err := atdb.GetOneDoc[Item](db, "prohibited_items_id", filter)
+	itemallow, err := atdb.GetOneDoc[Item](db, "allowed_items", filter)
 	if err != nil {
 		return
 	}
-	dest = strings.ReplaceAll(itemprohb.Destinasi, "\u00A0", " ")
+	dest = strings.ReplaceAll(itemallow.Destination, "\u00A0", " ")
 	return
 }
 
 // GetItemNameLike searches for an item name in the database
 func GetItemNameLike(db *mongo.Database, item string) (dest string, err error) {
 	filter := bson.M{
-		"Barang Terlarang": bson.M{"$regex": item, "$options": "i"},
+		"Barang yang Dibolehkan": bson.M{"$regex": item, "$options": "i"},
 	}
-	itemprohb, err := atdb.GetOneDoc[Item](db, "prohibited_items_id", filter)
+	itemallow, err := atdb.GetOneDoc[Item](db, "allowed_items", filter)
 	if err != nil {
 		return
 	}
-	dest = strings.ReplaceAll(itemprohb.BarangTerlarang, "\u00A0", " ")
+	dest = strings.ReplaceAll(itemallow.AllowedItems, "\u00A0", " ")
 	return
 }
 
 // populateList creates a list of prohibited items based on the filter
 func populateList(db *mongo.Database, filter bson.M, keyword string) (msg, dest string, err error) {
-	listprob, err := atdb.GetAllDoc[Item](db, "prohibited_items_id", filter)
+	listallow, err := atdb.GetAllDoc[Item](db, "allowed_items", filter)
 	if err != nil {
 		return "Terdapat kesalahan pada GetAllDoc", "", err
 	}
-	if len(listprob) == 0 {
-		return "Tidak ada barang terlarang yang ditemukan", "", errors.New("zero results")
+	if len(listallow) == 0 {
+		return "Tidak ada barang yang Dibolehkan yang ditemukan", "", errors.New("zero results")
 	}
-	dest = listprob[0].Destinasi
-	msg = "Ini dia list barang terlarang dari negara *" + dest + "*:\n"
+	dest = listallow[0].Destination
+	msg = "Ini dia list barang yang Dibolehkan dari negara *" + dest + "*:\n"
 	if keyword != "" {
 		msg += "kata-kunci:_" + keyword + "_\n"
 	}
-	for i, probitem := range listprob {
-		msg += strconv.Itoa(i+1) + ". " + probitem.BarangTerlarang + "\n"
+	for i, allowitem := range listallow {
+		msg += strconv.Itoa(i+1) + ". " + allowitem.AllowedItems + "\n"
 	}
 	return
 }
 
 // ExtractKeywords extracts meaningful keywords from a message
 func ExtractKeywords(message string, commonWordsAdd []string) []string {
-	commonWords := []string{"list", "barang", "barang barang", "terlarang", "mymy"}
+	commonWords := []string{"list", "allowed", "allow", "items", "item", "mymy"}
 	commonWords = append(commonWords, commonWordsAdd...)
 	message = strings.ToLower(message)
 	message = strings.ReplaceAll(message, "\u00A0", " ")
@@ -139,10 +139,10 @@ func BuildFlexibleRegex(keywords []string) string {
 // BuildFlexibleRegexWithTypos creates a flexible regex that accounts for typos
 func BuildFlexibleRegexWithTypos(keywords []string, db *mongo.Database) string {
 	var allKeywords []string
-	items, err := atdb.GetAllDoc[Item](db, "prohibited_items_id", bson.M{})
+	items, err := atdb.GetAllDoc[Item](db, "allowed_items", bson.M{})
 	if err == nil {
 		for _, item := range items {
-			words := strings.Split(item.BarangTerlarang, " ")
+			words := strings.Split(item.AllowedItems, " ")
 			allKeywords = append(allKeywords, words...)
 		}
 	}

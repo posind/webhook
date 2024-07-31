@@ -1,7 +1,7 @@
 package mod
 
 import (
-	// "github.com/gocroot/mod/alloweditems"
+	alloweditemsen "github.com/gocroot/mod/alloweditems"
 	"github.com/gocroot/mod/daftar"
 	"github.com/gocroot/mod/idgrup"
 	"github.com/gocroot/mod/kyc"
@@ -9,7 +9,7 @@ import (
 	"github.com/gocroot/mod/listnegara"
 	"github.com/gocroot/mod/lmsdesa"
 	"github.com/gocroot/mod/posint"
-	"github.com/gocroot/mod/posintind"
+	posintid "github.com/gocroot/mod/posintind"
 	"github.com/gocroot/mod/presensi"
 	"github.com/gocroot/mod/siakad"
 	"github.com/whatsauth/itmodel"
@@ -38,12 +38,14 @@ func Caller(Profile itmodel.Profile, Modulename string, Pesan itmodel.IteungMess
 		reply = daftar.DaftarDomyikado(Pesan, db)
 	case "login-siakad":
 		reply = siakad.LoginSiakad(Pesan, db)
+
 	case "prohibited-items":
-		reply = posint.GetProhibitedItemsEN(Pesan, db)
+		reply = posint.GetProhibitedItems(Pesan, db)
 	case "prohibited-items-id":
-		reply = posintind.GetProhibitedItemsID(Pesan, db)
-	// case "allowed-items":
-	// 	reply = alloweditems.GetAllowedItems(Pesan, db)
+		reply = posintid.GetProhibitedItems(Pesan, db)
+	case "allowed-items":
+		reply = alloweditemsen.GetAllowedItems(Pesan, db)
+
 	case "listcountry":
 		reply = listcountry.ListCountry(Pesan)
 	case "listnegara":
