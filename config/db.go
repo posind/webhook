@@ -41,3 +41,10 @@ func InitDB() {
 	DB = client.Database("mfulbiposin")
 	log.Println("Connected to MongoDB!")
 }
+
+func GetCollection(user_email string) *mongo.Collection {
+    if DB == nil {
+        log.Fatal("Database is not initialized")
+    }
+    return DB.Collection(user_email)
+}
