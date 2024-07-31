@@ -40,9 +40,9 @@ func Caller(Profile itmodel.Profile, Modulename string, Pesan itmodel.IteungMess
 		reply = siakad.LoginSiakad(Pesan, db)
 
 	case "prohibited-items":
-		reply = posint.GetProhibitedItems(Pesan, db)
+		reply = posint.GetProhibitedItemsEN(Pesan, db)
 	case "prohibited-items-id":
-		reply = posintind.GetProhibitedItems(Pesan, db)
+		reply = posintind.GetProhibitedItemsID(Pesan, db)
 	case "allowed-items":
 		reply = alloweditems.GetAllowedItems(Pesan, db)
 
