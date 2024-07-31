@@ -27,7 +27,7 @@ func GetItemsId(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{"items_id": items})
+	json.NewEncoder(w).Encode(map[string]interface{}{"/ind": items})
 }
 
 func CreateItemId(w http.ResponseWriter, r *http.Request) {

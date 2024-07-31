@@ -25,9 +25,9 @@ func URL(w http.ResponseWriter, r *http.Request) {
 			controller.GetHome(w, r)
 		case "/refresh/token":
 			controller.GetNewToken(w, r)
-		case "/webhook/crud/items/en":
+		case "/webhook/crud/items/eng":
 			controller.GetItemsEn(w, r)
-		case "/webhook/crud/items/id":
+		case "/webhook/crud/items/ind":
 			controller.GetItemsId(w, r)
 		default:
 			controller.NotFound(w, r)
