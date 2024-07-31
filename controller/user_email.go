@@ -4,66 +4,118 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/gocroot/config"
 	"github.com/gocroot/model"
+	"github.com/o1egl/paseto"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"golang.org/x/crypto/bcrypt"
 )
 
+var pasetoKey = []byte("YELLOW SUBMARINE, BLACK WIZARDRY") 
+
 /// func register
 func Register(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	var user model.User
-	_ = json.NewDecoder(r.Body).Decode(&user)
+    if r.Method != http.MethodPost {
+        http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+        return
+    }
 
-	// Hash password
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	user.Password = string(hashedPassword)
-	user.ID = primitive.NewObjectID()
+    var user model.User
+    if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
+        http.Error(w, "Invalid request payload", http.StatusBadRequest)
+        return
+    }
 
-	collection := config.DB.Collection("user_email")
-	_, err = collection.InsertOne(context.Background(), user)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+    // Hash password
+    hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
+    if err != nil {
+        http.Error(w, "Error hashing password", http.StatusInternalServerError)
+        return
+    }
+    user.Password = string(hashedPassword)
+    user.ID = primitive.NewObjectID()
 
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(user)
+    collection := config.DB.Collection("user_email")
+    _, err = collection.InsertOne(context.Background(), user)
+    if err != nil {
+        http.Error(w, "Error inserting user", http.StatusInternalServerError)
+        return
+    }
+
+    // Generate PASETO token
+    now := time.Now()
+    expiration := now.Add(24 * time.Hour)
+    jsonToken := paseto.JSONToken{
+        Expiration: expiration,
+        Subject:    user.ID.Hex(),
+    }
+    footer := "some footer"
+    token, err := paseto.NewV2().Encrypt(pasetoKey, jsonToken, footer)
+    if err != nil {
+        http.Error(w, "Error generating token", http.StatusInternalServerError)
+        return
+    }
+
+    response := map[string]string{
+        "message": "Registration successful",
+        "token":   token,
+    }
+
+    w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(http.StatusCreated)
+    json.NewEncoder(w).Encode(response)
 }
 
 
 func Login(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	var loginRequest model.LoginRequest
-	_ = json.NewDecoder(r.Body).Decode(&loginRequest)
+    if r.Method != http.MethodPost {
+        http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+        return
+    }
 
-	collection := config.DB.Collection("user_email")
-	var user model.User
-	err := collection.FindOne(context.Background(), bson.M{"email": loginRequest.Email}).Decode(&user)
-	if err != nil {
-		http.Error(w, "Invalid email or password", http.StatusUnauthorized)
-		return
-	}
+    var loginRequest model.LoginRequest
+    if err := json.NewDecoder(r.Body).Decode(&loginRequest); err != nil {
+        http.Error(w, "Invalid request payload", http.StatusBadRequest)
+        return
+    }
 
-	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(loginRequest.Password))
-	if err != nil {
-		http.Error(w, "Invalid email or password", http.StatusUnauthorized)
-		return
-	}
+    collection := config.DB.Collection("user_email")
+    var user model.User
+    err := collection.FindOne(context.Background(), bson.M{"email": loginRequest.Email}).Decode(&user)
+    if err != nil {
+        http.Error(w, "Invalid email or password", http.StatusUnauthorized)
+        return
+    }
 
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(user)
+    err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(loginRequest.Password))
+    if err != nil {
+        http.Error(w, "Invalid email or password", http.StatusUnauthorized)
+        return
+    }
+
+    // Generate PASETO token
+    now := time.Now()
+    expiration := now.Add(24 * time.Hour)
+    jsonToken := paseto.JSONToken{
+        Expiration: expiration,
+        Subject:    user.ID.Hex(),
+    }
+    footer := "some footer"
+    token, err := paseto.NewV2().Encrypt(pasetoKey, jsonToken, footer)
+    if err != nil {
+        http.Error(w, "Error generating token", http.StatusInternalServerError)
+        return
+    }
+
+    response := map[string]string{
+        "message": "Login successful",
+        "token":   token,
+    }
+
+    w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(http.StatusOK)
+    json.NewEncoder(w).Encode(response)
 }
