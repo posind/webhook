@@ -14,7 +14,7 @@ import (
 )
 
 
-func GetProhibitedItems(Pesan itmodel.IteungMessage, db *mongo.Database) (reply string) {
+func GetProhibitedItemsEN(Pesan itmodel.IteungMessage, db *mongo.Database) (reply string) {
 	country, err := GetCountryFromMessage(Pesan.Message, db)
 	var filter bson.M
 	if err != nil {

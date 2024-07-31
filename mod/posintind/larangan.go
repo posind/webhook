@@ -14,7 +14,7 @@ import (
 )
 
 // GetProhibitedItems fetches prohibited items based on the message and database
-func GetProhibitedItems(Pesan itmodel.IteungMessage, db *mongo.Database) (reply string) {
+func GetProhibitedItemsID(Pesan itmodel.IteungMessage, db *mongo.Database) (reply string) {
 	keywords := ExtractKeywords(Pesan.Message, nil)
 	country, item, err := GetCountryAndItemFromKeywords(keywords, db)
 	if err != nil {
