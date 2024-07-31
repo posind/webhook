@@ -1,7 +1,7 @@
 package mod
 
 import (
-	"github.com/gocroot/mod/alloweditems"
+	// "github.com/gocroot/mod/alloweditems"
 	"github.com/gocroot/mod/daftar"
 	"github.com/gocroot/mod/idgrup"
 	"github.com/gocroot/mod/kyc"
@@ -38,14 +38,12 @@ func Caller(Profile itmodel.Profile, Modulename string, Pesan itmodel.IteungMess
 		reply = daftar.DaftarDomyikado(Pesan, db)
 	case "login-siakad":
 		reply = siakad.LoginSiakad(Pesan, db)
-
 	case "prohibited-items":
 		reply = posint.GetProhibitedItemsEN(Pesan, db)
 	case "prohibited-items-id":
 		reply = posintind.GetProhibitedItemsID(Pesan, db)
-	case "allowed-items":
-		reply = alloweditems.GetAllowedItems(Pesan, db)
-
+	// case "allowed-items":
+	// 	reply = alloweditems.GetAllowedItems(Pesan, db)
 	case "listcountry":
 		reply = listcountry.ListCountry(Pesan)
 	case "listnegara":
