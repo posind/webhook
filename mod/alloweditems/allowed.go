@@ -77,7 +77,7 @@ func GetAllowedItems(Pesan itmodel.IteungMessage, db *mongo.Database) (reply str
 
 // populateList fetches and constructs the allowed items list based on the given filter
 func populateList(db *mongo.Database, filter bson.M, keyword string) (msg, dest string, err error) {
-	listallowed, err := atdb.GetAllDoc[Allowed_Items](db, "allowed_items", filter)
+	listallowed, err := atdb.GetAllDoc[Item](db, "allowed_items", filter)
 	if err != nil {
 		return "Terdapat kesalahan pada GetAllDoc", "", err
 	}
@@ -99,7 +99,7 @@ func GetCountryNameLike(db *mongo.Database, country string) (dest string, err er
 	filter := bson.M{
 		"Destination": bson.M{"$regex": country, "$options": "i"},
 	}
-	itemallowed, err := atdb.GetOneDoc[Allowed_Items](db, "allowed_items", filter)
+	itemallowed, err := atdb.GetOneDoc[Item](db, "allowed_items", filter)
 	if err != nil {
 		return
 	}
@@ -178,7 +178,7 @@ func BuildFlexibleRegex(keywords []string) string {
 // BuildFlexibleRegexWithTypos creates a regex pattern that accounts for typos
 func BuildFlexibleRegexWithTypos(keywords []string, db *mongo.Database) string {
 	var allKeywords []string
-	items, err := atdb.GetAllDoc[Allowed_Items](db, "allowed_items", bson.M{})
+	items, err := atdb.GetAllDoc[Item](db, "allowed_items", bson.M{})
 	if err == nil {
 		for _, item := range items {
 			words := strings.Split(item.AllowedItems, " ")
