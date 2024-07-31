@@ -14,9 +14,14 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-var pasetoKey = []byte("YELLOW SUBMARINE, BLACK WIZARDRY") 
+var pasetoKey = []byte("YELLOW SUBMARINE, BLACK WIZARDRY")
 
-/// func register
+func SaveUserToDB(user *model.User) error {
+    collection := config.GetCollection("user_email")
+    _, err := collection.InsertOne(context.Background(), user)
+    return err
+}
+
 func Register(w http.ResponseWriter, r *http.Request) {
     if r.Method != http.MethodPost {
         http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -38,13 +43,6 @@ func Register(w http.ResponseWriter, r *http.Request) {
     user.Password = string(hashedPassword)
     user.ID = primitive.NewObjectID()
 
-    collection := config.DB.Collection("user_email")
-    _, err = collection.InsertOne(context.Background(), user)
-    if err != nil {
-        http.Error(w, "Error inserting user", http.StatusInternalServerError)
-        return
-    }
-
     // Generate PASETO token
     now := time.Now()
     expiration := now.Add(24 * time.Hour)
@@ -58,6 +56,13 @@ func Register(w http.ResponseWriter, r *http.Request) {
         http.Error(w, "Error generating token", http.StatusInternalServerError)
         return
     }
+    user.Token = token
+
+    err = SaveUserToDB(&user)
+    if err != nil {
+        http.Error(w, "Error inserting user", http.StatusInternalServerError)
+        return
+    }
 
     response := map[string]string{
         "message": "Registration successful",
@@ -68,7 +73,6 @@ func Register(w http.ResponseWriter, r *http.Request) {
     w.WriteHeader(http.StatusCreated)
     json.NewEncoder(w).Encode(response)
 }
-
 
 func Login(w http.ResponseWriter, r *http.Request) {
     if r.Method != http.MethodPost {
@@ -82,7 +86,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    collection := config.DB.Collection("user_email")
+    collection := config.GetCollection("user_email")
     var user model.User
     err := collection.FindOne(context.Background(), bson.M{"email": loginRequest.Email}).Decode(&user)
     if err != nil {
