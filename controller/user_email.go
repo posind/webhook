@@ -4,75 +4,66 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"time"
 
+	"github.com/gocroot/config"
 	"github.com/gocroot/model"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
 	"golang.org/x/crypto/bcrypt"
 )
 
-var userCollection *mongo.Collection
-
-func InitUserCollection(db *mongo.Database) {
-    userCollection = db.Collection("user_email")
-}
-
 /// func register
 func Register(w http.ResponseWriter, r *http.Request) {
-    var user model.User
-    if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
-        http.Error(w, err.Error(), http.StatusBadRequest)
-        return
-    }
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var user model.User
+	_ = json.NewDecoder(r.Body).Decode(&user)
 
-    hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
-    if err != nil {
-        http.Error(w, "Error while hashing password", http.StatusInternalServerError)
-        return
-    }
+	// Hash password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	user.Password = string(hashedPassword)
+	user.ID = primitive.NewObjectID()
 
-    user.Password = string(hashedPassword)
-    user.ID = primitive.NewObjectID()
+	collection := config.DB.Collection("user_email")
+	_, err = collection.InsertOne(context.Background(), user)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
-    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-    defer cancel()
-
-    _, err = userCollection.InsertOne(ctx, user)
-    if err != nil {
-        http.Error(w, "Error while creating user", http.StatusInternalServerError)
-        return
-    }
-
-    w.WriteHeader(http.StatusOK)
-    json.NewEncoder(w).Encode(map[string]string{"message": "User registered successfully"})
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(user)
 }
-/// func login
+
+
 func Login(w http.ResponseWriter, r *http.Request) {
-    var user model.User
-    var foundUser model.User
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var loginRequest model.LoginRequest
+	_ = json.NewDecoder(r.Body).Decode(&loginRequest)
 
-    if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
-        http.Error(w, err.Error(), http.StatusBadRequest)
-        return
-    }
+	collection := config.DB.Collection("user_email")
+	var user model.User
+	err := collection.FindOne(context.Background(), bson.M{"email": loginRequest.Email}).Decode(&user)
+	if err != nil {
+		http.Error(w, "Invalid email or password", http.StatusUnauthorized)
+		return
+	}
 
-    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-    defer cancel()
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(loginRequest.Password))
+	if err != nil {
+		http.Error(w, "Invalid email or password", http.StatusUnauthorized)
+		return
+	}
 
-    err := userCollection.FindOne(ctx, bson.M{"email": user.Email}).Decode(&foundUser)
-    if err != nil {
-        http.Error(w, "Invalid email or password", http.StatusUnauthorized)
-        return
-    }
-
-    err = bcrypt.CompareHashAndPassword([]byte(foundUser.Password), []byte(user.Password))
-    if err != nil {
-        http.Error(w, "Invalid email or password", http.StatusUnauthorized)
-        return
-    }
-
-    w.WriteHeader(http.StatusOK)
-    json.NewEncoder(w).Encode(map[string]string{"message": "Logged in successfully"})
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(user)
 }
