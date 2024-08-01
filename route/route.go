@@ -1,73 +1,55 @@
 package route
 
 import (
-	"log"
 	"net/http"
 
 	"github.com/gocroot/config"
 	"github.com/gocroot/controller"
+	"github.com/gocroot/helper"
 )
 
 func URL(w http.ResponseWriter, r *http.Request) {
-	if config.ErrorMongoconn != nil {
-		log.Println(config.ErrorMongoconn.Error())
+	if config.SetAccessControlHeaders(w, r) {
+		return // If it's a preflight request, return early.
 	}
-	
-	if config.SetAccessControlHeaders(w, r) && r.Method == http.MethodOptions {
-		return // preflight request selesai
-	}
+	// config.SetEnv()
 
-	switch r.Method {
+	var method, path string = r.Method, r.URL.Path
+	switch {
+	case method == "POST" && helper.URLParam(path, "/webhook/nomor/:nomorwa"):
+		controller.PostInboxNomor(w, r)
+	case method == "POST" && helper.URLParam(path, "/webhook/telebot/:nomorwa"):
+		controller.TelebotWebhook(w, r)
+	case method == "POST" && path == "/register":
+		controller.Register(w, r)
+	case method == "POST" && path == "/login":
+		controller.Login(w, r)
+	case method == "POST" && path == "/en":
+		controller.CreateItemEn(w, r)
+	case method == "POST" && path == "/id":
+		controller.CreateItemId(w, r)
 
-	case http.MethodGet:
-		switch r.URL.Path {
-		case "/":
-			controller.GetHome(w, r)
-		case "/refresh/token":
-			controller.GetNewToken(w, r)
-		case "/webhook/crud/items/eng":
-			controller.GetItemsEn(w, r)
-		case "/webhook/crud/items/ind":
-			controller.GetItemsId(w, r)
-		default:
-			controller.NotFound(w, r)
-		}
-	case http.MethodPost:
-		switch r.URL.Path {
-		case "/webhook/nomor/:nomorwa":
-			controller.PostInboxNomor(w, r)
-		case "/webhook/telebot/:nomorwa":
-			controller.TelebotWebhook(w, r)
-		case "/register":
-			controller.Register(w, r)
-		case "/login":
-			controller.Login(w, r)
-		case "/en":
-			controller.CreateItemEn(w, r)
-		case "/id":
-			controller.CreateItemId(w, r)
-		default:
-			controller.NotFound(w, r)
-		}
+	case method == "GET" && path == "/":
+		controller.GetHome(w, r)
+	//jalan setiap jam 3 pagi
+	case method == "GET" && path == "/refresh/token":
+		controller.GetNewToken(w, r)
+	case method == "GET" && path == "/webhook/crud/items/eng":
+		controller.GetItemsEn(w, r)
+	case method == "GET" && path == "/webhook/crud/items/ind":
+		controller.GetItemsId(w, r)
 
-	case http.MethodPut:
-		switch r.URL.Path {
-		case "/webhook/crud/item/en":
-			controller.UpdateItemEn(w, r)
-		case "/webhook/crud/item/id":
-			controller.UpdateItemId(w, r)
-		default:
-			controller.NotFound(w, r)
-		}
-	
-	case http.MethodDelete:
-		switch r.URL.Path {
-		case "/webhook/crud/item/en":
-			controller.DeleteItemEn(w, r)
-		case "/webhook/crud/item/id":
-			controller.DeleteItemId(w, r)
-		default:
-			controller.NotFound(w, r)
-		}
+	case method == "PUT" && path == "/webhook/crud/item/en":
+		controller.UpdateItemEn(w, r)
+	case method == "PUT" && path == "/webhook/crud/item/id":
+		controller.UpdateItemId(w, r)
+
+	case method == "DELETE" && path == "/webhook/crud/item/en":
+		controller.DeleteItemEn(w, r)
+	case method == "DELETE" && path == "/webhook/crud/item/id":
+		controller.DeleteItemId(w, r)
+
+	default:
+		controller.NotFound(w, r)
 	}
 }
