@@ -1,7 +1,9 @@
 package alloweditemsen
 
 import (
+	"context"
 	"errors"
+	"log"
 	"regexp"
 	"strconv"
 	"strings"
@@ -15,10 +17,11 @@ import (
 )
 
 // GetAllowedItems fetches and returns the list of allowed items for a specified country
-func GetAllowedItems(Pesan itmodel.IteungMessage, db *mongo.Database) (reply string) {
+func GetAllowedItems(ctx context.Context, Pesan itmodel.IteungMessage, db *mongo.Database) (reply string) {
 	keywords := ExtractKeywords(Pesan.Message, nil)
-	country, item, err := GetCountryAndItemFromKeywords(keywords, db)
+	country, item, err := GetCountryAndItemFromKeywords(ctx, keywords, db)
 	if err != nil {
+		log.Println("Error fetching country and item:", err)
 		return "Error: " + err.Error()
 	}
 
@@ -28,21 +31,22 @@ func GetAllowedItems(Pesan itmodel.IteungMessage, db *mongo.Database) (reply str
 
 	filter := bson.M{"Destination": country}
 	if item != "" {
-		regexPattern := BuildFlexibleRegexWithTypos([]string{item}, db)
+		regexPattern := BuildFlexibleRegexWithTypos(ctx, []string{item}, db)
 		filter["Allowed Items"] = bson.M{"$regex": regexPattern, "$options": "i"}
 	}
 
-	reply, _, err = populateList(db, filter, item)
+	reply, _, err = populateList(ctx, db, filter, item)
 	reply = "📚" + reply
 	if err != nil {
 		jsonData, _ := bson.Marshal(filter)
+		log.Println("Error populating list:", err)
 		return "📚" + strings.Join(keywords, " ") + "|" + country + " : " + err.Error() + "\n" + string(jsonData)
 	}
 	return
 }
 
 // GetCountryAndItemFromKeywords determines the country and item from the given keywords
-func GetCountryAndItemFromKeywords(keywords []string, db *mongo.Database) (country, item string, err error) {
+func GetCountryAndItemFromKeywords(ctx context.Context, keywords []string, db *mongo.Database) (country, item string, err error) {
 	for i := 0; i < len(keywords); i++ {
 		country, err = GetCountryNameLike(db, keywords[i])
 		if err == nil {
@@ -62,15 +66,16 @@ func GetCountryNameLike(db *mongo.Database, country string) (dest string, err er
 	}
 	itemallow, err := atdb.GetOneDoc[Item](db, "allowed_items", filter)
 	if err != nil {
-		return
+		return "", err
 	}
 	dest = strings.ReplaceAll(itemallow.Destination, "\u00A0", " ")
-	return
+	return dest, nil
 }
 
+
 // populateList creates a list of allowed items based on the filter
-func populateList(db *mongo.Database, filter bson.M, keyword string) (msg, dest string, err error) {
-	listallow, err := atdb.GetAllDoc[Item](db, "allowed_items", filter)
+func populateList(ctx context.Context, db *mongo.Database, filter bson.M, keyword string) (msg, dest string, err error) {
+	listallow, err := atdb.GetAllDoc[Item] (db, "allowed_items", filter)
 	if err != nil {
 		return "Terdapat kesalahan pada GetAllDoc", "", err
 	}
@@ -112,7 +117,7 @@ func ExtractKeywords(message string, commonWordsAdd []string) []string {
 }
 
 // BuildFlexibleRegexWithTypos creates a flexible regex that accounts for typos
-func BuildFlexibleRegexWithTypos(keywords []string, db *mongo.Database) string {
+func BuildFlexibleRegexWithTypos(ctx context.Context, keywords []string, db *mongo.Database) string {
 	var allKeywords []string
 	items, err := atdb.GetAllDoc[Item](db, "allowed_items", bson.M{})
 	if err == nil {
