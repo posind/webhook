@@ -51,7 +51,7 @@ func GetCountryAndItemFromKeywords(keywords []string, db *mongo.Database) (count
 		}
 	}
 
-	err = errors.New("nama negaranya mana kak?")
+	err = errors.New("nama negaranya mana kak")
 	return
 }
 
@@ -68,20 +68,7 @@ func GetCountryNameLike(db *mongo.Database, country string) (dest string, err er
 	return
 }
 
-// GetItemNameLike searches for an item name in the database
-func GetItemNameLike(db *mongo.Database, item string) (dest string, err error) {
-	filter := bson.M{
-		"Barang yang Dibolehkan": bson.M{"$regex": item, "$options": "i"},
-	}
-	itemallow, err := atdb.GetOneDoc[Item](db, "allowed_items", filter)
-	if err != nil {
-		return
-	}
-	dest = strings.ReplaceAll(itemallow.AllowedItems, "\u00A0", " ")
-	return
-}
-
-// populateList creates a list of prohibited items based on the filter
+// populateList creates a list of allowed items based on the filter
 func populateList(db *mongo.Database, filter bson.M, keyword string) (msg, dest string, err error) {
 	listallow, err := atdb.GetAllDoc[Item](db, "allowed_items", filter)
 	if err != nil {
@@ -122,19 +109,6 @@ func ExtractKeywords(message string, commonWordsAdd []string) []string {
 	}
 
 	return keywords
-}
-
-// BuildFlexibleRegex constructs a regex pattern that matches all given keywords
-func BuildFlexibleRegex(keywords []string) string {
-	if len(keywords) == 0 {
-		return ""
-	}
-	var regexBuilder strings.Builder
-	for _, keyword := range keywords {
-		regexBuilder.WriteString("(?=.*\\b" + regexp.QuoteMeta(keyword) + "\\b)")
-	}
-	regexBuilder.WriteString(".*")
-	return regexBuilder.String()
 }
 
 // BuildFlexibleRegexWithTypos creates a flexible regex that accounts for typos

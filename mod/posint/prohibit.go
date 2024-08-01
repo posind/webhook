@@ -13,7 +13,6 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-
 func GetProhibitedItems(Pesan itmodel.IteungMessage, db *mongo.Database) (reply string) {
 	country, err := GetCountryFromMessage(Pesan.Message, db)
 	var filter bson.M
@@ -133,17 +132,17 @@ func GetCountryFromMessage(message string, db *mongo.Database) (country string, 
 	return "", errors.New("tidak ditemukan nama negara di pesan berikut:" + lowerMessage + "|" + strcountry)
 }
 
-// Fungsi untuk menghilangkan semua kata kecuali keyword yang diinginkan
+// ExtractKeywords Fungsi untuk menghilangkan semua kata kecuali keyword yang diinginkan
 func ExtractKeywords(message string, commonWordsAdd []string) []string {
 	// Daftar kata umum yang mungkin ingin dihilangkan
 	commonWords := []string{"list", "prohibited", "items", "item", "mymy"}
-	
+
 	// Gabungkan commonWords dengan commonWordsAdd
 	commonWords = append(commonWords, commonWordsAdd...)
-	
+
 	// Ubah pesan menjadi huruf kecil
 	message = strings.ToLower(message)
-	
+
 	// Ganti non-breaking space dengan spasi biasa
 	message = strings.ReplaceAll(message, "\u00A0", " ")
 
@@ -160,7 +159,7 @@ func ExtractKeywords(message string, commonWordsAdd []string) []string {
 	return keywords
 }
 
-// Fungsi untuk keyword regex yang fleksibel
+// BuildFlexibleRegex Fungsi untuk keyword regex yang fleksibel
 func BuildFlexibleRegex(keywords []string) string {
 	if len(keywords) == 0 {
 		return ""
@@ -173,7 +172,7 @@ func BuildFlexibleRegex(keywords []string) string {
 	return regexBuilder.String()
 }
 
-// Fungsi untuk typo regex 
+// BuildFlexibleRegexWithTypos Fungsi untuk typo regex
 func BuildFlexibleRegexWithTypos(keywords []string, db *mongo.Database) string {
 	var allKeywords []string
 	items, err := atdb.GetAllDoc[Item](db, "prohibited_items_en", bson.M{})

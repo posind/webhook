@@ -50,7 +50,7 @@ func GetCountryAndItemFromKeywords(keywords []string, db *mongo.Database) (count
 		}
 	}
 
-	err = errors.New("nama negaranya mana kak?")
+	err = errors.New("nama negaranya mana kak")
 	return
 }
 
