@@ -14,7 +14,7 @@ import (
 )
 
 func SaveUserToDB(user *model.User) error {
-	collection := config.DB.Collection("user_email")
+	collection := config.Mongoconn.Collection("user_email")
 	_, err := collection.InsertOne(context.Background(), user)
 	return err
 }
@@ -33,6 +33,7 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(response)
 		return
 	}
+
 // hashingggggg
 
     var hashedPassword, err = pwd.HashPass(user.Password)
@@ -114,7 +115,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	}
     valid := pwd.IsPasswordValid(config.Mongoconn, user)
     if !valid{
-        response := map[string]string{"error": "Invalid password"}
+        response := map[string]string{"error": "Invalid password brok"}
         w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(response)
@@ -123,7 +124,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 
     token, err:= watoken.Encode(loginRequest.Email, config.PrivateKey)
     if err != nil {
-		response := map[string]string{"error": "Invalid password"}
+		response := map[string]string{"error": "Invalid password bre"}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
 		json.NewEncoder(w).Encode(response)
@@ -138,7 +139,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		bson.M{"$set": bson.M{"token": user.Token}},
 	)
 	if err != nil {
-		response := map[string]string{"error": "Error updating user token"}
+		response := map[string]string{"error": "Aduh error nih token nya"}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(response)
@@ -146,7 +147,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := map[string]string{
-		"message": "Login successful",
+		"message": "Login sukses tunggu bentar ya!",
 		"token":   token,
 	}
 
