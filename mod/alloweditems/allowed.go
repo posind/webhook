@@ -10,6 +10,7 @@ import (
 	"github.com/whatsauth/itmodel"
 	"github.com/xrash/smetrics"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -57,7 +58,7 @@ func GetCountryAndItemFromKeywords(keywords []string, db *mongo.Database) (count
 // GetCountryNameLike searches for a country name in the database
 func GetCountryNameLike(db *mongo.Database, country string) (dest string, err error) {
 	filter := bson.M{
-		"Destination": bson.M{"$regex": country, "$options": "i"},
+		"Destination": primitive.Regex{Pattern: country, Options: "i"},
 	}
 	itemallow, err := atdb.GetOneDoc[Item](db, "allowed_items", filter)
 	if err != nil {
