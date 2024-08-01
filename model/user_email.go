@@ -4,11 +4,14 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 type User struct {
-	ID       primitive.ObjectID `json:"id,omitempty" bson:"_id,omitempty"`
-	Username string             `json:"username,omitempty" bson:"username,omitempty"`
-	Email    string             `json:"email,omitempty" bson:"email,omitempty"`
-	Password string             `json:"password,omitempty" bson:"password,omitempty"`
-	Token    string             `json:"token,omitempty" bson:"token,omitempty"`
+	ID           primitive.ObjectID `bson:"_id,omitempty" `
+	Username     string             `json:"username" bson:"username"`
+	Email        string             `bson:"email,omitempty" json:"email,omitempty"`
+	Password     string             `json:"password" bson:"password"`
+	PasswordHash string             `json:"passwordhash" bson:"passwordhash"`
+	Token        string             `json:"token,omitempty" bson:"token,omitempty"`
+	Private      string             `json:"private,omitempty" bson:"private,omitempty"`
+	Public       string             `json:"public,omitempty" bson:"public,omitempty"`
 }
 
 type LoginRequest struct {
