@@ -1,7 +1,6 @@
 package config
 
 import (
-	"log"
 	"os"
 
 	"github.com/gocroot/helper"
@@ -20,9 +19,3 @@ var Mongoconn, ErrorMongoconn = helper.MongoConnect(mongoinfo)
 
 var DB *mongo.Database
 
-func GetCollection(user_email string) *mongo.Collection {
-	if DB == nil {
-		log.Fatal("Database is not initialized")
-	}
-	return DB.Collection(user_email)
-}
