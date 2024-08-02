@@ -6,8 +6,8 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/gocroot/config"
-	pwd "github.com/gocroot/helper/passwordhash"
+	"github.com/gocroot/helper/passwordhash"
+	cek "github.com/gocroot/helper/passwordhash"
 	"github.com/gocroot/helper/watoken"
 	"github.com/gocroot/model"
 	"go.mongodb.org/mongo-driver/bson"
@@ -26,13 +26,19 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	hashedPassword, err := pwd.HashPass(user.Password)
+	hashedPassword, err := passwordhash.HashPass(user.Password)
 	if err != nil {
 		http.Error(w, "Failed to hash password", http.StatusBadGateway)
 		return
 	}
-	user.Password = hashedPassword
+	user.PasswordHash = hashedPassword
+	user.Password = "" // Clear the plain password field
 	user.ID = primitive.NewObjectID()
+
+	// Generate PASETO keys
+	privateKey, publicKey := watoken.GenerateKey()
+	user.Private = privateKey
+	user.Public = publicKey
 
 	if err := SaveUserToDB(&user); err != nil {
 		http.Error(w, "Error inserting user", http.StatusInternalServerError)
@@ -63,18 +69,22 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !pwd.CheckPasswordHash(loginRequest.Password, user.Password) {
+	if !cek.CheckPasswordHash(loginRequest.Password, user.PasswordHash) {
 		http.Error(w, "Invalid password", http.StatusBadRequest)
 		return
 	}
 
-	token, err := watoken.Encode(loginRequest.Email, config.PrivateKey)
+	token, err := watoken.Encode(user.ID.Hex(), user.Private)
 	if err != nil {
+		log.Println("Error generating token:", err)
 		http.Error(w, "Error generating token", http.StatusInternalServerError)
 		return
 	}
 
-	if err := UpdateUserToken(user.ID, token); err != nil {
+	user.Token = token
+	err = UpdateUserToken(user.ID, token)
+	if err != nil {
+		log.Println("Error updating token:", err)
 		http.Error(w, "Error updating token", http.StatusInternalServerError)
 		return
 	}
