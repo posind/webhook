@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"net/http"
 
 	"github.com/gocroot/config"
@@ -94,5 +95,8 @@ func UpdateUserToken(userID primitive.ObjectID, token string) error {
 		bson.M{"_id": userID},
 		bson.M{"$set": bson.M{"token": token}},
 	)
+	if err != nil {
+		log.Printf("Error updating user token: %v", err)
+	}
 	return err
 }
