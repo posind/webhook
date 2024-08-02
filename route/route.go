@@ -34,9 +34,9 @@ func URL(w http.ResponseWriter, r *http.Request) {
 	//jalan setiap jam 3 pagi
 	case method == "GET" && path == "/refresh/token":
 		controller.GetNewToken(w, r)
-	case method == "GET" && path == "/webhook/crud/items/eng":
+	case method == "GET" && path == "/eng":
 		controller.GetItemsEn(w, r)
-	case method == "GET" && path == "/webhook/crud/items/ind":
+	case method == "GET" && path == "/ind":
 		controller.GetItemsId(w, r)
 
 	case method == "PUT" && path == "/webhook/crud/item/en":

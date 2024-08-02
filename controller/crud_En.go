@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/gocroot/config"
@@ -10,7 +11,6 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
-
 
 func GetItemsEn(w http.ResponseWriter, r *http.Request) {
 	collection := config.Mongoconn.Collection("prohibited_items_en")
@@ -38,12 +38,18 @@ func CreateItemEn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Log item to debug
+	fmt.Printf("Creating item: %+v\n", item)
+
 	collection := config.Mongoconn.Collection("prohibited_items_en")
-	_, err := collection.InsertOne(context.Background(), item)
+	res, err := collection.InsertOne(context.Background(), item)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	// Log inserted ID to debug
+	fmt.Printf("Inserted ID: %v\n", res.InsertedID)
 
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(map[string]interface{}{"item_en": item})
