@@ -13,39 +13,43 @@ import (
 )
 
 func GetDataEn(respw http.ResponseWriter, req *http.Request) {
-	resp, _:= atdb.GetAllDoc[[]model.ProhibitedItem_en](config.Mongoconn, "prohibited_items_en", bson.M{})
-	helper.WriteJSON(respw, http.StatusOK, resp)
-	
+    resp, err := atdb.GetAllDoc[[]model.ProhibitedItem_en](config.Mongoconn, "prohibited_items_en", bson.M{})
+    if err != nil {
+        var respn model.Response
+        respn.Response = err.Error()
+        helper.WriteJSON(respw, http.StatusInternalServerError, respn)
+        return
+    }
+    helper.WriteJSON(respw, http.StatusOK, resp)
 }
 
 func CreateItemEn(respw http.ResponseWriter, req *http.Request) {
-	var rute model.ProhibitedItem_en
-	err := json.NewDecoder(req.Body).Decode(&rute)
-	if err != nil {
-		var respn model.Response
-		respn.Response = err.Error()
-		helper.WriteJSON(respw, http.StatusForbidden, respn)
-		return
-		
-	}
-	_, err = atdb.InsertOneDoc(config.Mongoconn,"prohibited_items_en",rute)
-	if err != nil {
-		var respn model.Response
-		respn.Response = err.Error()
-		helper.WriteJSON(respw, http.StatusForbidden, respn)
-		return
-		
-	}
-	items, err  := atdb.GetAllDoc[[]model.ProhibitedItem_en](config.Mongoconn,"prohibited_items_en",bson.M{})
-	if err != nil {
-		var respn model.Response
-		respn.Response = err.Error()
-		helper.WriteJSON(respw, http.StatusForbidden, respn)
-		return
-		
-	}
-	helper.WriteJSON(respw, http.StatusOK, items)
-	
+    var item model.ProhibitedItem_en
+    err := json.NewDecoder(req.Body).Decode(&item)
+    if err != nil {
+        var respn model.Response
+        respn.Response = err.Error()
+        helper.WriteJSON(respw, http.StatusForbidden, respn)
+        return
+    }
+
+    _, err = atdb.InsertOneDoc(config.Mongoconn, "prohibited_items_en", item)
+    if err != nil {
+        var respn model.Response
+        respn.Response = err.Error()
+        helper.WriteJSON(respw, http.StatusForbidden, respn)
+        return
+    }
+
+    items, err := atdb.GetAllDoc[[]model.ProhibitedItem_en](config.Mongoconn, "prohibited_items_en", bson.M{})
+    if err != nil {
+        var respn model.Response
+        respn.Response = err.Error()
+        helper.WriteJSON(respw, http.StatusForbidden, respn)
+        return
+    }
+
+    helper.WriteJSON(respw, http.StatusOK, items)
 }
 
 func UpdateItemEn(respw http.ResponseWriter, req *http.Request) {
