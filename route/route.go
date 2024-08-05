@@ -34,19 +34,19 @@ func URL(w http.ResponseWriter, r *http.Request) {
 	//jalan setiap jam 3 pagi
 	case method == "GET" && path == "/refresh/token":
 		controller.GetNewToken(w, r)
-	case method == "GET" && path == "/eng":
+	case method == "GET" && path == "crud/item/eng":
 		controller.GetDataEn(w, r)
-	case method == "GET" && path == "/ind":
+	case method == "GET" && path == "crud/item/ind":
 		controller.GetItemsId(w, r)
 
-	case method == "PUT" && path == "/webhook/crud/item/en":
+	case method == "PUT" && path == "/crud/item/eng":
 		controller.UpdateItemEn(w, r)
-	case method == "PUT" && path == "/webhook/crud/item/id":
+	case method == "PUT" && path == "/crud/item/ind":
 		controller.UpdateItemId(w, r)
 
-	case method == "DELETE" && path == "/webhook/crud/item/en":
+	case method == "DELETE" && path == "/crud/item/eng":
 		controller.DeleteItemEn(w, r)
-	case method == "DELETE" && path == "/webhook/crud/item/id":
+	case method == "DELETE" && path == "/crud/item/ind":
 		controller.DeleteItemId(w, r)
 
 	default:
