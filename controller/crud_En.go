@@ -7,28 +7,17 @@ import (
 	"net/http"
 
 	"github.com/gocroot/config"
+	"github.com/gocroot/helper"
+	"github.com/gocroot/helper/atdb"
 	"github.com/gocroot/model"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-func GetItemsEn(w http.ResponseWriter, r *http.Request) {
-	collection := config.Mongoconn.Collection("prohibited_items_en")
-	cursor, err := collection.Find(context.Background(), bson.M{})
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	defer cursor.Close(context.Background())
-
-	var items []model.ProhibitedItem_en
-	if err := cursor.All(context.Background(), &items); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{"/eng": items})
+func GetDataEn(respw http.ResponseWriter, req *http.Request) {
+	resp, _:= atdb.GetAllDoc[[]model.ProhibitedItem_en](config.Mongoconn, "prohibited_items_en", bson.M{})
+	helper.WriteJSON(respw, http.StatusOK, resp)
+	
 }
 
 func CreateItemEn(w http.ResponseWriter, r *http.Request) {

@@ -35,7 +35,7 @@ func URL(w http.ResponseWriter, r *http.Request) {
 	case method == "GET" && path == "/refresh/token":
 		controller.GetNewToken(w, r)
 	case method == "GET" && path == "/eng":
-		controller.GetItemsEn(w, r)
+		controller.GetDataEn(w, r)
 	case method == "GET" && path == "/ind":
 		controller.GetItemsId(w, r)
 
