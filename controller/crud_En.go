@@ -41,7 +41,7 @@ func CreateItemEn(respw http.ResponseWriter, req *http.Request) {
         return
     }
 
-    items, err := atdb.GetAllDoc[[]model.ProhibitedItem_en](config.Mongoconn, "prohibited_items_en", bson.M{})
+    items, err := atdb.GetAllDoc[model.ProhibitedItem_en](config.Mongoconn, "prohibited_items_en", bson.M{})
     if err != nil {
         var respn model.Response
         respn.Response = err.Error()
