@@ -13,7 +13,7 @@ import (
 )
 
 func GetDataId(respw http.ResponseWriter, req *http.Request) {
-    resp, err := atdb.GetAllDoc[model.ProhibitedItem_en](config.Mongoconn, "prohibited_items_id", bson.M{})
+    resp, err := atdb.GetAllDoc[model.ProhibitedItem_id](config.Mongoconn, "prohibited_items_id", bson.M{})
     if err != nil {
         var respn model.Response
         respn.Response = err.Error()
@@ -24,7 +24,7 @@ func GetDataId(respw http.ResponseWriter, req *http.Request) {
 }
 
 func CreateItemId(respw http.ResponseWriter, req *http.Request) {
-    var item model.ProhibitedItem_en
+    var item model.ProhibitedItem_id
     err := json.NewDecoder(req.Body).Decode(&item)
     if err != nil {
         var respn model.Response
@@ -41,7 +41,7 @@ func CreateItemId(respw http.ResponseWriter, req *http.Request) {
         return
     }
 
-    items, err := atdb.GetAllDoc[model.ProhibitedItem_en](config.Mongoconn, "prohibited_items_id", bson.M{})
+    items, err := atdb.GetAllDoc[model.ProhibitedItem_id](config.Mongoconn, "prohibited_items_id", bson.M{})
     if err != nil {
         var respn model.Response
         respn.Response = err.Error()
@@ -53,31 +53,31 @@ func CreateItemId(respw http.ResponseWriter, req *http.Request) {
 }
 
 func UpdateItemId(respw http.ResponseWriter, req *http.Request) {
-    var item model.ProhibitedItem_en
+    var item model.ProhibitedItem_id
     err := json.NewDecoder(req.Body).Decode(&item)
     if err != nil {
         var respn model.Response
-        respn.Response = err.Error()
-        helper.WriteJSON(respw, http.StatusForbidden, respn)
+        respn.Response = "Invalid request payload"
+        helper.WriteJSON(respw, http.StatusBadRequest, respn)
         return
     }
 
-    dt, err := atdb.GetOneDoc[model.ProhibitedItem_en](config.Mongoconn, "prohibited_items_id", bson.M{"_id": item.ID})
+    dt, err := atdb.GetOneDoc[model.ProhibitedItem_id](config.Mongoconn, "prohibited_items_id", bson.M{"_id": item.ID})
     if err != nil {
         var respn model.Response
-        respn.Response = err.Error()
-        helper.WriteJSON(respw, http.StatusForbidden, respn)
+        respn.Response = "Document not found"
+        helper.WriteJSON(respw, http.StatusNotFound, respn)
         return
     }
 
-    dt.Destination = item.Destination
-    dt.ProhibitedItems = item.ProhibitedItems
+    dt.Destinasi = item.Destinasi
+	dt.BarangTerlarang = item.BarangTerlarang
 
     _, err = atdb.ReplaceOneDoc(config.Mongoconn, "prohibited_items_id", bson.M{"_id": item.ID}, dt)
     if err != nil {
         var respn model.Response
-        respn.Response = err.Error()
-        helper.WriteJSON(respw, http.StatusForbidden, respn)
+        respn.Response = "Failed to update document"
+        helper.WriteJSON(respw, http.StatusInternalServerError, respn)
         return
     }
 
@@ -85,7 +85,7 @@ func UpdateItemId(respw http.ResponseWriter, req *http.Request) {
 }
 
 func DeleteItemId(respw http.ResponseWriter, req *http.Request) {
-    var item model.ProhibitedItem_en
+    var item model.ProhibitedItem_id
     err := json.NewDecoder(req.Body).Decode(&item)
     if err != nil {
         var respn model.Response
