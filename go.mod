@@ -1,14 +1,16 @@
 module github.com/gocroot
 
-go 1.22.3
+go 1.22.5
 
 require (
 	aidanwoods.dev/go-paseto v1.5.1
 	github.com/GoogleCloudPlatform/functions-framework-go v1.8.1
+	github.com/RadhiFadlillah/go-sastrawi v0.0.0-20200621225627-3dd6e0e1ac00
+	github.com/kimseokgis/backend-ai v0.0.0-20240731161356-5480aad28fd3
 	github.com/whatsauth/itmodel v0.0.4
 	github.com/xrash/smetrics v0.0.0-20240521201337-686a1a2994c1
-	go.mongodb.org/mongo-driver v1.15.1
-	golang.org/x/crypto v0.24.0
+	go.mongodb.org/mongo-driver v1.16.0
+	golang.org/x/crypto v0.25.0
 )
 
 require (
@@ -29,6 +31,6 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/sync v0.7.0 // indirect
-	golang.org/x/sys v0.21.0 // indirect
+	golang.org/x/sys v0.22.0 // indirect
 	golang.org/x/text v0.16.0 // indirect
 )
