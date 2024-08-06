@@ -146,3 +146,12 @@ func ReplaceOneDoc(db *mongo.Database, collection string, filter bson.M, doc int
 	}
 	return
 }
+
+func GetOneLowestDoc[T any](db *mongo.Database, collection string, filter bson.M, sortField string) (doc T, err error) {
+	opts := options.FindOne().SetSort(bson.M{sortField: 1}) // Sort by the provided field in ascending order
+	err = db.Collection(collection).FindOne(context.TODO(), filter, opts).Decode(&doc)
+	if err != nil {
+		return
+	}
+	return
+}
