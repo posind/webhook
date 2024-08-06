@@ -8,6 +8,7 @@ import (
 	"github.com/gocroot/mod/listcountry"
 	"github.com/gocroot/mod/listnegara"
 	"github.com/gocroot/mod/lmsdesa"
+	"github.com/gocroot/mod/maxweight"
 	"github.com/gocroot/mod/posint"
 	posintid "github.com/gocroot/mod/posintind"
 	"github.com/gocroot/mod/presensi"
@@ -46,6 +47,8 @@ func Caller(Profile itmodel.Profile, Modulename string, Pesan itmodel.IteungMess
 	case "allowed-items":
 		reply = alloweditemsen.GetAllowedItems(Pesan, db)
 
+	case "max-weight":
+		reply = maxweight.GetMaxWeight(Pesan, db)
 	case "listcountry":
 		reply = listcountry.ListCountry(Pesan)
 	case "listnegara":
