@@ -24,31 +24,31 @@ func URL(w http.ResponseWriter, r *http.Request) {
 		controller.Register(w, r)
 	case method == "POST" && path == "/login":
 		controller.Login(w, r)
-	case method == "POST" && path == "/en":
-		controller.CreateItemEn(w, r)
-	case method == "POST" && path == "/id":
-		controller.CreateItemId(w, r)
 
 	case method == "GET" && path == "/":
 		controller.GetHome(w, r)
 	//jalan setiap jam 3 pagi
 	case method == "GET" && path == "/refresh/token":
 		controller.GetNewToken(w, r)
-	case method == "GET" && path == "/en":
-		controller.GetDataEn(w, r)
-	case method == "GET" && path == "/id":
-		controller.GetDataId(w, r)
 
-	case method == "PUT" && path == "/en":
-		controller.UpdateItemEn(w, r)
-	case method == "PUT" && path == "/id":
-		controller.UpdateItemId(w, r)
+	case method == "GET" && path == "/prohibited-items/en":
+		controller.GetDataProhibitedItemEn(w, r)
+	case method == "POST" && path == "/prohibited-items/en":
+		controller.CreateProhibitedItemEn(w, r)
+	case method == "PUT" && path == "/prohibited-items/en":
+		controller.UpdateProhibitedItemEn(w, r)
+	case method == "DELETE" && path == "/prohibited-items/en":
+		controller.DeleteProhibitedItemEn(w, r)
 
-	case method == "DELETE" && path == "/en":
-		controller.DeleteItemEn(w, r)
-	case method == "DELETE" && path == "/id":
-		controller.DeleteItemId(w, r)
-
+	// ProhibitedItem Routes (Indonesian)
+	case method == "GET" && path == "/prohibited-items/id":
+		controller.GetDataProhibitedItemId(w, r)
+	case method == "POST" && path == "/prohibited-items/id":
+		controller.CreateProhibitedItemId(w, r)
+	case method == "PUT" && path == "/prohibited-items/id":
+		controller.UpdateProhibitedItemId(w, r)
+	case method == "DELETE" && path == "/prohibited-items/id":
+		controller.DeleteProhibitedItemId(w, r)
 	default:
 		controller.NotFound(w, r)
 	}
