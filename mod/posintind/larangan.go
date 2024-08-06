@@ -123,19 +123,6 @@ func ExtractKeywords(message string, commonWordsAdd []string) []string {
 	return keywords
 }
 
-// BuildFlexibleRegex constructs a regex pattern that matches all given keywords
-func BuildFlexibleRegex(keywords []string) string {
-	if len(keywords) == 0 {
-		return ""
-	}
-	var regexBuilder strings.Builder
-	for _, keyword := range keywords {
-		regexBuilder.WriteString("(?=.*\\b" + regexp.QuoteMeta(keyword) + "\\b)")
-	}
-	regexBuilder.WriteString(".*")
-	return regexBuilder.String()
-}
-
 // BuildFlexibleRegexWithTypos creates a flexible regex that accounts for typos
 func BuildFlexibleRegexWithTypos(keywords []string, db *mongo.Database) string {
 	var allKeywords []string

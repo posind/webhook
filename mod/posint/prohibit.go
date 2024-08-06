@@ -159,19 +159,6 @@ func ExtractKeywords(message string, commonWordsAdd []string) []string {
 	return keywords
 }
 
-// BuildFlexibleRegex Fungsi untuk keyword regex yang fleksibel
-func BuildFlexibleRegex(keywords []string) string {
-	if len(keywords) == 0 {
-		return ""
-	}
-	var regexBuilder strings.Builder
-	for _, keyword := range keywords {
-		regexBuilder.WriteString("(?=.*\\b" + regexp.QuoteMeta(keyword) + "\\b)")
-	}
-	regexBuilder.WriteString(".*")
-	return regexBuilder.String()
-}
-
 // BuildFlexibleRegexWithTypos Fungsi untuk typo regex
 func BuildFlexibleRegexWithTypos(keywords []string, db *mongo.Database) string {
 	var allKeywords []string
