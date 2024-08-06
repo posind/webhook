@@ -102,7 +102,7 @@ func populateList(db *mongo.Database, filter bson.M, keyword string) (msg, dest 
 
 // ExtractKeywords extracts meaningful keywords from a message
 func ExtractKeywords(message string, commonWordsAdd []string) []string {
-	commonWords := []string{"list", "id", "mymy"}
+	commonWords := []string{"list", "id", "indo", "mymy"}
 	commonWords = append(commonWords, commonWordsAdd...)
 	message = strings.ToLower(message)
 	message = strings.ReplaceAll(message, "\u00A0", " ")
