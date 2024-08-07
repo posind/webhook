@@ -6,88 +6,81 @@ import (
 
 	"github.com/gocroot/config"
 	"github.com/gocroot/helper"
-	"github.com/gocroot/helper/atdb"
 	"github.com/gocroot/model"
+
 	"go.mongodb.org/mongo-driver/bson"
 )
 
-// ProhibitedItem (Indonesian) Handlers
-
-func GetDataProhibitedItemId(respw http.ResponseWriter, req *http.Request) {
-	resp, err := atdb.GetAllDoc[[]model.ProhibitedItem_id](config.Mongoconn, "prohibited_items_id", bson.M{})
-	if err != nil {
-		helper.WriteJSON(respw, http.StatusInternalServerError, model.Response{Response: err.Error()})
-		return
-	}
-	helper.WriteJSON(respw, http.StatusOK, resp)
-}
-
-func CreateProhibitedItemId(respw http.ResponseWriter, req *http.Request) {
-	var item model.ProhibitedItem_id
-	err := json.NewDecoder(req.Body).Decode(&item)
-	if err != nil {
-		helper.WriteJSON(respw, http.StatusBadRequest, model.Response{Response: err.Error()})
-		return
-	}
-
-	_, err = atdb.InsertOneDoc(config.Mongoconn, "prohibited_items_id", item)
-	if err != nil {
-		helper.WriteJSON(respw, http.StatusInternalServerError, model.Response{Response: err.Error()})
-		return
-	}
-
-	items, err := atdb.GetAllDoc[[]model.ProhibitedItem_id](config.Mongoconn, "prohibited_items_id", bson.M{})
-	if err != nil {
-		helper.WriteJSON(respw, http.StatusInternalServerError, model.Response{Response: err.Error()})
-		return
-	}
-	helper.WriteJSON(respw, http.StatusOK, items)
-}
-
-func UpdateProhibitedItemId(respw http.ResponseWriter, req *http.Request) {
-	var item model.ProhibitedItem_id
-	err := json.NewDecoder(req.Body).Decode(&item)
-	if err != nil {
-		helper.WriteJSON(respw, http.StatusBadRequest, model.Response{Response: err.Error()})
-		return
-	}
-
-	existingItem, err := atdb.GetOneDoc[model.ProhibitedItem_id](config.Mongoconn, "prohibited_items_id", bson.M{"_id": item.ID})
-	if err != nil {
-		helper.WriteJSON(respw, http.StatusNotFound, model.Response{Response: err.Error()})
-		return
-	}
-
-	existingItem.Destinasi = item.Destinasi
-	existingItem.BarangTerlarang = item.BarangTerlarang
-
-	_, err = atdb.ReplaceOneDoc(config.Mongoconn, "prohibited_items_id", bson.M{"_id": item.ID}, existingItem)
-	if err != nil {
-		helper.WriteJSON(respw, http.StatusInternalServerError, model.Response{Response: err.Error()})
-		return
-	}
-	helper.WriteJSON(respw, http.StatusOK, existingItem)
-}
-
-func DeleteProhibitedItemId(respw http.ResponseWriter, req *http.Request) {
-	var item model.ProhibitedItem_id
-	err := json.NewDecoder(req.Body).Decode(&item)
-	if err != nil {
-		helper.WriteJSON(respw, http.StatusBadRequest, model.Response{Response: err.Error()})
-		return
-	}
-
-    _, err = atdb.DeleteOneDoc(config.Mongoconn, "prohibited_items", bson.M{"_id": item.ID})	
+// GetdataBarang retrieves all prohibited items from the database
+func GetdataBarang(respw http.ResponseWriter, req *http.Request) {
+    var items []model.Prohibited_items_id
+    cursor, err := config.Mongoconn.Collection("prohibited_items_id").Find(req.Context(), bson.D{})
     if err != nil {
-		helper.WriteJSON(respw, http.StatusInternalServerError, model.Response{Response: err.Error()})
-		return
-	}
+        helper.WriteJSON(respw, http.StatusInternalServerError, model.Response{Response: err.Error()})
+        return
+    }
+    defer cursor.Close(req.Context())
 
-	items, err := atdb.GetAllDoc[[]model.ProhibitedItem_id](config.Mongoconn, "prohibited_items_id", bson.M{})
-	if err != nil {
-		helper.WriteJSON(respw, http.StatusInternalServerError, model.Response{Response: err.Error()})
-		return
-	}
-	helper.WriteJSON(respw, http.StatusOK, items)
+    if err = cursor.All(req.Context(), &items); err != nil {
+        helper.WriteJSON(respw, http.StatusInternalServerError, model.Response{Response: err.Error()})
+        return
+    }
+
+    helper.WriteJSON(respw, http.StatusOK, items)
 }
+
+// CreateBarang creates a new prohibited item in the database
+func CreateBarang(respw http.ResponseWriter, req *http.Request) {
+    var item model.Prohibited_items_id
+    err := json.NewDecoder(req.Body).Decode(&item)
+    if err != nil {
+        helper.WriteJSON(respw, http.StatusBadRequest, model.Response{Response: err.Error()})
+        return
+    }
+    _, err = config.Mongoconn.Collection("prohibited_items_id").InsertOne(req.Context(), item)
+    if err != nil {
+        helper.WriteJSON(respw, http.StatusInternalServerError, model.Response{Response: err.Error()})
+        return
+    }
+
+    helper.WriteJSON(respw, http.StatusCreated, model.Response{Response: "Item created successfully"})
+}
+
+// UpdateBarang updates an existing prohibited item in the database
+func UpdateBarang(respw http.ResponseWriter, req *http.Request) {
+    var item model.Prohibited_items_id
+    err := json.NewDecoder(req.Body).Decode(&item)
+    if err != nil {
+        helper.WriteJSON(respw, http.StatusBadRequest, model.Response{Response: err.Error()})
+        return
+    }
+    filter := bson.D{{Key: "_id", Value: item.ID}}
+    update := bson.D{{Key: "$set", Value: item}}
+    _, err = config.Mongoconn.Collection("prohibited_items_id").UpdateOne(req.Context(), filter, update)
+    if err != nil {
+        helper.WriteJSON(respw, http.StatusInternalServerError, model.Response{Response: err.Error()})
+        return
+    }
+
+    helper.WriteJSON(respw, http.StatusOK, model.Response{Response: "Item updated successfully"})
+}
+
+// DeleteBarang deletes an existing prohibited item from the database
+func DeleteBarang(respw http.ResponseWriter, req *http.Request) {
+    var item model.Prohibited_items_id
+    err := json.NewDecoder(req.Body).Decode(&item)
+    if err != nil {
+        helper.WriteJSON(respw, http.StatusBadRequest, model.Response{Response: err.Error()})
+        return
+    }
+    filter := bson.D{{Key: "_id", Value: item.ID}}
+    _, err = config.Mongoconn.Collection("prohibited_items_id").DeleteOne(req.Context(), filter)
+    if err != nil {
+        helper.WriteJSON(respw, http.StatusInternalServerError, model.Response{Response: err.Error()})
+        return
+    }
+
+    helper.WriteJSON(respw, http.StatusOK, model.Response{Response: "Item deleted successfully"})
+}
+
 

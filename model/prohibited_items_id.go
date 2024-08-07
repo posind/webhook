@@ -4,8 +4,8 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-type ProhibitedItem_id struct {
-	ID              primitive.ObjectID  `bson:"_id,omitempty" json:"_id,omitempty"`
-	Destinasi       string              `bson:"Destinasi" json:"destinasi"`
-	BarangTerlarang string              `bson:"Barang Terlarang" json:"barang_terlarang"`
+type Prohibited_items_id struct {
+	ID              primitive.ObjectID `bson:"_id,omitempty" json:"_id,omitempty"`
+	Destinasi       string             `bson:"destinasi" json:"destinasi"`
+	BarangTerlarang string             `bson:"barang_terlarang" json:"barang_terlarang"`
 }

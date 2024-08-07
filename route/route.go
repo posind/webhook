@@ -31,6 +31,7 @@ func URL(w http.ResponseWriter, r *http.Request) {
 	case method == "GET" && path == "/refresh/token":
 		controller.GetNewToken(w, r)
 
+	// ProhibitedItem Routes (English)
 	case method == "GET" && path == "/prohibited-items/en":
 		controller.GetDataProhibitedItemEn(w, r)
 	case method == "POST" && path == "/prohibited-items/en":
@@ -41,14 +42,14 @@ func URL(w http.ResponseWriter, r *http.Request) {
 		controller.DeleteProhibitedItemEn(w, r)
 
 	// ProhibitedItem Routes (Indonesian)
-	case method == "GET" && path == "/prohibited-items/id":
-		controller.GetDataProhibitedItemId(w, r)
-	case method == "POST" && path == "/prohibited-items/id":
-		controller.CreateProhibitedItemId(w, r)
-	case method == "PUT" && path == "/prohibited-items/id":
-		controller.UpdateProhibitedItemId(w, r)
-	case method == "DELETE" && path == "/prohibited-items/id":
-		controller.DeleteProhibitedItemId(w, r)
+	case method == "GET" && path == "/get/prohibitedItem/id":
+		controller.GetdataBarang(w, r)
+	case method == "POST" && path == "/post/prohibitedItem/id":
+		controller.CreateBarang(w, r)
+	case method == "PUT" && path == "/put/prohibitedItem/id":
+		controller.UpdateBarang(w, r)
+	case method == "DELETE" && path == "/delete/prohibitedItem/id":
+		controller.DeleteBarang(w, r)
 	default:
 		controller.NotFound(w, r)
 	}
