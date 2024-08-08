@@ -32,14 +32,14 @@ func URL(w http.ResponseWriter, r *http.Request) {
 		controller.GetNewToken(w, r)
 
 	// ProhibitedItem Routes (English)
-	case method == "GET" && path == "/prohibited-items/en":
-		controller.GetDataProhibitedItemEn(w, r)
-	case method == "POST" && path == "/prohibited-items/en":
-		controller.CreateProhibitedItemEn(w, r)
-	case method == "PUT" && path == "/prohibited-items/en":
-		controller.UpdateProhibitedItemEn(w, r)
-	case method == "DELETE" && path == "/prohibited-items/en":
-		controller.DeleteProhibitedItemEn(w, r)
+	case method == "GET" && path == "/get/prohibited-items/en":
+		controller.GetProhibitedItemByField(w, r)
+	case method == "POST" && path == "/post/prohibited-items/en":
+		controller.PostProhibitedItem(w, r)
+	case method == "PUT" && path == "/put/prohibited-items/en":
+		controller.UpdateProhibitedItem(w, r)
+	case method == "DELETE" && path == "/delete/prohibited-items/en":
+		controller.DeleteProhibitedItemByField(w, r)
 
 	// ProhibitedItem Routes (Indonesian)
 	case method == "GET" && path == "/get/item":
