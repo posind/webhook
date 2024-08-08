@@ -47,7 +47,7 @@ func GetProhibitedItems(Pesan itmodel.IteungMessage, db *mongo.Database) (reply 
         reply = "💡" + reply
         if err != nil {
             if err.Error() == "zero results" {
-                return " diperbolehkan untuk dikirim ke " + country
+                return " diperbolehkan untuk dikirim ke negara " + country
             }
             jsonData, _ := bson.Marshal(filter)
             return "💡" + countryandkeyword + "|" + country + " : " + err.Error() + "\n" + string(jsonData)
@@ -64,13 +64,13 @@ func GetProhibitedItems(Pesan itmodel.IteungMessage, db *mongo.Database) (reply 
             "Barang Terlarang": bson.M{"$regex": keyword, "$options": "i"},
         }
     } else {
-        filter = bson.M{"Destination": country}
+        filter = bson.M{"Destinasi": country}
     }
     reply, _, err = populateList(db, filter, keyword)
     reply = "📚" + reply
     if err != nil {
         if err.Error() == "zero results" {
-            return "📚" + keyword + " diperbolehkan untuk dikirim ke " + country
+            return "📚" + keyword + " diperbolehkan untuk dikirim ke negara " + country
         }
         jsonData, _ := bson.Marshal(filter)
         return "📚 " + keyword + "|" + country + " : " + err.Error() + "\n" + string(jsonData)
@@ -84,7 +84,7 @@ func populateList(db *mongo.Database, filter bson.M, keyword string) (msg, dest 
         return "Terdapat kesalahan pada GetAllDoc", "", err
     }
     if len(listprob) == 0 {
-        return "Tidak ada barang terlarang yang ditemukan", "", errors.New("zero results")
+        return " Tidak ada barang terlarang yang ditemukan", "", errors.New("zero results")
     }
     dest = listprob[0].Destinasi
     msg = " Ini dia list barang terlarang dari negara *" + dest + "*:\n"
