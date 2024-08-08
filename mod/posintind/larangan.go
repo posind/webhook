@@ -37,11 +37,11 @@ func GetProhibitedItems(Pesan itmodel.IteungMessage, db *mongo.Database) (reply 
 		if len(key) > 0 {
 			keyword = strings.Join(key, " ")
 			filter = bson.M{
-				"Destinasi":      country,
-				"Barang Terlarang": bson.M{"$regex": keyword, "$options": "i"},
+				"Destination":      country,
+				"Prohibited Items": bson.M{"$regex": keyword, "$options": "i"},
 			}
 		} else {
-			filter = bson.M{"Destinasi": country}
+			filter = bson.M{"Destination": country}
 		}
 		reply, _, err = populateList(db, filter, keyword)
 		reply = "💡" + reply
@@ -52,22 +52,22 @@ func GetProhibitedItems(Pesan itmodel.IteungMessage, db *mongo.Database) (reply 
 		return
 	}
 	if country == "" {
-		return "Nama negaranya tidak ada di database kita  kak"
+		return "Nama negaranya tidak ada di database kita kak"
 	}
 	keyword = ExtractKeywords(Pesan.Message, []string{country})
 	if keyword != "" {
 		filter = bson.M{
-			"Destinasi":      country,
-			"Barang Terlarang": bson.M{"$regex": keyword, "$options": "i"},
+			"Destination":      country,
+			"Prohibited Items": bson.M{"$regex": keyword, "$options": "i"},
 		}
 	} else {
-		filter = bson.M{"Destinasi": country}
+		filter = bson.M{"Destination": country}
 	}
-	reply, _, err = populateList(db, filter, keyword)
+    reply, _, err = populateList(db, filter, keyword)
     reply = "📚 " + reply
     if err != nil {
         if err.Error() == "zero results" {
-            return "📚 " + keyword + " diperbolehkan di kirim ke negara " + country
+            return "📚 " + keyword + " diperbolehkan dikirim ke negara " + country
         }
         jsonData, _ := bson.Marshal(filter)
         return "📚 " + keyword + "|" + country + " : " + err.Error() + "\n" + string(jsonData)
@@ -76,12 +76,12 @@ func GetProhibitedItems(Pesan itmodel.IteungMessage, db *mongo.Database) (reply 
 }
 
 func populateList(db *mongo.Database, filter bson.M, keyword string) (msg, dest string, err error) {
-    listprob, err := atdb.GetAllDoc[Item](db, "prohibited_items_id", filter)
+    listprob, err := atdb.GetAllDoc[Item](db, "prohibited_items_en", filter)
     if err != nil {
         return "Terdapat kesalahan pada GetAllDoc", "", err
     }
     if len(listprob) == 0 {
-        return "Tidak ada barang terlarang yang ditemukan", "", errors.New("zero results")
+        return "Tidak ada prohibited items yang ditemukan", "", errors.New("zero results")
     }
     dest = listprob[0].Destinasi
     msg = "ini dia list prohibited item dari negara *" + dest + "*:\n"
@@ -96,9 +96,9 @@ func populateList(db *mongo.Database, filter bson.M, keyword string) (msg, dest 
 
 func GetCountryNameLike(db *mongo.Database, country string) (dest string, err error) {
 	filter := bson.M{
-		"Destinasi": bson.M{"$regex": country, "$options": "i"},
+		"Destination": bson.M{"$regex": country, "$options": "i"},
 	}
-	itemprohb, err := atdb.GetOneDoc[Item](db, "prohibited_items_id", filter)
+	itemprohb, err := atdb.GetOneDoc[Item](db, "prohibited_items_en", filter)
 	if err != nil {
 		return
 	}
@@ -115,37 +115,30 @@ func GetCountryFromMessage(message string, db *mongo.Database) (country string, 
 	lowerMessage = strings.TrimSpace(lowerMessage)
 	lowerMessage = regexp.MustCompile(`\s+`).ReplaceAllString(lowerMessage, " ")
 	// Mendapatkan nama negara
-	countries, err := atdb.GetAllDistinctDoc(db, bson.M{}, "Destinasi", "prohibited_items_id")
+	countries, err := atdb.GetAllDistinctDoc(db, bson.M{}, "Destination", "prohibited_items_en")
 	if err != nil {
-		return
+		return "", err
 	}
-	dest = strings.ReplaceAll(itemprohb.BarangTerlarang, "\u00A0", " ")
-	return
+	var strcountry string
+	// Iterasi melalui daftar negara
+	for _, country := range countries {
+		lowerCountry := strings.ToLower(strings.TrimSpace(country.(string)))
+		// Mengganti non-breaking space dengan spasi biasa
+		lowerCountry = strings.ReplaceAll(lowerCountry, "\u00A0", " ")
+		strcountry += lowerCountry + ","
+		if strings.Contains(lowerMessage, lowerCountry) {
+			return country.(string), nil
+		}
+	}
+	return "", errors.New("tidak ditemukan nama negara di pesan berikut:" + lowerMessage + "|" + strcountry)
 }
 
-// populateList creates a list of prohibited items based on the filter
-func populateList(db *mongo.Database, filter bson.M, keyword string) (msg, dest string, err error) {
-	listprob, err := atdb.GetAllDoc[Item](db, "prohibited_items_id", filter)
-	if err != nil {
-		return "Terdapat kesalahan pada GetAllDoc", "", err
-	}
-	if len(listprob) == 0 {
-		return "Tidak ada barang terlarang yang ditemukan", "", errors.New("zero results")
-	}
-	dest = listprob[0].Destinasi
-	msg = "Ini dia list barang terlarang dari negara *" + dest + "*:\n"
-	if keyword != "" {
-		msg += "kata-kunci:_" + keyword + "_\n"
-	}
-	for i, probitem := range listprob {
-		msg += strconv.Itoa(i+1) + ". " + probitem.BarangTerlarang + "\n"
-	}
-	return
-}
-
-// ExtractKeywords extracts meaningful keywords from a message
-func ExtractKeywords(message string, commonWordsAdd []string) []string {
+// Fungsi untuk menghilangkan semua kata kecuali keyword yang diinginkan
+func ExtractKeywords(message string, commonWordsAdd []string) string {
+	// Daftar kata umum yang mungkin ingin dihilangkan
 	commonWords := []string{"list", "id", "mymy"}
+
+	// Gabungkan commonWords dengan commonWordsAdd
 	commonWords = append(commonWords, commonWordsAdd...)
 
 	// Ubah pesan menjadi huruf kecil
