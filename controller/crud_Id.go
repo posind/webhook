@@ -156,7 +156,7 @@ func DeleteItemByField(w http.ResponseWriter, r *http.Request) {
 
     // Koneksi ke MongoDB dan gunakan filter untuk menghapus dokumen
     collection := config.Mongoconn.Collection("prohibited_items_id")
-    deleteResult, err := collection.DeleteMany(context.Background(), filter)
+    deleteResult, err := collection.DeleteOne(context.Background(), filter)
     if err != nil {
         log.Printf("Error deleting items: %v", err)
         helper.WriteJSON(w, http.StatusInternalServerError, "Error deleting items")
