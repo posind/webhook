@@ -42,14 +42,16 @@ func URL(w http.ResponseWriter, r *http.Request) {
 		controller.DeleteProhibitedItemEn(w, r)
 
 	// ProhibitedItem Routes (Indonesian)
-	case method == "GET" && path == "/get/prohibitedItem/id":
-		controller.GetdataBarang(w, r)
-	case method == "POST" && path == "/post/prohibitedItem/id":
-		controller.CreateBarang(w, r)
-	case method == "PUT" && path == "/put/prohibitedItem/id":
-		controller.UpdateBarang(w, r)
-	case method == "DELETE" && path == "/delete/prohibitedItem/id":
-		controller.DeleteBarang(w, r)
+	case method == "GET" && path == "/get/item_larangan":
+		controller.GetAllItems(w, r)
+	case method == "GET" && path == "/get/item_larangan/id":
+		controller.GetItem(w, r)
+	case method == "POST" && path == "/post/item_larangan":
+		controller.CreateItem(w, r)
+	case method == "PUT" && path == "/put/item_larangan":
+		controller.UpdateItem(w, r)
+	case method == "DELETE" && path == "/delete/item_larangan":
+		controller.DeleteItem(w, r)
 	default:
 		controller.NotFound(w, r)
 	}
