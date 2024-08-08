@@ -117,28 +117,35 @@ func GetCountryFromMessage(message string, db *mongo.Database) (country string, 
 	// Mendapatkan nama negara
 	countries, err := atdb.GetAllDistinctDoc(db, bson.M{}, "Destinasi", "prohibited_items_id")
 	if err != nil {
-		return "", err
+		return
 	}
-	var strcountry string
-	// Iterasi melalui daftar negara
-	for _, country := range countries {
-		lowerCountry := strings.ToLower(strings.TrimSpace(country.(string)))
-		// Mengganti non-breaking space dengan spasi biasa
-		lowerCountry = strings.ReplaceAll(lowerCountry, "\u00A0", " ")
-		strcountry += lowerCountry + ","
-		if strings.Contains(lowerMessage, lowerCountry) {
-			return country.(string), nil
-		}
-	}
-	return "", errors.New("tidak ditemukan nama negara di pesan berikut:" + lowerMessage + "|" + strcountry)
+	dest = strings.ReplaceAll(itemprohb.BarangTerlarang, "\u00A0", " ")
+	return
 }
 
-// Fungsi untuk menghilangkan semua kata kecuali keyword yang diinginkan
-func ExtractKeywords(message string, commonWordsAdd []string) string {
-	// Daftar kata umum yang mungkin ingin dihilangkan
-	commonWords := []string{"list", "id", "mymy"}
+// populateList creates a list of prohibited items based on the filter
+func populateList(db *mongo.Database, filter bson.M, keyword string) (msg, dest string, err error) {
+	listprob, err := atdb.GetAllDoc[Item](db, "prohibited_items_id", filter)
+	if err != nil {
+		return "Terdapat kesalahan pada GetAllDoc", "", err
+	}
+	if len(listprob) == 0 {
+		return "Tidak ada barang terlarang yang ditemukan", "", errors.New("zero results")
+	}
+	dest = listprob[0].Destinasi
+	msg = "Ini dia list barang terlarang dari negara *" + dest + "*:\n"
+	if keyword != "" {
+		msg += "kata-kunci:_" + keyword + "_\n"
+	}
+	for i, probitem := range listprob {
+		msg += strconv.Itoa(i+1) + ". " + probitem.BarangTerlarang + "\n"
+	}
+	return
+}
 
-	// Gabungkan commonWords dengan commonWordsAdd
+// ExtractKeywords extracts meaningful keywords from a message
+func ExtractKeywords(message string, commonWordsAdd []string) []string {
+	commonWords := []string{"list", "id", "mymy"}
 	commonWords = append(commonWords, commonWordsAdd...)
 
 	// Ubah pesan menjadi huruf kecil

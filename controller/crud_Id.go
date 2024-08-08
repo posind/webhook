@@ -6,81 +6,142 @@ import (
 
 	"github.com/gocroot/config"
 	"github.com/gocroot/helper"
+	"github.com/gocroot/helper/atdb"
 	"github.com/gocroot/model"
 
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
-// GetdataBarang retrieves all prohibited items from the database
-func GetdataBarang(respw http.ResponseWriter, req *http.Request) {
-    var items []model.Prohibited_items_id
-    cursor, err := config.Mongoconn.Collection("prohibited_items_id").Find(req.Context(), bson.D{})
-    if err != nil {
-        helper.WriteJSON(respw, http.StatusInternalServerError, model.Response{Response: err.Error()})
-        return
-    }
-    defer cursor.Close(req.Context())
-
-    if err = cursor.All(req.Context(), &items); err != nil {
-        helper.WriteJSON(respw, http.StatusInternalServerError, model.Response{Response: err.Error()})
-        return
-    }
-
-    helper.WriteJSON(respw, http.StatusOK, items)
+// GetAllItems mengambil semua item larangan dari database dan mengembalikannya sebagai JSON.
+func GetAllItems(respw http.ResponseWriter, req *http.Request) {
+	items, err := atdb.GetAllDoc[[]model.Itemlarangan](config.Mongoconn, "item_larangan_id", bson.M{})
+	if err != nil {
+		helper.WriteJSON(respw, http.StatusInternalServerError, err.Error())
+		return
+	}
+	helper.WriteJSON(respw, http.StatusOK, items)
 }
 
-// CreateBarang creates a new prohibited item in the database
-func CreateBarang(respw http.ResponseWriter, req *http.Request) {
-    var item model.Prohibited_items_id
-    err := json.NewDecoder(req.Body).Decode(&item)
-    if err != nil {
-        helper.WriteJSON(respw, http.StatusBadRequest, model.Response{Response: err.Error()})
-        return
-    }
-    _, err = config.Mongoconn.Collection("prohibited_items_id").InsertOne(req.Context(), item)
-    if err != nil {
-        helper.WriteJSON(respw, http.StatusInternalServerError, model.Response{Response: err.Error()})
-        return
-    }
+// GetItem mengambil item larangan berdasarkan nama dari database.
+func GetItem(respw http.ResponseWriter, req *http.Request) {
+	// Ambil parameter dari query string
+	nama := req.URL.Query().Get("nama")
 
-    helper.WriteJSON(respw, http.StatusCreated, model.Response{Response: "Item created successfully"})
+	if nama == "" {
+		helper.WriteJSON(respw, http.StatusBadRequest, "Missing item name")
+		return
+	}
+
+	// Buat filter untuk mencari dokumen dengan nama yang diberikan
+	filter := bson.M{"barang_terlarang": nama}
+
+	// Ambil satu dokumen item larangan
+	item, err := atdb.GetOneDoc[model.Itemlarangan](config.Mongoconn, "item_larangan_id", filter)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			helper.WriteJSON(respw, http.StatusNotFound, "Item not found")
+		} else {
+			helper.WriteJSON(respw, http.StatusInternalServerError, err.Error())
+		}
+		return
+	}
+
+	// Kembalikan dokumen item larangan dalam format JSON
+	helper.WriteJSON(respw, http.StatusOK, item)
 }
 
-// UpdateBarang updates an existing prohibited item in the database
-func UpdateBarang(respw http.ResponseWriter, req *http.Request) {
-    var item model.Prohibited_items_id
-    err := json.NewDecoder(req.Body).Decode(&item)
-    if err != nil {
-        helper.WriteJSON(respw, http.StatusBadRequest, model.Response{Response: err.Error()})
-        return
-    }
-    filter := bson.D{{Key: "_id", Value: item.ID}}
-    update := bson.D{{Key: "$set", Value: item}}
-    _, err = config.Mongoconn.Collection("prohibited_items_id").UpdateOne(req.Context(), filter, update)
-    if err != nil {
-        helper.WriteJSON(respw, http.StatusInternalServerError, model.Response{Response: err.Error()})
-        return
-    }
+// CreateItem menambahkan item larangan baru ke dalam database.
+func CreateItem(respw http.ResponseWriter, req *http.Request) {
+	var newItem model.Itemlarangan
+	if err := json.NewDecoder(req.Body).Decode(&newItem); err != nil {
+		helper.WriteJSON(respw, http.StatusBadRequest, err.Error())
+		return
+	}
+	newItem.ID = primitive.NewObjectID()
 
-    helper.WriteJSON(respw, http.StatusOK, model.Response{Response: "Item updated successfully"})
+	// Validasi destinasi
+	if newItem.Destinasi == "" {
+		helper.WriteJSON(respw, http.StatusBadRequest, "Destinasi tidak boleh kosong")
+		return
+	}
+
+	// Validasi barang terlarang
+	if newItem.BarangTerlarang == "" {
+		helper.WriteJSON(respw, http.StatusBadRequest, "Barang terlarang tidak boleh kosong")
+		return
+	}
+
+	if _, err := atdb.InsertOneDoc(config.Mongoconn, "item_larangan_id", newItem); err != nil {
+		helper.WriteJSON(respw, http.StatusInternalServerError, err.Error())
+		return
+	}
+	helper.WriteJSON(respw, http.StatusCreated, newItem)
 }
 
-// DeleteBarang deletes an existing prohibited item from the database
-func DeleteBarang(respw http.ResponseWriter, req *http.Request) {
-    var item model.Prohibited_items_id
-    err := json.NewDecoder(req.Body).Decode(&item)
-    if err != nil {
-        helper.WriteJSON(respw, http.StatusBadRequest, model.Response{Response: err.Error()})
-        return
-    }
-    filter := bson.D{{Key: "_id", Value: item.ID}}
-    _, err = config.Mongoconn.Collection("prohibited_items_id").DeleteOne(req.Context(), filter)
-    if err != nil {
-        helper.WriteJSON(respw, http.StatusInternalServerError, model.Response{Response: err.Error()})
-        return
-    }
 
-    helper.WriteJSON(respw, http.StatusOK, model.Response{Response: "Item deleted successfully"})
+// UpdateItem memperbarui item larangan yang ada di database.
+func UpdateItem(respw http.ResponseWriter, req *http.Request) {
+	var item model.Itemlarangan
+	err := json.NewDecoder(req.Body).Decode(&item)
+	if err != nil {
+		helper.WriteJSON(respw, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	// Validasi bahwa ID item tidak boleh kosong
+	if item.ID == primitive.NilObjectID {
+		helper.WriteJSON(respw, http.StatusBadRequest, "ID item tidak boleh kosong")
+		return
+	}
+
+	// Definisikan filter untuk menemukan item berdasarkan ID item
+	filter := bson.M{"_id": item.ID}
+
+	// Definisikan update dengan set data baru
+	update := bson.M{
+		"$set": bson.M{
+			"destinasi":        item.Destinasi,
+			"barang_terlarang": item.BarangTerlarang,
+		},
+	}
+
+	// Update item di MongoDB
+	if _, err := atdb.UpdateDoc(config.Mongoconn, "item_larangan_id", filter, update); err != nil {
+		helper.WriteJSON(respw, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	// Kirim respons sukses
+	helper.WriteJSON(respw, http.StatusOK, item)
 }
+
+
+// DeleteItem menghapus item larangan dari database berdasarkan namanya.
+func DeleteItem(respw http.ResponseWriter, req *http.Request) {
+	var item model.Itemlarangan
+	if err := json.NewDecoder(req.Body).Decode(&item); err != nil {
+		helper.WriteJSON(respw, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	// Validasi bahwa nama item tidak boleh kosong
+	if item.BarangTerlarang == "" {
+		helper.WriteJSON(respw, http.StatusBadRequest, "Nama barang terlarang tidak boleh kosong")
+		return
+	}
+
+	// Buat filter untuk menghapus item berdasarkan nama barang terlarang
+	filter := bson.M{"barang_terlarang": item.BarangTerlarang}
+	_, err := atdb.DeleteOneDoc(config.Mongoconn, "item_larangan_id", filter)
+	if err != nil {
+		helper.WriteJSON(respw, http.StatusInternalServerError, err.Error())
+		return
+	}
+	helper.WriteJSON(respw, http.StatusOK, "Item berhasil dihapus")
+}
+
+
 
 
