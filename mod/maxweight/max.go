@@ -92,7 +92,7 @@ func populateList(db *mongo.Database, filter bson.M, keyword string) (string, st
     }
     dest := listmax[0].DestinasiNegara
     var msg strings.Builder
-    msg.WriteString("Ini dia daftar dari negara *" + dest + "*:\n")
+    msg.WriteString("Ini dia berat maksimal per koli dari negara *" + dest + "*:\n")
     if keyword != "" {
         msg.WriteString("kata-kunci:_" + keyword + "_\n")
     }
