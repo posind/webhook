@@ -33,7 +33,7 @@ Bolivia
 Bonaire
 Bosnia Dan Herzegovina
 Botswana
-Brazil
+Brasil
 Brunei
 Bulgaria
 Burkina Faso
@@ -115,7 +115,7 @@ Kenya
 Kiribati
 Kosovo
 Kuwait
-Kirgizstan
+Kirgistan
 Laos
 Latvia
 Lebanon
@@ -171,7 +171,7 @@ Peru
 Filipina
 Polandia
 Portugal
-Puerto Riko
+Puerto Rico
 Qatar
 Reunion
 Romania
@@ -235,7 +235,7 @@ Vatikan
 Venezuela
 Vietnam
 Kepulauan Virgin (Inggris)
-Kepulauan Virgin (AS)
+Kepulauan Virgin (Amerika Serikat)
 Yaman
 Zambia
 Zimbabwe
