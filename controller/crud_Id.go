@@ -35,34 +35,14 @@ func GetItemByField(w http.ResponseWriter, r *http.Request) {
 
     log.Printf("Filter created: %+v", filter)
 
-    // Opsi 1: Jika tidak ada filter, kembalikan semua item
-    if len(filter) == 0 {
-        log.Println("No query parameters provided, returning all items.")
-    }
-
-    // Opsi 2: Jika tidak ada filter, gunakan filter default (ganti sesuai kebutuhan)
-    /*
-    if len(filter) == 0 {
-        filter["destinasi"] = "Default Destination" // Ganti dengan nilai default yang diinginkan
-        log.Println("No query parameters provided, using default filter:", filter)
-    }
-    */
-
-    // Opsi 3: Jika tidak ada filter, kembalikan error
-    /*
-    if len(filter) == 0 {
-        helper.WriteJSON(w, http.StatusBadRequest, "Please provide a valid query parameter")
-        return
-    }
-    */
     // Set options to limit the number of documents returned
-	findOptions := options.Find()
-	findOptions.SetLimit(20) // Change to 10 if you want to limit to 10 items
+    findOptions := options.Find()
+    findOptions.SetLimit(20) // Mengatur batas hasil menjadi 20 item
     
     // Koneksi ke MongoDB dan gunakan filter untuk mencari dokumen
     var items []model.Itemlarangan
     collection := config.Mongoconn.Collection("prohibited_items_id")
-    cursor, err := collection.Find(context.Background(), filter)
+    cursor, err := collection.Find(context.Background(), filter, findOptions) 
     if err != nil {
         helper.WriteJSON(w, http.StatusInternalServerError, "Error fetching items")
         return
@@ -84,6 +64,7 @@ func GetItemByField(w http.ResponseWriter, r *http.Request) {
     // Kirim hasil item sebagai JSON
     helper.WriteJSON(w, http.StatusOK, items)
 }
+
 
 
 
