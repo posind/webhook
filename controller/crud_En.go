@@ -8,6 +8,7 @@ import (
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"github.com/gocroot/config"
 	"github.com/gocroot/helper"
@@ -41,7 +42,12 @@ func GetProhibitedItemByField(w http.ResponseWriter, r *http.Request) {
 
 	var items []model.ProhibitedItems
 	collection := config.Mongoconn.Collection("prohibited_items_en")
-	cursor, err := collection.Find(context.Background(), filter)
+
+	// Set options to limit the number of documents returned
+	findOptions := options.Find()
+	findOptions.SetLimit(20) // Change to 10 if you want to limit to 10 items
+
+	cursor, err := collection.Find(context.Background(), filter, findOptions)
 	if err != nil {
 		helper.WriteJSON(w, http.StatusInternalServerError, "Error fetching items")
 		return
@@ -60,6 +66,7 @@ func GetProhibitedItemByField(w http.ResponseWriter, r *http.Request) {
 
 	helper.WriteJSON(w, http.StatusOK, items)
 }
+
 
 // PostProhibitedItem adds a new item to the database.
 func PostProhibitedItem(w http.ResponseWriter, r *http.Request) {
