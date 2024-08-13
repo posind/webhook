@@ -17,6 +17,7 @@ import (
 )
 
 func GetItemByField(w http.ResponseWriter, r *http.Request) {
+    // Ambil query parameter dari URL
     query := r.URL.Query()
     destinasi := query.Get("destinasi")
     barangTerlarang := query.Get("barangTerlarang")
@@ -33,17 +34,19 @@ func GetItemByField(w http.ResponseWriter, r *http.Request) {
         filter["barang_terlarang"] = barangTerlarang
     }
 
+    // Log filter yang dibuat
     log.Printf("Filter created: %+v", filter)
 
-    // Set options to limit the number of documents returned
+    // Set options untuk membatasi jumlah dokumen yang dikembalikan
     findOptions := options.Find()
     findOptions.SetLimit(20) // Mengatur batas hasil menjadi 20 item
     
     // Koneksi ke MongoDB dan gunakan filter untuk mencari dokumen
     var items []model.Itemlarangan
     collection := config.Mongoconn.Collection("prohibited_items_id")
-    cursor, err := collection.Find(context.Background(), filter, findOptions) 
+    cursor, err := collection.Find(context.Background(), filter, findOptions)
     if err != nil {
+        log.Printf("Error fetching items: %v", err)
         helper.WriteJSON(w, http.StatusInternalServerError, "Error fetching items")
         return
     }
@@ -51,9 +54,13 @@ func GetItemByField(w http.ResponseWriter, r *http.Request) {
 
     // Parsing hasil dari cursor MongoDB ke dalam slice item
     if err = cursor.All(context.Background(), &items); err != nil {
+        log.Printf("Error decoding items: %v", err)
         helper.WriteJSON(w, http.StatusInternalServerError, "Error decoding items")
         return
     }
+
+    // Log hasil item yang ditemukan
+    log.Printf("Items found: %+v", items)
 
     // Jika tidak ada item yang ditemukan, kirim respons tidak ditemukan
     if len(items) == 0 {
@@ -64,7 +71,6 @@ func GetItemByField(w http.ResponseWriter, r *http.Request) {
     // Kirim hasil item sebagai JSON
     helper.WriteJSON(w, http.StatusOK, items)
 }
-
 
 
 
