@@ -6,6 +6,15 @@ import (
 	"net/http"
 )
 
+func GetLoginFromHeader(r *http.Request) (secret string) {
+	if r.Header.Get("login") != "" {
+		secret = r.Header.Get("login")
+	} else if r.Header.Get("Login") != "" {
+		secret = r.Header.Get("Login")
+	}
+	return
+}
+
 func GetSecretFromHeader(r *http.Request) (secret string) {
 	if r.Header.Get("secret") != "" {
 		secret = r.Header.Get("secret")

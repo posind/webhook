@@ -25,6 +25,17 @@ func URL(w http.ResponseWriter, r *http.Request) {
 	case method == "POST" && path == "/login":
 		controller.Login(w, r)
 
+	//user data
+	case method == "GET" && path == "get/data/user":
+		controller.GetDataUser(w, r)
+	//generate token linked device
+	case method == "PUT" && path == "put/data/user":
+		controller.PutTokenDataUser(w, r)
+	case method == "PUT" && path == "post/data/user":
+		controller.PostDataUser(w, r)
+	case method == "PUT" && path == "post/datawa/user":
+		controller.PostDataUserFromWA(w, r)	
+
 	case method == "GET" && path == "/":
 		controller.GetHome(w, r)
 	//jalan setiap jam 3 pagi

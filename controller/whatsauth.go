@@ -6,7 +6,10 @@ import (
 
 	"github.com/gocroot/config"
 	"github.com/gocroot/helper"
+	"github.com/gocroot/helper/atdb"
 	"github.com/whatsauth/itmodel"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 func GetHome(respw http.ResponseWriter, req *http.Request) {
@@ -83,4 +86,11 @@ func NotFound(respw http.ResponseWriter, req *http.Request) {
 	var resp itmodel.Response
 	resp.Response = "Not Found"
 	helper.WriteResponse(respw, http.StatusNotFound, resp)
+}
+
+func GetAppProfile(phonenumber string, db *mongo.Database) (apitoken itmodel.Profile, err error) {
+	filter := bson.M{"phonenumber": phonenumber}
+	apitoken, err = atdb.GetOneDoc[itmodel.Profile](db, "profile", filter)
+
+	return
 }
