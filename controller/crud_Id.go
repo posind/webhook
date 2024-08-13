@@ -13,6 +13,7 @@ import (
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 func GetItemByField(w http.ResponseWriter, r *http.Request) {
@@ -54,7 +55,10 @@ func GetItemByField(w http.ResponseWriter, r *http.Request) {
         return
     }
     */
-
+    // Set options to limit the number of documents returned
+	findOptions := options.Find()
+	findOptions.SetLimit(20) // Change to 10 if you want to limit to 10 items
+    
     // Koneksi ke MongoDB dan gunakan filter untuk mencari dokumen
     var items []model.Itemlarangan
     collection := config.Mongoconn.Collection("prohibited_items_id")
