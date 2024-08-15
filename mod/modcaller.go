@@ -1,7 +1,6 @@
 package mod
 
 import (
-	alloweditemsen "github.com/gocroot/mod/alloweditems"
 	"github.com/gocroot/mod/daftar"
 	"github.com/gocroot/mod/idgrup"
 	"github.com/gocroot/mod/kyc"
@@ -44,8 +43,6 @@ func Caller(Profile itmodel.Profile, Modulename string, Pesan itmodel.IteungMess
 		reply = posint.GetProhibitedItems(Pesan, db)
 	case "prohibited-items-id":
 		reply = posintid.GetProhibitedItems(Pesan, db)
-	case "allowed-items":
-		reply = alloweditemsen.GetAllowedItems(Pesan, db)
 
 	case "max-weight":
 		reply = maxweight.GetMaxWeight(Pesan, db)
