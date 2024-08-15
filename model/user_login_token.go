@@ -16,6 +16,8 @@ type Profile_user struct {
 	IsLoggedIn  bool               `bson:"is_logged_in"`
 	CreatedAt   time.Time          `bson:"created_at"`
 	UpdatedAt   time.Time          `bson:"updated_at"`
+	Private     string             `json:"private,omitempty" bson:"private,omitempty"`
+	Public      string             `json:"public,omitempty" bson:"public,omitempty"`
 }
 type QRStatus struct {
 	PhoneNumber string `json:"phonenumber"`

@@ -13,3 +13,6 @@ var WAPhoneNumber string = "6281510040020"
 var PrivateKey string = os.Getenv("privateKey")
 
 var PublicKey string = os.Getenv("publicKey")
+
+var PhoneNumber string = os.Getenv("PHONENUMBER")
+

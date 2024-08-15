@@ -7,7 +7,6 @@ require (
 	github.com/GoogleCloudPlatform/functions-framework-go v1.8.1
 	github.com/RadhiFadlillah/go-sastrawi v0.0.0-20200621225627-3dd6e0e1ac00
 	github.com/kimseokgis/backend-ai v0.0.0-20240731161356-5480aad28fd3
-	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 	github.com/whatsauth/itmodel v0.0.4
 	github.com/xrash/smetrics v0.0.0-20240521201337-686a1a2994c1
 	go.mongodb.org/mongo-driver v1.16.0
