@@ -73,7 +73,6 @@ func GetItemByField(w http.ResponseWriter, r *http.Request) {
 }
 
 
-
 // PostItem menambahkan item baru ke dalam database.
 func PostItem(respw http.ResponseWriter, req *http.Request) {
     var newItem model.Itemlarangan
