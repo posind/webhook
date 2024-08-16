@@ -6,8 +6,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/gocroot/helper/passwordhash"
-	cek "github.com/gocroot/helper/passwordhash"
+
 	"github.com/gocroot/helper/watoken"
 	"github.com/gocroot/model"
 	"go.mongodb.org/mongo-driver/bson"
@@ -26,14 +25,14 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	hashedPassword, err := passwordhash.HashPass(user.Password)
-	if err != nil {
-		http.Error(w, "Failed to hash password", http.StatusBadGateway)
-		return
-	}
-	user.PasswordHash = hashedPassword
-	user.Password = "" // Clear the plain password field
-	user.ID = primitive.NewObjectID()
+	// hashedPassword, err := passwordhash.HashPass(user.Password)
+	// if err != nil {
+	// 	http.Error(w, "Failed to hash password", http.StatusBadGateway)
+	// 	return
+	// }
+	// user.PasswordHash = hashedPassword
+	// user.Password = "" // Clear the plain password field
+	// user.ID = primitive.NewObjectID()
 
 	// Generate PASETO keys
 	privateKey, publicKey := watoken.GenerateKey()
@@ -69,10 +68,10 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !cek.CheckPasswordHash(loginRequest.Password, user.PasswordHash) {
-		http.Error(w, "Invalid password", http.StatusBadRequest)
-		return
-	}
+	// if !cek.CheckPasswordHash(loginRequest.Password, user.PasswordHash) {
+	// 	http.Error(w, "Invalid password", http.StatusBadRequest)
+	// 	return
+	// }
 
 	token, err := watoken.Encode(user.ID.Hex(), user.Private)
 	if err != nil {
