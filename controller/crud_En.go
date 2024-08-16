@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strings"
+	"os"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -15,6 +15,7 @@ import (
 	"github.com/gocroot/config"
 	"github.com/gocroot/helper/at"
 	"github.com/gocroot/helper/atdb"
+	"github.com/gocroot/helper/passwordhash"
 	"github.com/gocroot/model"
 )
 
@@ -22,48 +23,50 @@ import (
 func GetProhibitedItemByField(w http.ResponseWriter, r *http.Request) {
 	var respn model.Response
 
-	// Extract public key from Authorization header
-	authHeader := r.Header.Get("Authorization")
-	if authHeader == "" {
-		respn.Status = "Error: Missing Authorization header"
-		respn.Info = "Authorization header is missing."
+	// Extract token from Login header
+	tokenLogin := r.Header.Get("Login")
+	if tokenLogin == "" {
+		respn.Status = "Error: Missing Login header"
+		respn.Info = "Login header is missing."
 		at.WriteJSON(w, http.StatusUnauthorized, respn)
 		return
 	}
 
-	if !strings.HasPrefix(authHeader, "Bearer ") {
-
-		respn.Status = "Error: Invalid Authorization header format"
-		respn.Info = "Authorization header format is invalid."
+	// Validate the token (assume DecodeGetUser returns the email associated with the token)
+	checkToken, err := passwordhash.DecodeGetUser(os.Getenv("PUBLIC_KEY"), tokenLogin)
+	if err != nil {
+		respn.Status = "Error: Invalid token"
+		respn.Info = "The provided token is not valid."
 		at.WriteJSON(w, http.StatusUnauthorized, respn)
 		return
 	}
 
-	// Extract token from the header
-	token := strings.TrimPrefix(authHeader, "Bearer ")
-	// Directly compare the token to the public key
-	if token != config.PublicKey {
-		respn.Status = "Error: Invalid public key"
-		respn.Info = "Public key is not valid."
-		at.WriteJSON(w, http.StatusUnauthorized, respn)
+	// Check if the email exists in the database
+	filter := bson.M{"email": checkToken}
+	userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user_email", filter)
+	if err != nil || userData.Email == "" {
+		respn.Status = "Error: Unauthorized"
+		respn.Info = "You do not have permission to access this data."
+		at.WriteJSON(w, http.StatusForbidden, respn)
 		return
 	}
 
+	// Token is valid and email exists, proceed with fetching the data
 	query := r.URL.Query()
 	destination := query.Get("destination")
 	prohibitedItems := query.Get("prohibited_items")
 
 	log.Printf("Received query parameters - destination: %s, prohibited_items: %s", destination, prohibitedItems)
 
-	filter := bson.M{}
+	filterItems := bson.M{}
 	if destination != "" {
-		filter["destination"] = destination
+		filterItems["destination"] = destination
 	}
 	if prohibitedItems != "" {
-		filter["prohibited_items"] = prohibitedItems
+		filterItems["prohibited_items"] = prohibitedItems
 	}
 
-	log.Printf("Filter created: %+v", filter)
+	log.Printf("Filter created: %+v", filterItems)
 
 	// Set MongoDB query options
 	findOptions := options.Find().SetLimit(20)
@@ -72,7 +75,7 @@ func GetProhibitedItemByField(w http.ResponseWriter, r *http.Request) {
 	var items []model.ProhibitedItems
 	collection := config.Mongoconn.Collection("prohibited_items_en")
 
-	cursor, err := collection.Find(context.Background(), filter, findOptions)
+	cursor, err := collection.Find(context.Background(), filterItems, findOptions)
 	if err != nil {
 		log.Printf("Error fetching items: %v", err)
 		respn.Status = "Error: Internal Server Error"
@@ -97,7 +100,6 @@ func GetProhibitedItemByField(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	at.WriteJSON(w, http.StatusOK, items)
 	// Respond with the items
 	respn.Status = "Success"
 	respn.Response = fmt.Sprintf("%v", items)

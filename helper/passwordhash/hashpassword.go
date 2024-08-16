@@ -1,6 +1,8 @@
 package passwordhash
 
 import (
+	"encoding/json"
+	"fmt"
 	"time"
 
 	"aidanwoods.dev/go-paseto"
@@ -21,6 +23,39 @@ func EncodeToken(email, privatekey string) (string, error) {
 	token.SetString("user", email)
 	key, err := paseto.NewV4AsymmetricSecretKeyFromHex(privatekey)
 	return token.V4Sign(key, nil), err
+}
+
+func Decoder(publickey, tokenstr string) (payload Payload, err error) {
+	var token *paseto.Token
+	var pubKey paseto.V4AsymmetricPublicKey
+
+	// Pastikan bahwa kunci publik dalam format heksadesimal yang benar
+	pubKey, err = paseto.NewV4AsymmetricPublicKeyFromHex(publickey)
+	if err != nil {
+		return payload, fmt.Errorf("failed to create public key: %s", err)
+	}
+
+	parser := paseto.NewParser()
+
+	// Pastikan bahwa token memiliki format yang benar
+	token, err = parser.ParseV4Public(pubKey, tokenstr, nil)
+	if err != nil {
+		return payload, fmt.Errorf("failed to parse token: %s", err)
+	} else {
+		// Handle token claims
+		json.Unmarshal(token.ClaimsJSON(), &payload)
+	}
+
+	return payload, nil
+}
+
+func DecodeGetUser(PublicKey, tokenStr string) (pay string, err error) {
+	key, err := Decoder(PublicKey, tokenStr)
+	if err != nil {
+		fmt.Println("Cannot decode the token", err.Error())
+		return "", err // Mengembalikan nilai kosong dan informasi kesalahan
+	}
+	return key.User, nil
 }
 
 func HashPassword(password string) (string, error) {
