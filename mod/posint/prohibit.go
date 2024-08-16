@@ -79,7 +79,7 @@ func GetProhibitedItems(Pesan itmodel.IteungMessage, db *mongo.Database) (reply 
 }
 
 func populateList(db *mongo.Database, filter bson.M, keyword string) (msg, dest string, err error) {
-    listprob, err := atdb.GetAllDoc[Item](db, "prohibited_items_en", filter)
+    listprob, err := atdb.GetAllDoc[[]Item](db, "prohibited_items_en", filter)
     if err != nil {
         return "Terdapat kesalahan pada GetAllDoc", "", err
     }
