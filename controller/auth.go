@@ -84,8 +84,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Membuat token menggunakan Private Key dari user
-		tokenString, err := watoken.Encode(userData.ID.Hex(), userData.Private)
+		tokenString, err := watoken.Encode(userData.Username, userData.Private)
 		if err != nil {
 			log.Println("Error generating token:", err)
 			resp.Message = "Gagal Encode Token: " + err.Error()
