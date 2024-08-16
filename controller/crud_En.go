@@ -41,7 +41,7 @@ func GetProhibitedItemByField(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Decode the token using the user's public key
-	checkToken, err := passwordhash.DecodeGetUser(userData.Public, tokenLogin)
+	decodedUsername, err := passwordhash.DecodeGetUser(userData.Public, tokenLogin)
 	if err != nil {
 		respn.Status = "Error: Invalid token"
 		respn.Info = "The provided token is not valid."
@@ -49,15 +49,16 @@ func GetProhibitedItemByField(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check if the token is valid by comparing the decoded token to the expected value (e.g., email)
-	if checkToken != userData.Email {
-		respn.Status = "Error: Unauthorized"
-		respn.Info = "Token does not match the expected user."
+	// Check if the decoded username exists in the database
+	userByUsername, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user_email", bson.M{"username": decodedUsername})
+	if err != nil || userByUsername.Username == "" {
+		respn.Status = "Error: User not found"
+		respn.Info = "The username extracted from the token does not exist in the database."
 		at.WriteJSON(w, http.StatusForbidden, respn)
 		return
 	}
 
-	// Token is valid and matches the user, proceed with fetching the data
+	// Token is valid and matches an existing user, proceed with fetching the data
 	query := r.URL.Query()
 	destination := query.Get("destination")
 	prohibitedItems := query.Get("prohibited_items")

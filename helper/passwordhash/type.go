@@ -9,7 +9,6 @@ type ResponseEncode struct {
 
 type Payload struct {
 	User string    `json:"user"`
-	Role string    `json:"role"`
 	Exp  time.Time `json:"exp"`
 	Iat  time.Time `json:"iat"`
 	Nbf  time.Time `json:"nbf"`
