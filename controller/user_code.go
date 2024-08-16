@@ -8,8 +8,8 @@ import (
 	"github.com/gocroot/config"
 	"github.com/gocroot/helper"
 	"github.com/gocroot/helper/atdb"
-	"github.com/gocroot/helper/watoken"
 	"github.com/gocroot/model"
+	"github.com/whatsauth/watoken"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -52,18 +52,18 @@ func GetDataUser(respw http.ResponseWriter, req *http.Request) {
 //         return
 //     }
 
-    // Fetch the user data from the database based on the phone number
-    // docuser, err := atdb.GetOneDoc[model.Profile_user](config.Mongoconn, "user_login_token", primitive.M{"phonenumber": payload.Id})
-    // if err != nil {
-    //     // If the user is not found, create a new user with the payload data
-    //     docuser.PhoneNumber = payload.Id
-    //     docuser.Email = payload.Alias
-    //     helper.WriteJSON(respw, http.StatusNotFound, docuser)
-    //     return
-    // }
+// Fetch the user data from the database based on the phone number
+// docuser, err := atdb.GetOneDoc[model.Profile_user](config.Mongoconn, "user_login_token", primitive.M{"phonenumber": payload.Id})
+// if err != nil {
+//     // If the user is not found, create a new user with the payload data
+//     docuser.PhoneNumber = payload.Id
+//     docuser.Email = payload.Alias
+//     helper.WriteJSON(respw, http.StatusNotFound, docuser)
+//     return
+// }
 
-    // Update the user's name/alias
-    // docuser.Email = payload.Alias
+// Update the user's name/alias
+// docuser.Email = payload.Alias
 
 //     // Get QRIS status from the WAAPI using the phone number from the payload
 //     hcode, qrstat, err := atapi.Get[model.QRStatus](config.WAAPIGetToken + helper.GetLoginFromHeader(req))
@@ -161,7 +161,7 @@ func PostDataUserFromWA(respw http.ResponseWriter, req *http.Request) {
 		helper.WriteJSON(respw, http.StatusBadRequest, resp)
 		return
 	}
-	if	helper.GetSecretFromHeader(req) != prof.Secret {
+	if helper.GetSecretFromHeader(req) != prof.Secret {
 		resp.Response = "Salah secret: " + helper.GetSecretFromHeader(req)
 		helper.WriteJSON(respw, http.StatusUnauthorized, resp)
 		return
