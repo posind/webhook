@@ -11,6 +11,7 @@ import (
 	"github.com/gocroot/helper/atdb"
 	"github.com/gocroot/helper/passwordhash"
 	"github.com/gocroot/model"
+	"github.com/whatsauth/watoken"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
@@ -37,6 +38,11 @@ func Register(w http.ResponseWriter, r *http.Request) {
 				json.NewEncoder(w).Encode(resp)
 				return
 			}
+
+			// Generate private and public keys
+			privateKey, publicKey := watoken.GenerateKey()
+			userdata.Private = privateKey
+			userdata.Public = publicKey
 
 			// Set password yang sudah di-hash
 			userdata.Password = hash

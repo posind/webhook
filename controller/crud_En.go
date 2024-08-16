@@ -3,8 +3,10 @@ package controller
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
+	"strings"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -17,15 +19,36 @@ import (
 )
 
 // ProhibitedItem (English) Handlers
-
-// Public key dari environment variable
-var validPublicKey = config.PublicKey
-
-func isValidPublicKey(token string) bool {
-	return token == validPublicKey
-}
-
 func GetProhibitedItemByField(w http.ResponseWriter, r *http.Request) {
+	var respn model.Response
+
+	// Extract public key from Authorization header
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		respn.Status = "Error: Missing Authorization header"
+		respn.Info = "Authorization header is missing."
+		at.WriteJSON(w, http.StatusUnauthorized, respn)
+		return
+	}
+
+	if !strings.HasPrefix(authHeader, "Bearer ") {
+
+		respn.Status = "Error: Invalid Authorization header format"
+		respn.Info = "Authorization header format is invalid."
+		at.WriteJSON(w, http.StatusUnauthorized, respn)
+		return
+	}
+
+	// Extract token from the header
+	token := strings.TrimPrefix(authHeader, "Bearer ")
+	// Directly compare the token to the public key
+	if token != config.PublicKey {
+		respn.Status = "Error: Invalid public key"
+		respn.Info = "Public key is not valid."
+		at.WriteJSON(w, http.StatusUnauthorized, respn)
+		return
+	}
+
 	query := r.URL.Query()
 	destination := query.Get("destination")
 	prohibitedItems := query.Get("prohibited_items")
@@ -42,35 +65,43 @@ func GetProhibitedItemByField(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("Filter created: %+v", filter)
 
-	if len(filter) == 0 {
-		log.Println("No query parameters provided, returning all items.")
-	}
+	// Set MongoDB query options
+	findOptions := options.Find().SetLimit(20)
 
+	// Query MongoDB
 	var items []model.ProhibitedItems
 	collection := config.Mongoconn.Collection("prohibited_items_en")
 
-	// Set options to limit the number of documents returned
-	findOptions := options.Find()
-	findOptions.SetLimit(20) // Change to 10 if you want to limit to 10 items
-
 	cursor, err := collection.Find(context.Background(), filter, findOptions)
 	if err != nil {
-		at.WriteJSON(w, http.StatusInternalServerError, "Error fetching items")
+		log.Printf("Error fetching items: %v", err)
+		respn.Status = "Error: Internal Server Error"
+		respn.Info = "Error fetching items from the database."
+		at.WriteJSON(w, http.StatusInternalServerError, respn)
 		return
 	}
 	defer cursor.Close(context.Background())
 
 	if err = cursor.All(context.Background(), &items); err != nil {
-		at.WriteJSON(w, http.StatusInternalServerError, "Error decoding items")
+		log.Printf("Error decoding items: %v", err)
+		respn.Status = "Error: Internal Server Error"
+		respn.Info = "Error decoding items."
+		at.WriteJSON(w, http.StatusInternalServerError, respn)
 		return
 	}
 
 	if len(items) == 0 {
-		at.WriteJSON(w, http.StatusNotFound, "No items found")
+		respn.Status = "Error: No items found"
+		respn.Info = "No items match the provided filters."
+		at.WriteJSON(w, http.StatusNotFound, respn)
 		return
 	}
 
 	at.WriteJSON(w, http.StatusOK, items)
+	// Respond with the items
+	respn.Status = "Success"
+	respn.Response = fmt.Sprintf("%v", items)
+	at.WriteJSON(w, http.StatusOK, respn)
 }
 
 // PostProhibitedItem adds a new item to the database.
