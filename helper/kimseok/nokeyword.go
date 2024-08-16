@@ -96,7 +96,7 @@ func GetMaxWeight(negara, message string, db *mongo.Database, collectionName str
             }
         }
         if collectionName == "max_weight" {
-            maxitems, errr := atdb.GetAllDoc[MaxWeight](db, collectionName, filter)
+            maxitems, errr := atdb.GetAllDoc[[]MaxWeight](db, collectionName, filter)
             if errr != nil {
                 log.Printf("Error fetching max weight from DB: %v", errr)
                 err = fmt.Errorf("error fetching max weight from DB: %v", errr)
@@ -115,7 +115,7 @@ func GetMaxWeight(negara, message string, db *mongo.Database, collectionName str
                         "$options": "i",
                     },
                 }
-                maxitems, err = atdb.GetAllDoc[MaxWeight](db, collectionName, filter)
+                maxitems, err = atdb.GetAllDoc[[]MaxWeight](db, collectionName, filter)
                 if err != nil {
                     log.Printf("Error fetching max weight from DB: %v", err)
                     err = fmt.Errorf("error fetching max weight from DB: %v", err)
@@ -169,7 +169,7 @@ func GetProhibitedItemsFromMessage(negara, message string, db *mongo.Database, c
 		}
 		//dapatkan dan parsing hasil
 		if collectionName == "prohibited_items_id" {
-			prohitems, errr := atdb.GetAllDoc[DestinasiTerlarang](db, collectionName, filter)
+			prohitems, errr := atdb.GetAllDoc[[]DestinasiTerlarang](db, collectionName, filter)
 			if errr != nil {
 				err = fmt.Errorf("error fetching countries from DB: %v", errr)
 				return
@@ -188,7 +188,7 @@ func GetProhibitedItemsFromMessage(negara, message string, db *mongo.Database, c
 						"$options": "i",
 					},
 				}
-				prohitems, err = atdb.GetAllDoc[DestinasiTerlarang](db, collectionName, filter)
+				prohitems, err = atdb.GetAllDoc[[]DestinasiTerlarang](db, collectionName, filter)
 				if err != nil {
 					err = fmt.Errorf("error fetching countries from DB: %v", err)
 					return
@@ -201,7 +201,7 @@ func GetProhibitedItemsFromMessage(negara, message string, db *mongo.Database, c
 				}
 			}
 		} else {
-			prohitems, errr := atdb.GetAllDoc[DestinationProhibit](db, collectionName, filter)
+			prohitems, errr := atdb.GetAllDoc[[]DestinationProhibit](db, collectionName, filter)
 			if errr != nil {
 				err = fmt.Errorf("error fetching countries from DB: %v", errr)
 				return
@@ -219,7 +219,7 @@ func GetProhibitedItemsFromMessage(negara, message string, db *mongo.Database, c
 						"$options": "i",
 					},
 				}
-				prohitems, err = atdb.GetAllDoc[DestinationProhibit](db, collectionName, filter)
+				prohitems, err = atdb.GetAllDoc[[]DestinationProhibit](db, collectionName, filter)
 				if err != nil {
 					err = fmt.Errorf("error fetching countries from DB: %v", err)
 					return

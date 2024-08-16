@@ -86,18 +86,18 @@ func DeleteManyDocs(db *mongo.Database, collection string, filter bson.M) (delet
 	return
 }
 
-func GetAllDoc[T any](db *mongo.Database, collection string, filter bson.M) (docs []T, err error) {
-	ctx := context.Background()
+func GetAllDoc[T any](db *mongo.Database, collection string, filter bson.M) (doc T, err error) {
+	ctx := context.TODO()
 	cur, err := db.Collection(collection).Find(ctx, filter)
 	if err != nil {
-		return nil, err
+		return
 	}
 	defer cur.Close(ctx)
-	err = cur.All(ctx, &docs)
+	err = cur.All(ctx, &doc)
 	if err != nil {
-		return nil, err
+		return
 	}
-	return docs, nil
+	return
 }
 
 func GetAllDistinctDoc(db *mongo.Database, filter bson.M, fieldname, collection string) (doc []any, err error) {

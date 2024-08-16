@@ -108,10 +108,6 @@ func QueriesDataRegexpALL(db *mongo.Database, queries string) (dest Datasets, er
 }
 
 // Helper function to flatten a [][]Datasets into []Datasets
-func flattenDatasets(qnas [][]Datasets) []Datasets {
-	var result []Datasets
-	for _, innerSlice := range qnas {
-		result = append(result, innerSlice...)
-	}
-	return result
+func flattenDatasets(qnas []Datasets) []Datasets {
+	return qnas
 }

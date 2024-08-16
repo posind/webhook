@@ -5,12 +5,12 @@ import (
 
 	"github.com/gocroot/mod"
 
-	"github.com/gocroot/module"
+	"github.com/gocroot/helper/module"
 	"github.com/whatsauth/itmodel"
 
+	"github.com/gocroot/helper/kimseok"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
-	"github.com/gocroot/helper/kimseok"
 )
 
 func WebHook(WAKeyword, WAPhoneNumber, WAAPIQRLogin, WAAPIMessage string, msg itmodel.IteungMessage, db *mongo.Database) (resp itmodel.Response, err error) {
@@ -151,15 +151,15 @@ func GetRandomReplyFromMongo(msg itmodel.IteungMessage, botname string, db *mong
 	if err != nil {
 		return "Koneksi Database Gagal: " + err.Error()
 	}
-		//jika tidak ada di db komplain lanjut ke selanjutnya
-		if len(rply) == 0 {
-			dt, err := kimseok.QueriesDataRegexpALL(db, msg.Message)
-			if err != nil {
-				return err.Error()
-			}
-			rply = []itmodel.Reply{{Message: strings.TrimSpace(dt.Answer)}}
-	
+	//jika tidak ada di db komplain lanjut ke selanjutnya
+	if len(rply) == 0 {
+		dt, err := kimseok.QueriesDataRegexpALL(db, msg.Message)
+		if err != nil {
+			return err.Error()
 		}
+		rply = []itmodel.Reply{{Message: strings.TrimSpace(dt.Answer)}}
+
+	}
 	replymsg := strings.ReplaceAll(rply[0].Message, "#BOTNAME#", botname)
 	replymsg = strings.ReplaceAll(replymsg, "\\n", "\n")
 	return replymsg

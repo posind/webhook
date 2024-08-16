@@ -10,7 +10,7 @@ import (
 )
 
 func GetModuleName(WAPhoneNumber string, im itmodel.IteungMessage, MongoConn *mongo.Database, ModuleCollection string) (modulename string, group bool, personal bool) {
-	modules, _ := atdb.GetAllDoc[Module](MongoConn, ModuleCollection, bson.M{"phonenumbers": WAPhoneNumber})
+	modules, _ := atdb.GetAllDoc[[]Module](MongoConn, ModuleCollection, bson.M{"phonenumbers": WAPhoneNumber})
 	for _, mod := range modules {
 		complete, _ := IsMatch(strings.ToLower(im.Message), mod.Keyword...)
 		if complete {
