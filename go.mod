@@ -6,6 +6,7 @@ require (
 	aidanwoods.dev/go-paseto v1.5.1
 	github.com/GoogleCloudPlatform/functions-framework-go v1.8.1
 	github.com/RadhiFadlillah/go-sastrawi v0.0.0-20200621225627-3dd6e0e1ac00
+	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/kimseokgis/backend-ai v0.0.0-20240731161356-5480aad28fd3
 	github.com/whatsauth/itmodel v0.0.8
 	github.com/xrash/smetrics v0.0.0-20240521201337-686a1a2994c1

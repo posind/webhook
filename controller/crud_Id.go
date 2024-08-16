@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strings"
 
+	"github.com/dgrijalva/jwt-go"
 	"github.com/gocroot/config"
 	"github.com/gocroot/helper"
 	"github.com/gocroot/helper/atdb"
@@ -17,15 +19,48 @@ import (
 )
 
 func GetItemByField(w http.ResponseWriter, r *http.Request) {
-    // Ambil query parameter dari URL
+    // Retrieve token from Authorization header
+    authHeader := r.Header.Get("Authorization")
+    if authHeader == "" {
+        http.Error(w, "Unauthorized", http.StatusUnauthorized)
+        return
+    }
+
+    parts := strings.Split(authHeader, " ")
+    if len(parts) != 2 || parts[0] != "Bearer" {
+        http.Error(w, "Unauthorized", http.StatusUnauthorized)
+        return
+    }
+    tokenStr := parts[1]
+
+    // Get RSA public key securely
+    publicKey, err := getRSAPublicKey()
+    if err != nil {
+        log.Printf("Error retrieving public key: %v", err)
+        http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+        return
+    }
+
+    // Verify JWT token
+    token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
+        if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
+            return nil, http.ErrAbortHandler
+        }
+        return publicKey, nil
+    })
+
+    if err != nil || !token.Valid {
+        log.Printf("Token invalid: %v", err)
+        http.Error(w, "Unauthorized", http.StatusUnauthorized)
+        return
+    }
+
+    // Retrieve query parameters
     query := r.URL.Query()
     destinasi := query.Get("destinasi")
-    barang := query.Get("Barang")  // Ubah menjadi 'Barang' sesuai dengan MongoDB
+    barang := query.Get("Barang")
 
-    // Log parameter yang diterima
-    log.Printf("Received query parameters - destinasi: %s, Barang: %s", destinasi, barang)
-
-    // Buat filter berdasarkan parameter yang ada
+    // Build the filter
     filter := bson.M{}
     if destinasi != "" {
         filter["Destinasi"] = destinasi
@@ -34,14 +69,10 @@ func GetItemByField(w http.ResponseWriter, r *http.Request) {
         filter["Barang"] = barang
     }
 
-    // Log filter yang dibuat
-    log.Printf("Filter created: %+v", filter)
+    // Set MongoDB query options
+    findOptions := options.Find().SetLimit(20)
 
-    // Set options untuk membatasi jumlah dokumen yang dikembalikan
-    findOptions := options.Find()
-    findOptions.SetLimit(20) // Mengatur batas hasil menjadi 20 item
-    
-    // Koneksi ke MongoDB dan gunakan filter untuk mencari dokumen
+    // Query MongoDB
     var items []model.Itemlarangan
     collection := config.Mongoconn.Collection("prohibited_items_id")
     cursor, err := collection.Find(context.Background(), filter, findOptions)
@@ -52,23 +83,19 @@ func GetItemByField(w http.ResponseWriter, r *http.Request) {
     }
     defer cursor.Close(context.Background())
 
-    // Parsing hasil dari cursor MongoDB ke dalam slice item
     if err = cursor.All(context.Background(), &items); err != nil {
         log.Printf("Error decoding items: %v", err)
         helper.WriteJSON(w, http.StatusInternalServerError, "Error decoding items")
         return
     }
 
-    // Log hasil item yang ditemukan
-    log.Printf("Items found: %+v", items)
-
-    // Jika tidak ada item yang ditemukan, kirim respons tidak ditemukan
+    // If no items found
     if len(items) == 0 {
         helper.WriteJSON(w, http.StatusNotFound, "No items found")
         return
     }
 
-    // Kirim hasil item sebagai JSON dengan format yang sesuai untuk frontend
+    // Return items as JSON
     helper.WriteJSON(w, http.StatusOK, items)
 }
 

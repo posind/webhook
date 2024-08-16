@@ -43,3 +43,4 @@ func WriteJSON(respw http.ResponseWriter, statusCode int, content interface{}) {
 	respw.WriteHeader(statusCode)
 	respw.Write([]byte(Jsonstr(content)))
 }
+

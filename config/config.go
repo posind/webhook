@@ -12,9 +12,9 @@ import (
 
 var IPPort, Net = helper.GetAddress()
 
-// var PrivateKey string = os.Getenv("privateKey")
+var PrivateKey string = os.Getenv("privateKey")
 
-// var PublicKey string = os.Getenv("publicKey")
+var PublicKey string = os.Getenv("publicKey")
 
 var PhoneNumber string = os.Getenv("PHONENUMBER")
 
