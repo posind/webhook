@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"strings"
@@ -17,44 +18,44 @@ import (
 	"github.com/gocroot/model"
 )
 
-// ProhibitedItem (English) Handlers
-
-// Public key dari environment variable
-var validPublicKey = config.PublicKey
-
-func isValidPublicKey(token string) bool {
-    return token == validPublicKey
-}
-
 func GetProhibitedItemByField(w http.ResponseWriter, r *http.Request) {
-    // Ambil public key dari header Authorization
+    var respn model.Response
+
+    // Extract public key from Authorization header
     authHeader := r.Header.Get("Authorization")
     if authHeader == "" {
-        helper.WriteJSON(w, http.StatusUnauthorized, "Missing public key")
+        respn.Status = "Error: Missing Authorization header"
+        respn.Info = "Authorization header is missing."
+        helper.WriteJSON(w, http.StatusUnauthorized, respn)
         return
     }
 
-    // Pastikan header dimulai dengan "Bearer "
     if !strings.HasPrefix(authHeader, "Bearer ") {
-        helper.WriteJSON(w, http.StatusUnauthorized, "Invalid token format")
+        respn.Status = "Error: Invalid Authorization header format"
+        respn.Info = "Authorization header format is invalid."
+        helper.WriteJSON(w, http.StatusUnauthorized, respn)
         return
     }
 
-    // Ekstrak public key dari header
+    // Extract token from the header
     token := strings.TrimPrefix(authHeader, "Bearer ")
 
-    // Verifikasi public key
-    if !isValidPublicKey(token) {
-        helper.WriteJSON(w, http.StatusUnauthorized, "Invalid public key")
+    // Directly compare the token to the public key
+    if token != config.PublicKey {
+        respn.Status = "Error: Invalid public key"
+        respn.Info = "Public key is not valid."
+        helper.WriteJSON(w, http.StatusUnauthorized, respn)
         return
     }
 
+    // Retrieve query parameters
     query := r.URL.Query()
     destination := query.Get("destination")
     prohibitedItems := query.Get("prohibited_items")
 
     log.Printf("Received query parameters - destination: %s, prohibited_items: %s", destination, prohibitedItems)
 
+    // Build the filter
     filter := bson.M{}
     if destination != "" {
         filter["destination"] = destination
@@ -65,34 +66,41 @@ func GetProhibitedItemByField(w http.ResponseWriter, r *http.Request) {
 
     log.Printf("Filter created: %+v", filter)
 
-    if len(filter) == 0 {
-        log.Println("No query parameters provided, returning all items.")
-    }
+    // Set MongoDB query options
+    findOptions := options.Find().SetLimit(20)
 
+    // Query MongoDB
     var items []model.ProhibitedItems
     collection := config.Mongoconn.Collection("prohibited_items_en")
-
-    findOptions := options.Find()
-    findOptions.SetLimit(20) 
-
     cursor, err := collection.Find(context.Background(), filter, findOptions)
     if err != nil {
-        helper.WriteJSON(w, http.StatusInternalServerError, "Error fetching items")
+        log.Printf("Error fetching items: %v", err)
+        respn.Status = "Error: Internal Server Error"
+        respn.Info = "Error fetching items from the database."
+        helper.WriteJSON(w, http.StatusInternalServerError, respn)
         return
     }
     defer cursor.Close(context.Background())
 
     if err = cursor.All(context.Background(), &items); err != nil {
-        helper.WriteJSON(w, http.StatusInternalServerError, "Error decoding items")
+        log.Printf("Error decoding items: %v", err)
+        respn.Status = "Error: Internal Server Error"
+        respn.Info = "Error decoding items."
+        helper.WriteJSON(w, http.StatusInternalServerError, respn)
         return
     }
 
     if len(items) == 0 {
-        helper.WriteJSON(w, http.StatusNotFound, "No items found")
+        respn.Status = "Error: No items found"
+        respn.Info = "No items match the provided filters."
+        helper.WriteJSON(w, http.StatusNotFound, respn)
         return
     }
 
-    helper.WriteJSON(w, http.StatusOK, items)
+    // Respond with the items
+    respn.Status = "Success"
+	respn.Response = fmt.Sprintf("%v", items)
+    helper.WriteJSON(w, http.StatusOK, respn)
 }
 
 // PostProhibitedItem adds a new item to the database.
