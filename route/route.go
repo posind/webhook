@@ -31,10 +31,10 @@ func URL(w http.ResponseWriter, r *http.Request) {
 	//generate token linked device
 	// case method == "PUT" && path == "put/data/user":
 	// 	controller.PutTokenDataUser(w, r)
-	case method == "PUT" && path == "post/data/user":
-		controller.PostDataUser(w, r)
-	case method == "PUT" && path == "post/datawa/user":
-		controller.PostDataUserFromWA(w, r)
+	// case method == "PUT" && path == "post/data/user":
+	// 	controller.PostDataUser(w, r)
+	// case method == "PUT" && path == "post/datawa/user":
+	// 	controller.PostDataUserFromWA(w, r)
 
 	case method == "GET" && path == "/":
 		controller.GetHome(w, r)
