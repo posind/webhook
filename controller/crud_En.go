@@ -11,14 +11,20 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"github.com/gocroot/config"
-	"github.com/gocroot/helper"
+	"github.com/gocroot/helper/at"
 	"github.com/gocroot/helper/atdb"
 	"github.com/gocroot/model"
 )
 
 // ProhibitedItem (English) Handlers
 
-// GetProhibitedItemByField fetches items based on provided fields.
+// Public key dari environment variable
+var validPublicKey = config.PublicKey
+
+func isValidPublicKey(token string) bool {
+	return token == validPublicKey
+}
+
 func GetProhibitedItemByField(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	destination := query.Get("destination")
@@ -49,50 +55,50 @@ func GetProhibitedItemByField(w http.ResponseWriter, r *http.Request) {
 
 	cursor, err := collection.Find(context.Background(), filter, findOptions)
 	if err != nil {
-		helper.WriteJSON(w, http.StatusInternalServerError, "Error fetching items")
+		at.WriteJSON(w, http.StatusInternalServerError, "Error fetching items")
 		return
 	}
 	defer cursor.Close(context.Background())
 
 	if err = cursor.All(context.Background(), &items); err != nil {
-		helper.WriteJSON(w, http.StatusInternalServerError, "Error decoding items")
+		at.WriteJSON(w, http.StatusInternalServerError, "Error decoding items")
 		return
 	}
 
 	if len(items) == 0 {
-		helper.WriteJSON(w, http.StatusNotFound, "No items found")
+		at.WriteJSON(w, http.StatusNotFound, "No items found")
 		return
 	}
 
-	helper.WriteJSON(w, http.StatusOK, items)
+	at.WriteJSON(w, http.StatusOK, items)
 }
 
 // PostProhibitedItem adds a new item to the database.
 func PostProhibitedItem(w http.ResponseWriter, r *http.Request) {
 	var newItem model.ProhibitedItems
 	if err := json.NewDecoder(r.Body).Decode(&newItem); err != nil {
-		helper.WriteJSON(w, http.StatusBadRequest, err.Error())
+		at.WriteJSON(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	newItem.ID = primitive.NewObjectID()
 
 	if newItem.Destination == "" || newItem.ProhibitedItems == "" {
-		helper.WriteJSON(w, http.StatusBadRequest, "Destination and Prohibited Items cannot be empty")
+		at.WriteJSON(w, http.StatusBadRequest, "Destination and Prohibited Items cannot be empty")
 		return
 	}
 
 	if _, err := atdb.InsertOneDoc(config.Mongoconn, "prohibited_items_en", newItem); err != nil {
-		helper.WriteJSON(w, http.StatusInternalServerError, err.Error())
+		at.WriteJSON(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	helper.WriteJSON(w, http.StatusOK, newItem)
+	at.WriteJSON(w, http.StatusOK, newItem)
 }
 
 // UpdateProhibitedItem updates an item in the database.
 func UpdateProhibitedItem(w http.ResponseWriter, r *http.Request) {
 	var item model.ProhibitedItems
 	if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
-		helper.WriteJSON(w, http.StatusBadRequest, err.Error())
+		at.WriteJSON(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -104,11 +110,11 @@ func UpdateProhibitedItem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if _, err := atdb.UpdateDoc(config.Mongoconn, "prohibited_items_en", filter, update); err != nil {
-		helper.WriteJSON(w, http.StatusInternalServerError, err.Error())
+		at.WriteJSON(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	helper.WriteJSON(w, http.StatusOK, item)
+	at.WriteJSON(w, http.StatusOK, item)
 }
 
 // DeleteProhibitedItemByField deletes an item based on provided fields.
@@ -137,14 +143,14 @@ func DeleteProhibitedItemByField(w http.ResponseWriter, r *http.Request) {
 	deleteResult, err := collection.DeleteOne(context.Background(), filter)
 	if err != nil {
 		log.Printf("Error deleting items: %v", err)
-		helper.WriteJSON(w, http.StatusInternalServerError, "Error deleting items")
+		at.WriteJSON(w, http.StatusInternalServerError, "Error deleting items")
 		return
 	}
 
 	if deleteResult.DeletedCount == 0 {
-		helper.WriteJSON(w, http.StatusNotFound, "No items found to delete")
+		at.WriteJSON(w, http.StatusNotFound, "No items found to delete")
 		return
 	}
 
-	helper.WriteJSON(w, http.StatusOK, "Item deleted successfully")
+	at.WriteJSON(w, http.StatusOK, "Item deleted successfully")
 }

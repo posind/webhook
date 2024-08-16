@@ -5,8 +5,8 @@ import (
 	"strings"
 
 	"github.com/gocroot/helper"
+	"github.com/gocroot/helper/module"
 	"github.com/gocroot/mod"
-	"github.com/gocroot/module"
 	"github.com/whatsauth/itmodel"
 	"go.mongodb.org/mongo-driver/mongo"
 )

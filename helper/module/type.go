@@ -7,6 +7,7 @@ type Module struct {
 	Group        bool     `json:"group,omitempty" bson:"group,omitempty"`
 	Personal     bool     `json:"personal,omitempty" bson:"personal,omitempty"`
 }
+
 type Typo struct {
 	From string `json:"from,omitempty" bson:"from,omitempty"`
 	To   string `json:"to,omitempty" bson:"to,omitempty"`

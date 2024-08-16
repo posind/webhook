@@ -9,9 +9,9 @@ import (
 )
 
 func NormalizeAndTypoCorrection(message *string, MongoConn *mongo.Database, TypoCollection string) {
-	typos, _ := atdb.GetAllDoc[Typo](MongoConn, TypoCollection, bson.M{})
+	typos, _ := atdb.GetAllDoc[[]Typo](MongoConn, TypoCollection, bson.M{})
 	for _, typo := range typos {
-		re := regexp.MustCompile(`(?i)` + regexp.QuoteMeta(typo.From))
+		re := regexp.MustCompile(`(?i)` + typo.From + ``)
 		*message = re.ReplaceAllString(*message, typo.To)
 	}
 }
