@@ -1,36 +1,29 @@
 package passwordhash
 
 import (
-	"context"
-
-	"github.com/gocroot/model"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
+	"github.com/whatsauth/watoken"
 	"golang.org/x/crypto/bcrypt"
 )
 
-func HashPass(passwordhash string) (string, error) {
-	bytes, err := bcrypt.GenerateFromPassword([]byte(passwordhash), 14)
+func HashPassword(password string) (string, error) {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
 	return string(bytes), err
 }
-func CheckPasswordHash(passwordhash, hash string) bool {
-	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(passwordhash))
+
+func CheckPasswordHash(password, hash string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 	return err == nil
 }
 
-func IsPasswordValid(mongoconn *mongo.Database, userdata model.User) bool {
-	filter := bson.M{
-		"$or": []bson.M{
-			{"username": userdata.Username},
-			{"email": userdata.Email},
-		},
+func TokenEncoder(username, privatekey string) string {
+	resp := new(ResponseEncode)
+	encode, err := watoken.Encode(username, privatekey)
+	if err != nil {
+		resp.Message = "Gagal Encode" + err.Error()
+	} else {
+		resp.Token = encode
+		resp.Message = "Welcome"
 	}
 
-	var res model.User
-	err := mongoconn.Collection("user_email").FindOne(context.TODO(), filter).Decode(&res)
-
-	if err == nil {
-		return CheckPasswordHash(userdata.PasswordHash, res.PasswordHash)
-	}
-	return false
+	return GCFReturnStruct(resp)
 }

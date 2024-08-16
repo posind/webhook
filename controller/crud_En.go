@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"strings"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -19,80 +18,53 @@ import (
 
 // ProhibitedItem (English) Handlers
 
-// Public key dari environment variable
-var validPublicKey = config.PublicKey
-
-func isValidPublicKey(token string) bool {
-    return token == validPublicKey
-}
-
+// GetProhibitedItemByField fetches items based on provided fields.
 func GetProhibitedItemByField(w http.ResponseWriter, r *http.Request) {
-    // Ambil public key dari header Authorization
-    authHeader := r.Header.Get("Authorization")
-    if authHeader == "" {
-        helper.WriteJSON(w, http.StatusUnauthorized, "Missing public key")
-        return
-    }
+	query := r.URL.Query()
+	destination := query.Get("destination")
+	prohibitedItems := query.Get("prohibited_items")
 
-    // Pastikan header dimulai dengan "Bearer "
-    if !strings.HasPrefix(authHeader, "Bearer ") {
-        helper.WriteJSON(w, http.StatusUnauthorized, "Invalid token format")
-        return
-    }
+	log.Printf("Received query parameters - destination: %s, prohibited_items: %s", destination, prohibitedItems)
 
-    // Ekstrak public key dari header
-    token := strings.TrimPrefix(authHeader, "Bearer ")
+	filter := bson.M{}
+	if destination != "" {
+		filter["destination"] = destination
+	}
+	if prohibitedItems != "" {
+		filter["prohibited_items"] = prohibitedItems
+	}
 
-    // Verifikasi public key
-    if !isValidPublicKey(token) {
-        helper.WriteJSON(w, http.StatusUnauthorized, "Invalid public key")
-        return
-    }
+	log.Printf("Filter created: %+v", filter)
 
-    query := r.URL.Query()
-    destination := query.Get("destination")
-    prohibitedItems := query.Get("prohibited_items")
+	if len(filter) == 0 {
+		log.Println("No query parameters provided, returning all items.")
+	}
 
-    log.Printf("Received query parameters - destination: %s, prohibited_items: %s", destination, prohibitedItems)
+	var items []model.ProhibitedItems
+	collection := config.Mongoconn.Collection("prohibited_items_en")
 
-    filter := bson.M{}
-    if destination != "" {
-        filter["destination"] = destination
-    }
-    if prohibitedItems != "" {
-        filter["prohibited_items"] = prohibitedItems
-    }
+	// Set options to limit the number of documents returned
+	findOptions := options.Find()
+	findOptions.SetLimit(20) // Change to 10 if you want to limit to 10 items
 
-    log.Printf("Filter created: %+v", filter)
+	cursor, err := collection.Find(context.Background(), filter, findOptions)
+	if err != nil {
+		helper.WriteJSON(w, http.StatusInternalServerError, "Error fetching items")
+		return
+	}
+	defer cursor.Close(context.Background())
 
-    if len(filter) == 0 {
-        log.Println("No query parameters provided, returning all items.")
-    }
+	if err = cursor.All(context.Background(), &items); err != nil {
+		helper.WriteJSON(w, http.StatusInternalServerError, "Error decoding items")
+		return
+	}
 
-    var items []model.ProhibitedItems
-    collection := config.Mongoconn.Collection("prohibited_items_en")
+	if len(items) == 0 {
+		helper.WriteJSON(w, http.StatusNotFound, "No items found")
+		return
+	}
 
-    findOptions := options.Find()
-    findOptions.SetLimit(20) 
-
-    cursor, err := collection.Find(context.Background(), filter, findOptions)
-    if err != nil {
-        helper.WriteJSON(w, http.StatusInternalServerError, "Error fetching items")
-        return
-    }
-    defer cursor.Close(context.Background())
-
-    if err = cursor.All(context.Background(), &items); err != nil {
-        helper.WriteJSON(w, http.StatusInternalServerError, "Error decoding items")
-        return
-    }
-
-    if len(items) == 0 {
-        helper.WriteJSON(w, http.StatusNotFound, "No items found")
-        return
-    }
-
-    helper.WriteJSON(w, http.StatusOK, items)
+	helper.WriteJSON(w, http.StatusOK, items)
 }
 
 // PostProhibitedItem adds a new item to the database.

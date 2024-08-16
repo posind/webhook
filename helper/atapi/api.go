@@ -8,7 +8,7 @@ import (
 	"net/http"
 )
 
-func PostStructWithToken[T any](tokenkey string, tokenvalue string, structname interface{}, urltarget string) (statusCode int, result T, err error) {
+func PostStructWithToken[T any](tokenkey string, tokenvalue string, structname interface{}, urltarget string) (result T, err error) {
 	client := http.Client{}
 	mJson, _ := json.Marshal(structname)
 	req, err := http.NewRequest("POST", urltarget, bytes.NewBuffer(mJson))
@@ -21,7 +21,6 @@ func PostStructWithToken[T any](tokenkey string, tokenvalue string, structname i
 	if err != nil {
 		return
 	}
-	statusCode = resp.StatusCode
 	defer resp.Body.Close()
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
