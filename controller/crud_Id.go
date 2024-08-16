@@ -58,7 +58,6 @@ func GetItemByField(w http.ResponseWriter, r *http.Request) {
     }
 
     pemBlock := &pem.Block{
-        Type:  "PUBLIC KEY",
         Bytes: publicKeyBytes,
     }
 
@@ -105,7 +104,7 @@ func GetItemByField(w http.ResponseWriter, r *http.Request) {
         filter["Destinasi"] = destinasi
     }
     if barang != "" {
-        filter["Barang"] = barang
+        filter["Barang Terlarang"] = barang
     }
 
     // Log filter
