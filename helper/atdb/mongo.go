@@ -125,6 +125,14 @@ func GetOneLatestDoc[T any](db *mongo.Database, collection string, filter bson.M
 	return
 }
 
+func CountDocs(db *mongo.Database, collection string, filter bson.M) (count int64, err error) {
+	count, err = db.Collection(collection).CountDocuments(context.Background(), filter)
+	if err != nil {
+		return
+	}
+	return
+}
+
 func InsertOneDoc(db *mongo.Database, collection string, doc interface{}) (insertedID interface{}, err error) {
 	insertResult, err := db.Collection(collection).InsertOne(context.TODO(), doc)
 	if err != nil {

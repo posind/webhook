@@ -68,10 +68,15 @@ type VerifyRequest struct {
 	Password    string `json:"password"`
 }
 
+type CountryInfo struct {
+	Negara     string `json:"negara" bson:"negara"`
+	KodeNegara string `json:"kode_negara" bson:"kode_negara"`
+}
+
 type ProhibitedItems struct {
-	ID              primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
-	Destination     string             `bson:"Destination" json:"destination"`
-	ProhibitedItems string             `bson:"Prohibited Items" json:"prohibited_items"`
+	IDItem          string `json:"id_item" bson:"id_item"`
+	Destination     string `json:"destination" bson:"Destination"`
+	ProhibitedItems string `json:"prohibited_items" bson:"Prohibited Items"`
 }
 
 type Itemlarangan struct {

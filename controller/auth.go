@@ -23,20 +23,29 @@ func Register(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		resp.Message = "Error parsing application/json: " + err.Error()
 	} else {
+		// Check if the username is already in use
+		existingUser, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user_email", primitive.M{"username": userdata.Username})
+		if err == nil && existingUser.Username != "" {
+			resp.Message = "Username sudah digunakan"
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(resp)
+			return
+		}
+
+		// Cek apakah user sudah ada berdasarkan email
+		existingUser, err = atdb.GetOneDoc[model.User](config.Mongoconn, "user_email", primitive.M{"email": userdata.Email})
+		if err == nil && existingUser.Email != "" {
+			resp.Message = "User sudah terdaftar"
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(resp)
+			return
+		}
+
 		// Hash password user
 		hash, err := passwordhash.HashPassword(userdata.Password)
 		if err != nil {
 			resp.Message = "Gagal Hash Password: " + err.Error()
 		} else {
-			// Cek apakah user sudah ada berdasarkan email
-			existingUser, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user_email", primitive.M{"email": userdata.Email})
-			if err == nil && existingUser.Email != "" {
-				resp.Message = "User sudah terdaftar"
-				w.Header().Set("Content-Type", "application/json")
-				json.NewEncoder(w).Encode(resp)
-				return
-			}
-
 			// Generate private and public keys
 			privateKey, publicKey := watoken.GenerateKey()
 			userdata.Private = privateKey

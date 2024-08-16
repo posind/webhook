@@ -1,57 +1,30 @@
 package gocroot
 
 import (
-	"context"
 	"fmt"
-	"os"
 	"testing"
 
 	"github.com/gocroot/helper/atdb"
 	"github.com/gocroot/helper/passwordhash"
 	"github.com/gocroot/model"
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 func TestIsBotNumber(t *testing.T) {
 
 }
 
-func MongoConnect(mconn atdb.DBInfo) (db *mongo.Database) {
-	client, err := mongo.Connect(context.TODO(), options.Client().ApplyURI(mconn.DBString))
-	if err != nil {
-		fmt.Printf("AIteung Mongo, MongoConnect: %v\n", err)
-	}
-	return client.Database(mconn.DBName)
-}
-
-func SetConnection(MongoString, dbname string) *mongo.Database {
-	MongoInfo := atdb.DBInfo{
-		DBString: os.Getenv(MongoString),
-		DBName:   dbname,
-	}
-	conn := MongoConnect(MongoInfo)
-	return conn
-}
-
-// Function to compare username based on ID
-func CompareUsername(MongoConn *mongo.Database, Colname, id string) bool {
-	// Convert the id string to an ObjectId
-	objID, err := primitive.ObjectIDFromHex(id)
-	if err != nil {
-		fmt.Printf("Invalid ObjectId: %v\n", err)
-		return false
-	}
-
-	filter := bson.M{"_id": objID}
+// Function to compare username based on username
+func CompareUsername(MongoConn *mongo.Database, Colname, username string) bool {
+	// Create a filter using the username
+	filter := bson.M{"username": username}
 
 	// Declare a variable to hold the result
 	var user model.User
 
 	// Fetch the document and error using GetOneDoc
-	user, err = atdb.GetOneDoc[model.User](MongoConn, Colname, filter)
+	user, err := atdb.GetOneDoc[model.User](MongoConn, Colname, filter)
 	if err != nil {
 		fmt.Printf("Error fetching document: %v\n", err)
 		return false
@@ -63,12 +36,21 @@ func CompareUsername(MongoConn *mongo.Database, Colname, id string) bool {
 
 // TestCompareUsername tests the CompareUsername function
 func TestCompareUsername(t *testing.T) {
-	// Establish the connection to MongoDB
-	conn := SetConnection("MONGOSTRING", "webhook")
+	// Define your MongoDB connection info
+	dbInfo := atdb.DBInfo{
+		DBString: "your_mongodb_connection_string", // Replace with your MongoDB connection string
+		DBName:   "webhook",                        // Replace with your database name
+	}
 
-	// Decode the token to extract the username (assuming DecodeGetId is similar to DecodeGetUser)
+	// Establish the connection to MongoDB using MongoConnect
+	conn, err := atdb.MongoConnect(dbInfo)
+	if err != nil {
+		t.Fatalf("Failed to connect to MongoDB: %v", err)
+	}
+
+	// Decode the token to extract the username (assuming DecodeGetUser returns a username)
 	deco, err := passwordhash.DecodeGetUser("a6ffc0dc40019727d84eb9952dbd5d4cb4581d81eebca5cb3f5f42e8f1032b05",
-		"v4.public.eyJleHAiOiIyMDI0LTA4LTE2VDE2OjQ0OjA2WiIsImlhdCI6IjIwMjQtMDgtMTZUMTQ6NDQ6MDZaIiwiaWQiOiI2NmJmNWU2YjlmMjBhYjZmYTYzNWY5MDEiLCJuYmYiOiIyMDI0LTA4LTE2VDE0OjQ0OjA2WiJ92XL2c7MCTRNo_3-TGIqr_RDAwgiqOXn75wZtF8BuK6Kbf8Rco9woINbvtiP3u7FF50KHEaUtNiC4HmPJ-M-MBQ")
+		"v4.public.eyJleHAiOiIyMDI0LTA4LTE2VDE4OjM4OjQyWiIsImlhdCI6IjIwMjQtMDgtMTZUMTY6Mzg6NDJaIiwiaWQiOiJmYWhpcmExNCIsIm5iZiI6IjIwMjQtMDgtMTZUMTY6Mzg6NDJaIn0FkKJlWFd-a_7o6evBvfjFO45SHq9hFFav6wLT_k89S6S1hbe2JUhhTpPs0SbdoxumKJnf91KAfZDNJroJVKoN")
 	if err != nil {
 		t.Fatalf("Failed to decode token: %v", err)
 	}
