@@ -7,13 +7,14 @@ import (
 	"strings"
 
 	"github.com/gocroot/helper/atdb"
+	"github.com/gocroot/helper/kimseok"
 	"github.com/whatsauth/itmodel"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
 func GetProhibitedItems(Pesan itmodel.IteungMessage, db *mongo.Database) (reply string) {
-	country, err := GetCountryFromMessage(Pesan.Message, db)
+	country, _, _, err := kimseok.GetCountryFromMessage(Pesan.Message, db)
 	var filter bson.M
 	var keyword string
 	if err != nil {
