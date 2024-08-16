@@ -11,7 +11,6 @@ import (
 	"github.com/gocroot/mod/posint"
 	"github.com/gocroot/mod/posintind"
 	"github.com/gocroot/mod/presensi"
-	"github.com/gocroot/mod/siakad"
 	"github.com/whatsauth/itmodel"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -36,8 +35,6 @@ func Caller(Profile itmodel.Profile, Modulename string, Pesan itmodel.IteungMess
 		reply = presensi.CekSelfiePulang(Pesan, db)
 	case "domyikado-user":
 		reply = daftar.DaftarDomyikado(Pesan, db)
-	case "login-siakad":
-		reply = siakad.LoginSiakad(Pesan, db)
 
 	case "prohibited-items":
 		reply = posint.GetProhibitedItems(Pesan, db)

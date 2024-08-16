@@ -183,7 +183,7 @@ func UpdateItem(respw http.ResponseWriter, req *http.Request) {
 	}
 
 	// Update item di MongoDB
-	if _, err := atdb.UpdateDoc(config.Mongoconn, "prohibited_items_id", filter, update); err != nil {
+	if _, err := atdb.UpdateOneDoc(config.Mongoconn, "prohibited_items_id", filter, update); err != nil {
 		at.WriteJSON(respw, http.StatusInternalServerError, err.Error())
 		return
 	}

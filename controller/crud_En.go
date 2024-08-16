@@ -140,7 +140,7 @@ func UpdateProhibitedItem(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
-	if _, err := atdb.UpdateDoc(config.Mongoconn, "prohibited_items_en", filter, update); err != nil {
+	if _, err := atdb.UpdateOneDoc(config.Mongoconn, "prohibited_items_en", filter, update); err != nil {
 		at.WriteJSON(w, http.StatusInternalServerError, err.Error())
 		return
 	}

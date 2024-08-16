@@ -1,11 +1,9 @@
 package controller
 
 import (
-	"context"
 	"encoding/json"
 	"log"
 	"net/http"
-	"os"
 
 	"github.com/gocroot/config"
 	"github.com/gocroot/helper/atdb"
@@ -70,50 +68,56 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&loginReq)
 	if err != nil {
 		resp.Message = "Error parsing application/json: " + err.Error()
-	} else {
-		// Validasi password
-		if passwordhash.PasswordValidator(loginReq) {
-			// Mengambil data user berdasarkan email
-			userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user_email", bson.M{"email": loginReq.Email})
-			if err != nil || userData.Email == "" {
-				resp.Message = "User tidak ditemukan"
-			} else {
-				// Membuat token untuk user
-				tokenString, err := passwordhash.EncodeToken(userData.Email, os.Getenv("PRIVATE_KEY"))
-				if err != nil {
-					resp.Message = "Gagal Encode Token: " + err.Error()
-				} else {
-					resp.Status = true
-					resp.Token = tokenString
-					resp.Message = "Login successful"
-				}
-			}
-		} else {
-			resp.Message = "Password Salah"
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
+		return
+	}
+
+	// Validasi password
+	if passwordhash.PasswordValidator(loginReq) {
+		// Mengambil data user berdasarkan email
+		userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user_email", bson.M{"email": loginReq.Email})
+		if err != nil || userData.Email == "" {
+			resp.Message = "User tidak ditemukan"
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(resp)
+			return
 		}
+
+		// Membuat token menggunakan Private Key dari user
+		tokenString, err := watoken.Encode(userData.ID.Hex(), userData.Private)
+		if err != nil {
+			log.Println("Error generating token:", err)
+			resp.Message = "Gagal Encode Token: " + err.Error()
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(resp)
+			return
+		}
+
+		// Update token di database
+		update := bson.M{
+			"$set": bson.M{
+				"token": tokenString,
+			},
+		}
+
+		_, err = atdb.UpdateOneDoc(config.Mongoconn, "user_email", bson.M{"_id": userData.ID}, update)
+		if err != nil {
+			log.Println("Error updating user token:", err)
+			resp.Message = "Gagal memperbarui token: " + err.Error()
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(resp)
+			return
+		}
+
+		resp.Status = true
+		resp.Token = tokenString
+		resp.Message = "Login successful"
+	} else {
+		resp.Message = "Password Salah"
 	}
 
 	// Mengirimkan response dalam format JSON
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(resp)
-}
-
-func UpdateUserToken(userID primitive.ObjectID, token string) error {
-	// Koneksi ke koleksi "user_email"
-	collection := config.Mongoconn.Collection("user_email")
-
-	// Melakukan update pada token user berdasarkan userID
-	_, err := collection.UpdateOne(
-		context.Background(),
-		bson.M{"_id": userID},
-		bson.M{"$set": bson.M{"token": token}},
-	)
-	if err != nil {
-		// Menambahkan logging yang lebih informatif jika terjadi kesalahan
-		log.Printf("Error updating user token for userID %s: %v", userID.Hex(), err)
-		return err
-	}
-
-	// Jika berhasil, kembalikan nil
-	return nil
 }
