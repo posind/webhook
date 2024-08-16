@@ -20,10 +20,14 @@ import (
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 func GetItemByField(w http.ResponseWriter, r *http.Request) {
+    log.Println("Started GET /get/item")
+
+    // Log the incoming request headers
+    log.Printf("Request headers: %+v", r.Header)
+
     // Retrieve token from Authorization header
     authHeader := r.Header.Get("Authorization")
     if authHeader == "" {
@@ -42,7 +46,7 @@ func GetItemByField(w http.ResponseWriter, r *http.Request) {
     tokenStr := parts[1]
     log.Printf("Received token: %s", tokenStr)
 
-    // Directly parse the public key from environment variable
+    // Parse the public key from the environment variable
     publicKeyHex := os.Getenv("PUBLIC_KEY")
     if publicKeyHex == "" {
         log.Println("Public key not found in environment variables")
@@ -101,7 +105,7 @@ func GetItemByField(w http.ResponseWriter, r *http.Request) {
     // Build the filter
     filter := bson.M{}
     if destinasi != "" {
-        filter["Destinasi"] = destinasi
+        filter["destinasi"] = destinasi
     }
     if barang != "" {
         filter["Barang Terlarang"] = barang
@@ -110,13 +114,10 @@ func GetItemByField(w http.ResponseWriter, r *http.Request) {
     // Log filter
     log.Printf("Filter created: %+v", filter)
 
-    // Set MongoDB query options
-    findOptions := options.Find().SetLimit(20)
-
     // Query MongoDB
     var items []model.Itemlarangan
     collection := config.Mongoconn.Collection("prohibited_items_id")
-    cursor, err := collection.Find(context.Background(), filter, findOptions)
+    cursor, err := collection.Find(context.Background(), filter)
     if err != nil {
         log.Printf("Error fetching items: %v", err)
         http.Error(w, "Error fetching items", http.StatusInternalServerError)
@@ -132,17 +133,15 @@ func GetItemByField(w http.ResponseWriter, r *http.Request) {
 
     // If no items found
     if len(items) == 0 {
-        log.Println("No items found")
+        log.Println("No items found matching the query")
         helper.WriteJSON(w, http.StatusNotFound, "No items found")
         return
     }
 
-    // Log found items
-    log.Printf("Items found: %+v", items)
-
-    // Return items as JSON
+    log.Println("Successfully retrieved items")
     helper.WriteJSON(w, http.StatusOK, items)
 }
+
 
 
 // PostItem menambahkan item baru ke dalam database.
