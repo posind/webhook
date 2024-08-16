@@ -52,25 +52,6 @@ func GetQnAfromSliceWithJaro(q string, qnas []Datasets) (dt Datasets) {
 
 }
 
-// // balasan jika tidak ditemukan key word
-// func GetMessage(Profile itmodel.Profile, msg itmodel.IteungMessage, botname string, db *mongo.Database) string {
-// 	//check apakah ada permintaan operator masuk
-// 	reply, err := helpdesk.PenugasanOperator(Profile, msg, db)
-// 	if err != nil {
-// 		return err.Error()
-// 	}
-// 	//jika tidak ada di db komplain lanjut ke selanjutnya
-// 	if reply == "" {
-// 		dt, err := QueriesDataRegexpALL(db, msg.Message)
-// 		if err != nil {
-// 			return err.Error()
-// 		}
-// 		reply = strings.TrimSpace(dt.Answer)
-
-// 	}
-// 	return reply
-// }
-
 func QueriesDataRegexpALL(db *mongo.Database, queries string) (dest Datasets, err error) {
 	// Kata akhiran imbuhan
 	// queries = SeparateSuffixMu(queries)
