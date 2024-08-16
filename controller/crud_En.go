@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -32,18 +31,8 @@ func GetProhibitedItemByField(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate the token (assume DecodeGetUser returns the email associated with the token)
-	checkToken, err := passwordhash.DecodeGetUser(os.Getenv("PUBLIC_KEY"), tokenLogin)
-	if err != nil {
-		respn.Status = "Error: Invalid token"
-		respn.Info = "The provided token is not valid."
-		at.WriteJSON(w, http.StatusUnauthorized, respn)
-		return
-	}
-
-	// Check if the email exists in the database
-	filter := bson.M{"email": checkToken}
-	userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user_email", filter)
+	// Find user by token in the database
+	userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user_email", bson.M{"token": tokenLogin})
 	if err != nil || userData.Email == "" {
 		respn.Status = "Error: Unauthorized"
 		respn.Info = "You do not have permission to access this data."
@@ -51,7 +40,24 @@ func GetProhibitedItemByField(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Token is valid and email exists, proceed with fetching the data
+	// Decode the token using the user's public key
+	checkToken, err := passwordhash.DecodeGetUser(userData.Public, tokenLogin)
+	if err != nil {
+		respn.Status = "Error: Invalid token"
+		respn.Info = "The provided token is not valid."
+		at.WriteJSON(w, http.StatusUnauthorized, respn)
+		return
+	}
+
+	// Check if the token is valid by comparing the decoded token to the expected value (e.g., email)
+	if checkToken != userData.Email {
+		respn.Status = "Error: Unauthorized"
+		respn.Info = "Token does not match the expected user."
+		at.WriteJSON(w, http.StatusForbidden, respn)
+		return
+	}
+
+	// Token is valid and matches the user, proceed with fetching the data
 	query := r.URL.Query()
 	destination := query.Get("destination")
 	prohibitedItems := query.Get("prohibited_items")
