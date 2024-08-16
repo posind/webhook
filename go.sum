@@ -1062,8 +1062,6 @@ github.com/stretchr/testify v1.9.0 h1:HtqpIVDClZ4nwg75+f6Lvsy/wHu+3BoSGCbBAcpTsT
 github.com/stretchr/testify v1.9.0/go.mod h1:r2ic/lqez/lEtzL7wO/rwa5dbSLXVDPFyf8C91i36aY=
 github.com/valyala/bytebufferpool v1.0.0 h1:GqA5TC/0021Y/b9FG4Oi9Mr3q7XYx6KllzawFIhcdPw=
 github.com/valyala/bytebufferpool v1.0.0/go.mod h1:6bBcMArwyJ5K/AmCkWv1jt77kVWyCJ6HpOuEn7z0Csc=
-github.com/whatsauth/itmodel v0.0.4 h1:CkKeTUBiv9rhEP9t6i/vejxyBaEuts0/A+kM1EDbRPE=
-github.com/whatsauth/itmodel v0.0.4/go.mod h1:WeuvNe9lA+IAtpssZ2zykF4jLbZczYyRahu4Nx3aWZg=
 github.com/whatsauth/itmodel v0.0.8 h1:O+bimhUl+soExuwNkky9HcSzNWejBw067fOqyvmdhMc=
 github.com/whatsauth/itmodel v0.0.8/go.mod h1:HxhnNuCq8LZUUZDwdW2suJRaUl8WNpPEtsps52pJIr0=
 github.com/xdg-go/pbkdf2 v1.0.0 h1:Su7DPu48wXMwC3bs7MCNG+z4FhcyEuz5dlvchbq0B0c=
