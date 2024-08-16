@@ -4,12 +4,10 @@ import (
 	"context"
 	"crypto/rsa"
 	"crypto/x509"
-	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
 	"log"
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/dgrijalva/jwt-go"
@@ -20,62 +18,69 @@ import (
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
-func GetItemByField(w http.ResponseWriter, r *http.Request) {
-    log.Println("Started GET /get/item")
+func GetItemByID(respw http.ResponseWriter, req *http.Request) {
+    var respn model.Response
 
     // Log the incoming request headers
-    log.Printf("Request headers: %+v", r.Header)
+    log.Printf("Request headers: %+v", req.Header)
 
     // Retrieve token from Authorization header
-    authHeader := r.Header.Get("Authorization")
+    authHeader := req.Header.Get("Authorization")
     if authHeader == "" {
-        log.Println("Authorization header missing")
-        http.Error(w, "Unauthorized", http.StatusUnauthorized)
+        respn.Status = "Error: Authorization header missing"
+        helper.WriteJSON(respw, http.StatusUnauthorized, respn)
         return
     }
 
     parts := strings.Split(authHeader, " ")
     if len(parts) != 2 || parts[0] != "Bearer" {
-        log.Println("Authorization header format invalid")
-        http.Error(w, "Unauthorized", http.StatusUnauthorized)
+        respn.Status = "Error: Authorization header format invalid"
+        helper.WriteJSON(respw, http.StatusUnauthorized, respn)
         return
     }
 
     tokenStr := parts[1]
-    log.Printf("Received token: %s", tokenStr)
+    log.Printf("Received token: [REDACTED]")
 
-    // Parse the public key from the environment variable
-    publicKeyHex := os.Getenv("PUBLIC_KEY")
-    if publicKeyHex == "" {
-        log.Println("Public key not found in environment variables")
-        http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+    // Get the public key from the config package
+    publicKeyPEM := config.PublicKey
+    if publicKeyPEM == "" {
+        log.Println("Public key not found in config")
+        respn.Status = "Error: Internal Server Error"
+        respn.Info = "Public key missing"
+        helper.WriteJSON(respw, http.StatusInternalServerError, respn)
         return
     }
 
-    publicKeyBytes, err := hex.DecodeString(publicKeyHex)
-    if err != nil {
-        log.Printf("Error decoding public key: %v", err)
-        http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+    // Decode PEM block
+    block, _ := pem.Decode([]byte(publicKeyPEM))
+    if block == nil {
+        log.Println("Failed to decode PEM block")
+        respn.Status = "Error: Internal Server Error"
+        respn.Info = "Failed to decode PEM block"
+        helper.WriteJSON(respw, http.StatusInternalServerError, respn)
         return
     }
 
-    pemBlock := &pem.Block{
-        Bytes: publicKeyBytes,
-    }
-
-    pub, err := x509.ParsePKIXPublicKey(pemBlock.Bytes)
+    // Parse the public key
+    pub, err := x509.ParsePKIXPublicKey(block.Bytes)
     if err != nil {
         log.Printf("Error parsing public key: %v", err)
-        http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+        respn.Status = "Error: Internal Server Error"
+        respn.Info = "Failed to parse public key"
+        helper.WriteJSON(respw, http.StatusInternalServerError, respn)
         return
     }
 
     rsaPublicKey, ok := pub.(*rsa.PublicKey)
     if !ok {
         log.Println("Failed to parse RSA public key")
-        http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+        respn.Status = "Error: Internal Server Error"
+        respn.Info = "Public key format is incorrect"
+        helper.WriteJSON(respw, http.StatusInternalServerError, respn)
         return
     }
 
@@ -90,56 +95,56 @@ func GetItemByField(w http.ResponseWriter, r *http.Request) {
 
     if err != nil || !token.Valid {
         log.Printf("Token invalid or error: %v", err)
-        http.Error(w, "Unauthorized", http.StatusUnauthorized)
+        respn.Status = "Error: Unauthorized"
+        respn.Info = "Invalid token"
+        helper.WriteJSON(respw, http.StatusUnauthorized, respn)
         return
     }
 
-    // Retrieve query parameters
-    query := r.URL.Query()
-    destinasi := query.Get("destinasi")
-    barang := query.Get("barang")
-
-    // Log query parameters
-    log.Printf("Received query parameters - destinasi: %s, barang: %s", destinasi, barang)
-
-    // Build the filter
-    filter := bson.M{}
-    if destinasi != "" {
-        filter["destinasi"] = destinasi
-    }
-    if barang != "" {
-        filter["Barang Terlarang"] = barang
+    // Extract the ID from the URL query parameters
+    idStr := req.URL.Query().Get("id")
+    if idStr == "" {
+        respn.Status = "Error: Missing ID parameter"
+        helper.WriteJSON(respw, http.StatusBadRequest, respn)
+        return
     }
 
-    // Log filter
-    log.Printf("Filter created: %+v", filter)
-
-    // Query MongoDB
-    var items []model.Itemlarangan
-    collection := config.Mongoconn.Collection("prohibited_items_id")
-    cursor, err := collection.Find(context.Background(), filter)
+    // Convert the ID string to ObjectID
+    objectID, err := primitive.ObjectIDFromHex(idStr)
     if err != nil {
-        log.Printf("Error fetching items: %v", err)
-        http.Error(w, "Error fetching items", http.StatusInternalServerError)
-        return
-    }
-    defer cursor.Close(context.Background())
-
-    if err = cursor.All(context.Background(), &items); err != nil {
-        log.Printf("Error decoding items: %v", err)
-        http.Error(w, "Error decoding items", http.StatusInternalServerError)
+        log.Printf("Invalid ID format: %v", err)
+        respn.Status = "Error: Invalid ID format"
+        respn.Response = err.Error()
+        helper.WriteJSON(respw, http.StatusBadRequest, respn)
         return
     }
 
-    // If no items found
-    if len(items) == 0 {
-        log.Println("No items found matching the query")
-        helper.WriteJSON(w, http.StatusNotFound, "No items found")
+    // Log the query
+    log.Printf("Querying MongoDB with filter: %+v", bson.M{"_id": objectID})
+
+    // Query MongoDB for the item with the specified ID
+    var item model.Itemlarangan
+    collection := config.Mongoconn.Collection("prohibited_items_id")
+    err = collection.FindOne(req.Context(), bson.M{"_id": objectID}).Decode(&item)
+    if err != nil {
+        if err == mongo.ErrNoDocuments {
+            log.Println("Item not found")
+            respn.Status = "Error: Item not found"
+            respn.Info = "No document with the specified ID"
+            helper.WriteJSON(respw, http.StatusNotFound, respn)
+        } else {
+            log.Printf("Error fetching item: %v", err)
+            respn.Status = "Error: Internal Server Error"
+            respn.Info = "Failed to fetch item"
+            helper.WriteJSON(respw, http.StatusInternalServerError, respn)
+        }
         return
     }
 
-    log.Println("Successfully retrieved items")
-    helper.WriteJSON(w, http.StatusOK, items)
+    // Respond with the item data
+    respn.Status = "Success"
+    respn.Response = item.BarangTerlarang
+    helper.WriteJSON(respw, http.StatusOK, respn)
 }
 
 
