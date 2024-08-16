@@ -6,7 +6,6 @@ import (
 
 	"github.com/gocroot/config"
 	"github.com/gocroot/helper"
-	"github.com/gocroot/helper/atapi"
 	"github.com/gocroot/helper/atdb"
 	"github.com/gocroot/helper/watoken"
 	"github.com/gocroot/model"
@@ -36,62 +35,62 @@ func GetDataUser(respw http.ResponseWriter, req *http.Request) {
 	helper.WriteJSON(respw, http.StatusOK, docuser)
 }
 
-// HandleQRCodeScan handles the QR code scan request and interacts with whatsauth for token verification
-func PutTokenDataUser(respw http.ResponseWriter, req *http.Request) {
-    // Decode the token from the request using watoken and the public key
-    payload, err := watoken.Decode(config.PublicKeyWhatsAuth, helper.GetLoginFromHeader(req))
-    if err != nil {
-        var respn model.Response
-        respn.Status = "Error: Token Tidak Valid"
-        respn.Info = helper.GetLoginFromHeader(req)
-        respn.Location = "Decode Token Error: " + helper.GetLoginFromHeader(req)
-        respn.Response = err.Error()
-        helper.WriteJSON(respw, http.StatusForbidden, respn)
-        return
-    }
+// // HandleQRCodeScan handles the QR code scan request and interacts with whatsauth for token verification
+// func PutTokenDataUser(respw http.ResponseWriter, req *http.Request) {
+//     // Decode the token from the request using watoken and the public key
+//     payload, err := watoken.Decode(config.PublicKeyWhatsAuth, helper.GetLoginFromHeader(req))
+//     if err != nil {
+//         var respn model.Response
+//         respn.Status = "Error: Token Tidak Valid"
+//         respn.Info = helper.GetLoginFromHeader(req)
+//         respn.Location = "Decode Token Error: " + helper.GetLoginFromHeader(req)
+//         respn.Response = err.Error()
+//         helper.WriteJSON(respw, http.StatusForbidden, respn)
+//         return
+//     }
 
-    // Fetch the user data from the database based on the phone number
-    docuser, err := atdb.GetOneDoc[model.Profile_user](config.Mongoconn, "user_login_token", primitive.M{"phonenumber": payload.Id})
-    if err != nil {
-        // If the user is not found, create a new user with the payload data
-        docuser.PhoneNumber = payload.Id
-        docuser.Email = payload.Alias
-        helper.WriteJSON(respw, http.StatusNotFound, docuser)
-        return
-    }
+//     // Fetch the user data from the database based on the phone number
+//     docuser, err := atdb.GetOneDoc[model.Profile_user](config.Mongoconn, "user_login_token", primitive.M{"phonenumber": payload.Id})
+//     if err != nil {
+//         // If the user is not found, create a new user with the payload data
+//         docuser.PhoneNumber = payload.Id
+//         docuser.Email = payload.Alias
+//         helper.WriteJSON(respw, http.StatusNotFound, docuser)
+//         return
+//     }
 
-    // Update the user's name/alias
-    docuser.Email = payload.Alias
+//     // Update the user's name/alias
+//     docuser.Email = payload.Alias
 
-    // Get QRIS status from the WAAPI using the phone number from the payload
-    hcode, qrstat, err := atapi.Get[model.QRStatus](config.WAAPIGetToken + helper.GetLoginFromHeader(req))
-    if err != nil {
-        helper.WriteJSON(respw, http.StatusMisdirectedRequest, docuser)
-        return
-    }
+//     // Get QRIS status from the WAAPI using the phone number from the payload
+//     hcode, qrstat, err := atapi.Get[model.QRStatus](config.WAAPIGetToken + helper.GetLoginFromHeader(req))
+//     if err != nil {
+//         helper.WriteJSON(respw, http.StatusMisdirectedRequest, docuser)
+//         return
+//     }
 
-    // If the QRIS status is OK and the QR status is not active, generate a new token
-    if hcode == http.StatusOK && !qrstat.Status {
-        docuser.Token, err = watoken.EncodeforHours(docuser.PhoneNumber, docuser.Email, config.PrivateKey, 43830)
-        if err != nil {
-            helper.WriteJSON(respw, http.StatusFailedDependency, docuser)
-            return
-        }
-    } else {
-        // If the QR status is active, reset the LinkedDevice
-        docuser.Token = ""
-    }
+//     // If the QRIS status is OK and the QR status is not active, generate a new token
+//     if hcode == http.StatusOK && !qrstat.Status {
+//         docuser.Token, err = watoken.EncodeforHours(docuser.PhoneNumber, docuser.Email, config.PrivateKey, 43830)
+//         if err != nil {
+//             helper.WriteJSON(respw, http.StatusFailedDependency, docuser)
+//             return
+//         }
+//     } else {
+//         // If the QR status is active, reset the LinkedDevice
+//         docuser.Token = ""
+//     }
 
-    // Replace or update the user's data in the "user" collection
-    _, err = atdb.ReplaceOneDoc(config.Mongoconn, "user", primitive.M{"phonenumber": payload.Id}, docuser)
-    if err != nil {
-        helper.WriteJSON(respw, http.StatusExpectationFailed, docuser)
-        return
-    }
+//     // Replace or update the user's data in the "user" collection
+//     _, err = atdb.ReplaceOneDoc(config.Mongoconn, "user", primitive.M{"phonenumber": payload.Id}, docuser)
+//     if err != nil {
+//         helper.WriteJSON(respw, http.StatusExpectationFailed, docuser)
+//         return
+//     }
 
-    // Respond with the updated user data
-    helper.WriteJSON(respw, http.StatusOK, docuser)
-}
+//     // Respond with the updated user data
+//     helper.WriteJSON(respw, http.StatusOK, docuser)
+// }
 
 // PostDataUser handles the POST request to update user data
 func PostDataUser(respw http.ResponseWriter, req *http.Request) {
@@ -152,7 +151,7 @@ func PostDataUserFromWA(respw http.ResponseWriter, req *http.Request) {
 		helper.WriteJSON(respw, http.StatusBadRequest, resp)
 		return
 	}
-	if	helper.GetSecretFromHeader(req) != prof.Secret {
+	if helper.GetSecretFromHeader(req) != prof.Secret {
 		resp.Response = "Salah secret: " + helper.GetSecretFromHeader(req)
 		helper.WriteJSON(respw, http.StatusUnauthorized, resp)
 		return
@@ -191,7 +190,7 @@ func PostDataUserFromWA(respw http.ResponseWriter, req *http.Request) {
 		helper.WriteJSON(respw, http.StatusConflict, resp)
 		return
 	}
-	
+
 	resp.Status = "Success"
 	resp.Info = docuser.ID.Hex()
 	resp.Info = docuser.Email

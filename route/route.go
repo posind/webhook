@@ -12,7 +12,7 @@ func URL(w http.ResponseWriter, r *http.Request) {
 	if config.SetAccessControlHeaders(w, r) {
 		return // If it's a preflight request, return early.
 	}
-	// config.SetEnv()
+	config.SetEnv()
 
 	var method, path string = r.Method, r.URL.Path
 	switch {
@@ -29,12 +29,12 @@ func URL(w http.ResponseWriter, r *http.Request) {
 	case method == "GET" && path == "get/data/user":
 		controller.GetDataUser(w, r)
 	//generate token linked device
-	case method == "PUT" && path == "put/data/user":
-		controller.PutTokenDataUser(w, r)
+	// case method == "PUT" && path == "put/data/user":
+	// 	controller.PutTokenDataUser(w, r)
 	case method == "PUT" && path == "post/data/user":
 		controller.PostDataUser(w, r)
 	case method == "PUT" && path == "post/datawa/user":
-		controller.PostDataUserFromWA(w, r)	
+		controller.PostDataUserFromWA(w, r)
 
 	case method == "GET" && path == "/":
 		controller.GetHome(w, r)

@@ -81,13 +81,13 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user.Token = token
-	err = UpdateUserToken(user.ID, token)
-	if err != nil {
-		log.Println("Error updating token:", err)
-		http.Error(w, "Error updating token", http.StatusInternalServerError)
-		return
-	}
+	// user.Token = token
+	// err = UpdateUserToken(user.ID, token)
+	// if err != nil {
+	// 	log.Println("Error updating token:", err)
+	// 	http.Error(w, "Error updating token", http.StatusInternalServerError)
+	// 	return
+	// }
 
 	response := map[string]string{
 		"message": "Login successful",
