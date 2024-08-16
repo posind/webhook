@@ -53,7 +53,7 @@ func GetProhibitedItemByField(w http.ResponseWriter, r *http.Request) {
 	userByUsername, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user_email", bson.M{"username": decodedUsername})
 	if err != nil || userByUsername.Username == "" {
 		respn.Status = "Error: User not found"
-		respn.Info = "The username extracted from the token does not exist in the database."
+		respn.Info = fmt.Sprintf("The username '%s' extracted from the token does not exist in the database.", decodedUsername)
 		at.WriteJSON(w, http.StatusForbidden, respn)
 		return
 	}
