@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gocroot/config"
-	"github.com/gocroot/helper"
+	"github.com/gocroot/helper/at"
 	"github.com/gocroot/helper/atdb"
 	"github.com/gocroot/helper/telebot"
 	"github.com/whatsauth/itmodel"
@@ -14,20 +14,20 @@ import (
 
 func TelebotWebhook(w http.ResponseWriter, r *http.Request) {
 	var resp itmodel.Response
-	waphonenumber := helper.GetParam(r)
+	waphonenumber := at.GetParam(r)
 
 	var update telebot.Update
 	if err := json.NewDecoder(r.Body).Decode(&update); err != nil {
 		resp.Response = err.Error()
-		helper.WriteResponse(w, http.StatusBadRequest, resp)
+		at.WriteResponse(w, http.StatusBadRequest, resp)
 		return
 	}
 
 	chatID := update.Message.Chat.ID
-	prof, err := helper.GetAppProfile(waphonenumber, config.Mongoconn)
+	prof, err := at.GetAppProfile(waphonenumber, config.Mongoconn)
 	if err != nil {
 		resp.Response = err.Error()
-		helper.WriteResponse(w, http.StatusServiceUnavailable, resp)
+		at.WriteResponse(w, http.StatusServiceUnavailable, resp)
 		return
 	}
 
@@ -35,13 +35,13 @@ func TelebotWebhook(w http.ResponseWriter, r *http.Request) {
 		text := "Hello, " + update.Message.From.FirstName + " nomor handphone " + update.Message.Contact.PhoneNumber + " disimpan"
 		if err := telebot.SendTextMessage(chatID, text, prof.TelegramToken); err != nil {
 			resp.Response = err.Error()
-			helper.WriteResponse(w, http.StatusConflict, resp)
+			at.WriteResponse(w, http.StatusConflict, resp)
 			return
 		}
 		_, err := atdb.InsertOneDoc(config.Mongoconn, "teleuser", update)
 		if err != nil {
 			resp.Response = err.Error()
-			helper.WriteResponse(w, http.StatusEarlyHints, resp)
+			at.WriteResponse(w, http.StatusEarlyHints, resp)
 			return
 		}
 	} else {
@@ -50,7 +50,7 @@ func TelebotWebhook(w http.ResponseWriter, r *http.Request) {
 			err := telebot.RequestPhoneNumber(chatID, prof.TelegramToken)
 			if err != nil {
 				resp.Response = err.Error()
-				helper.WriteResponse(w, http.StatusExpectationFailed, resp)
+				at.WriteResponse(w, http.StatusExpectationFailed, resp)
 				return
 			}
 		}
@@ -60,7 +60,7 @@ func TelebotWebhook(w http.ResponseWriter, r *http.Request) {
 			_, err := atdb.InsertOneDoc(config.Mongoconn, "logtele", update)
 			if err != nil {
 				resp.Response = err.Error()
-				helper.WriteResponse(w, http.StatusExpectationFailed, resp)
+				at.WriteResponse(w, http.StatusExpectationFailed, resp)
 				return
 			}
 			msg := telebot.ParseUpdateToIteungMessage(update, prof.TelegramToken)
@@ -71,5 +71,5 @@ func TelebotWebhook(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	helper.WriteResponse(w, http.StatusOK, resp)
+	at.WriteResponse(w, http.StatusOK, resp)
 }

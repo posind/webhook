@@ -4,13 +4,13 @@ import (
 	"log"
 	"os"
 
-	"github.com/gocroot/helper"
+	"github.com/gocroot/helper/at"
 	"github.com/gocroot/helper/atdb"
-	"github.com/whatsauth/itmodel"
+	"github.com/gocroot/model"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-var IPPort, Net = helper.GetAddress()
+var IPPort, Net = at.GetAddress()
 
 var PrivateKey string = os.Getenv("privateKey")
 
@@ -22,10 +22,10 @@ func SetEnv() {
 	if ErrorMongoconn != nil {
 		log.Println(ErrorMongoconn.Error())
 	}
-	Profile, err := atdb.GetOneDoc[itmodel.Profile](Mongoconn, "profile", primitive.M{"phonenumber": PhoneNumber})
+	profile, err := atdb.GetOneDoc[model.Profile](Mongoconn, "profile", primitive.M{})
 	if err != nil {
 		log.Println(err)
 	}
-	PublicKeyWhatsAuth = Profile.PublicKey
-	WAAPIToken = Profile.Token
+
+	WAAPIToken = profile.Token
 }

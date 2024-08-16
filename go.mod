@@ -3,6 +3,7 @@ module github.com/gocroot
 go 1.22.5
 
 require (
+	aidanwoods.dev/go-paseto v1.5.2
 	github.com/GoogleCloudPlatform/functions-framework-go v1.8.1
 	github.com/RadhiFadlillah/go-sastrawi v0.0.0-20200621225627-3dd6e0e1ac00
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
@@ -15,7 +16,6 @@ require (
 )
 
 require (
-	aidanwoods.dev/go-paseto v1.5.2 // indirect
 	aidanwoods.dev/go-result v0.1.0 // indirect
 	github.com/cloudevents/sdk-go/v2 v2.15.2 // indirect
 	github.com/golang/snappy v0.0.4 // indirect

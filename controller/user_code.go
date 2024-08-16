@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/gocroot/config"
-	"github.com/gocroot/helper"
+	"github.com/gocroot/helper/at"
 	"github.com/gocroot/helper/atdb"
 	"github.com/gocroot/model"
 	"github.com/whatsauth/watoken"
@@ -15,14 +15,14 @@ import (
 
 // GetDataUser handles the GET request to fetch user data
 func GetDataUser(respw http.ResponseWriter, req *http.Request) {
-	payload, err := watoken.Decode(config.PublicKeyWhatsAuth, helper.GetLoginFromHeader(req))
+	payload, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Token Tidak Valid"
-		respn.Info = helper.GetSecretFromHeader(req)
-		respn.Location = "Decode Token Error: " + helper.GetLoginFromHeader(req)
+		respn.Info = at.GetSecretFromHeader(req)
+		respn.Location = "Decode Token Error: " + at.GetLoginFromHeader(req)
 		respn.Response = err.Error()
-		helper.WriteJSON(respw, http.StatusForbidden, respn)
+		at.WriteJSON(respw, http.StatusForbidden, respn)
 		return
 	}
 
@@ -30,25 +30,25 @@ func GetDataUser(respw http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		docuser.PhoneNumber = payload.Id
 		docuser.Name = payload.Alias
-		helper.WriteJSON(respw, http.StatusNotFound, docuser)
+		at.WriteJSON(respw, http.StatusNotFound, docuser)
 		return
 	}
 
 	docuser.Name = payload.Alias
-	helper.WriteJSON(respw, http.StatusOK, docuser)
+	at.WriteJSON(respw, http.StatusOK, docuser)
 }
 
 // // HandleQRCodeScan handles the QR code scan request and interacts with whatsauth for token verification
 // func PutTokenDataUser(respw http.ResponseWriter, req *http.Request) {
 //     // Decode the token from the request using watoken and the public key
-//     payload, err := watoken.Decode(config.PublicKeyWhatsAuth, helper.GetLoginFromHeader(req))
+//     payload, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
 //     if err != nil {
 //         var respn model.Response
 //         respn.Status = "Error: Token Tidak Valid"
-//         respn.Info = helper.GetLoginFromHeader(req)
-//         respn.Location = "Decode Token Error: " + helper.GetLoginFromHeader(req)
+//         respn.Info = at.GetLoginFromHeader(req)
+//         respn.Location = "Decode Token Error: " + at.GetLoginFromHeader(req)
 //         respn.Response = err.Error()
-//         helper.WriteJSON(respw, http.StatusForbidden, respn)
+//         at.WriteJSON(respw, http.StatusForbidden, respn)
 //         return
 //     }
 
@@ -58,7 +58,7 @@ func GetDataUser(respw http.ResponseWriter, req *http.Request) {
 //     // If the user is not found, create a new user with the payload data
 //     docuser.PhoneNumber = payload.Id
 //     docuser.Email = payload.Alias
-//     helper.WriteJSON(respw, http.StatusNotFound, docuser)
+//     at.WriteJSON(respw, http.StatusNotFound, docuser)
 //     return
 // }
 
@@ -66,9 +66,9 @@ func GetDataUser(respw http.ResponseWriter, req *http.Request) {
 // docuser.Email = payload.Alias
 
 //     // Get QRIS status from the WAAPI using the phone number from the payload
-//     hcode, qrstat, err := atapi.Get[model.QRStatus](config.WAAPIGetToken + helper.GetLoginFromHeader(req))
+//     hcode, qrstat, err := atapi.Get[model.QRStatus](config.WAAPIGetToken + at.GetLoginFromHeader(req))
 //     if err != nil {
-//         helper.WriteJSON(respw, http.StatusMisdirectedRequest, docuser)
+//         at.WriteJSON(respw, http.StatusMisdirectedRequest, docuser)
 //         return
 //     }
 
@@ -76,7 +76,7 @@ func GetDataUser(respw http.ResponseWriter, req *http.Request) {
 //     if hcode == http.StatusOK && !qrstat.Status {
 //         docuser.Token, err = watoken.EncodeforHours(docuser.PhoneNumber, docuser.Email, config.PrivateKey, 43830)
 //         if err != nil {
-//             helper.WriteJSON(respw, http.StatusFailedDependency, docuser)
+//             at.WriteJSON(respw, http.StatusFailedDependency, docuser)
 //             return
 //         }
 //     } else {
@@ -87,24 +87,24 @@ func GetDataUser(respw http.ResponseWriter, req *http.Request) {
 //     // Replace or update the user's data in the "user" collection
 //     _, err = atdb.ReplaceOneDoc(config.Mongoconn, "user", primitive.M{"phonenumber": payload.Id}, docuser)
 //     if err != nil {
-//         helper.WriteJSON(respw, http.StatusExpectationFailed, docuser)
+//         at.WriteJSON(respw, http.StatusExpectationFailed, docuser)
 //         return
 //     }
 
 //     // Respond with the updated user data
-//     helper.WriteJSON(respw, http.StatusOK, docuser)
+//     at.WriteJSON(respw, http.StatusOK, docuser)
 // }
 
 // PostDataUser handles the POST request to update user data
 func PostDataUser(respw http.ResponseWriter, req *http.Request) {
-	payload, err := watoken.Decode(config.PublicKeyWhatsAuth, helper.GetLoginFromHeader(req))
+	payload, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Token Tidak Valid"
-		respn.Info = helper.GetSecretFromHeader(req)
+		respn.Info = at.GetSecretFromHeader(req)
 		respn.Location = "Decode Token Error"
 		respn.Response = err.Error()
-		helper.WriteJSON(respw, http.StatusForbidden, respn)
+		at.WriteJSON(respw, http.StatusForbidden, respn)
 		return
 	}
 
@@ -114,7 +114,7 @@ func PostDataUser(respw http.ResponseWriter, req *http.Request) {
 		var respn model.Response
 		respn.Status = "Error: Body Tidak Valid"
 		respn.Response = err.Error()
-		helper.WriteJSON(respw, http.StatusBadRequest, respn)
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
 		return
 	}
 
@@ -129,11 +129,11 @@ func PostDataUser(respw http.ResponseWriter, req *http.Request) {
 			var respn model.Response
 			respn.Status = "Gagal Insert Database"
 			respn.Response = err.Error()
-			helper.WriteJSON(respw, http.StatusNotModified, respn)
+			at.WriteJSON(respw, http.StatusNotModified, respn)
 			return
 		}
 		usr.ID = idusr.(primitive.ObjectID)
-		helper.WriteJSON(respw, http.StatusOK, usr)
+		at.WriteJSON(respw, http.StatusOK, usr)
 		return
 	}
 
@@ -145,25 +145,25 @@ func PostDataUser(respw http.ResponseWriter, req *http.Request) {
 		var respn model.Response
 		respn.Status = "Gagal ReplaceOneDoc"
 		respn.Response = err.Error()
-		helper.WriteJSON(respw, http.StatusConflict, respn)
+		at.WriteJSON(respw, http.StatusConflict, respn)
 		return
 	}
 
-	helper.WriteJSON(respw, http.StatusOK, docuser)
+	at.WriteJSON(respw, http.StatusOK, docuser)
 }
 
 // PostDataUserFromWA handles the POST request to update user data from WhatsApp
 func PostDataUserFromWA(respw http.ResponseWriter, req *http.Request) {
 	var resp model.Response
-	prof, err := helper.GetAppProfile(helper.GetParam(req), config.Mongoconn)
+	prof, err := at.GetAppProfile(at.GetParam(req), config.Mongoconn)
 	if err != nil {
 		resp.Response = err.Error()
-		helper.WriteJSON(respw, http.StatusBadRequest, resp)
+		at.WriteJSON(respw, http.StatusBadRequest, resp)
 		return
 	}
-	if helper.GetSecretFromHeader(req) != prof.Secret {
-		resp.Response = "Salah secret: " + helper.GetSecretFromHeader(req)
-		helper.WriteJSON(respw, http.StatusUnauthorized, resp)
+	if at.GetSecretFromHeader(req) != prof.Secret {
+		resp.Response = "Salah secret: " + at.GetSecretFromHeader(req)
+		at.WriteJSON(respw, http.StatusUnauthorized, resp)
 		return
 	}
 
@@ -172,7 +172,7 @@ func PostDataUserFromWA(respw http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		resp.Response = "Error: Body Tidak Valid"
 		resp.Info = err.Error()
-		helper.WriteJSON(respw, http.StatusBadRequest, resp)
+		at.WriteJSON(respw, http.StatusBadRequest, resp)
 		return
 	}
 
@@ -184,7 +184,7 @@ func PostDataUserFromWA(respw http.ResponseWriter, req *http.Request) {
 		if err != nil {
 			resp.Response = "Gagal Insert Database"
 			resp.Info = err.Error()
-			helper.WriteJSON(respw, http.StatusNotModified, resp)
+			at.WriteJSON(respw, http.StatusNotModified, resp)
 			return
 		}
 		if oid, ok := idusr.(primitive.ObjectID); ok {
@@ -192,7 +192,7 @@ func PostDataUserFromWA(respw http.ResponseWriter, req *http.Request) {
 		} else {
 			resp.Info = ""
 		}
-		helper.WriteJSON(respw, http.StatusOK, resp)
+		at.WriteJSON(respw, http.StatusOK, resp)
 		return
 	}
 
@@ -203,12 +203,12 @@ func PostDataUserFromWA(respw http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		resp.Response = "Gagal ReplaceOneDoc"
 		resp.Info = err.Error()
-		helper.WriteJSON(respw, http.StatusConflict, resp)
+		at.WriteJSON(respw, http.StatusConflict, resp)
 		return
 	}
 
 	resp.Status = "Success"
 	resp.Info = docuser.ID.Hex()
 	resp.Info = docuser.Email
-	helper.WriteJSON(respw, http.StatusOK, resp)
+	at.WriteJSON(respw, http.StatusOK, resp)
 }

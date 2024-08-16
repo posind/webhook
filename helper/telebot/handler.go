@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/gocroot/helper"
+	"github.com/gocroot/helper/at"
 	"github.com/gocroot/helper/module"
 	"github.com/gocroot/mod"
 	"github.com/whatsauth/itmodel"
@@ -19,7 +19,7 @@ func HandlerIncomingMessage(msg itmodel.IteungMessage, profile itmodel.Profile, 
 		if personal && modname != "" {
 			msgstr = mod.Caller(profile, modname, msg, db)
 		} else {
-			msgstr = helper.GetRandomReplyFromMongo(msg, profile.Botname, db)
+			msgstr = at.GetRandomReplyFromMongo(msg, profile.Botname, db)
 		}
 		//
 		if strings.Contains(msgstr, "IM$G#M$Gui76557u|||") {
@@ -54,7 +54,7 @@ func HandlerIncomingMessage(msg itmodel.IteungMessage, profile itmodel.Profile, 
 		if group && modname != "" {
 			msgstr = mod.Caller(profile, modname, msg, db)
 		} else {
-			msgstr = helper.GetRandomReplyFromMongo(msg, profile.Botname, db)
+			msgstr = at.GetRandomReplyFromMongo(msg, profile.Botname, db)
 		}
 		if strings.Contains(msgstr, "IM$G#M$Gui76557u|||") {
 			strdt := strings.Split(msgstr, "|||")

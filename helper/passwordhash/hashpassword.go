@@ -1,9 +1,27 @@
 package passwordhash
 
 import (
+	"time"
+
+	"aidanwoods.dev/go-paseto"
+	"github.com/gocroot/config"
+	"github.com/gocroot/helper/at"
+	"github.com/gocroot/helper/atdb"
+	"github.com/gocroot/model"
 	"github.com/whatsauth/watoken"
+	"go.mongodb.org/mongo-driver/bson"
 	"golang.org/x/crypto/bcrypt"
 )
+
+func EncodeToken(email, privatekey string) (string, error) {
+	token := paseto.NewToken()
+	token.SetIssuedAt(time.Now())
+	token.SetNotBefore(time.Now())
+	token.SetExpiration(time.Now().Add(2 * time.Hour))
+	token.SetString("user", email)
+	key, err := paseto.NewV4AsymmetricSecretKeyFromHex(privatekey)
+	return token.V4Sign(key, nil), err
+}
 
 func HashPassword(password string) (string, error) {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
@@ -25,5 +43,20 @@ func TokenEncoder(username, privatekey string) string {
 		resp.Message = "Welcome"
 	}
 
-	return GCFReturnStruct(resp)
+	return at.Jsonstr(resp)
+}
+
+func PasswordValidator(loginReq model.LoginRequest) bool {
+	// Mencari user berdasarkan email
+	filter := bson.M{"email": loginReq.Email}
+	data, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user_email", filter)
+
+	// Jika terjadi error atau user tidak ditemukan, kembalikan false
+	if err != nil || data.Email == "" {
+		return false
+	}
+
+	// Memeriksa apakah password yang diberikan sesuai dengan hash yang tersimpan
+	hashChecker := CheckPasswordHash(loginReq.Password, data.Password)
+	return hashChecker
 }

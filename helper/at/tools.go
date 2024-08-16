@@ -1,4 +1,4 @@
-package domyApi
+package at
 
 import (
 	"errors"

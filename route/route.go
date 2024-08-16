@@ -5,7 +5,7 @@ import (
 
 	"github.com/gocroot/config"
 	"github.com/gocroot/controller"
-	"github.com/gocroot/helper"
+	"github.com/gocroot/helper/at"
 )
 
 func URL(w http.ResponseWriter, r *http.Request) {
@@ -16,9 +16,9 @@ func URL(w http.ResponseWriter, r *http.Request) {
 
 	var method, path string = r.Method, r.URL.Path
 	switch {
-	case method == "POST" && helper.URLParam(path, "/webhook/nomor/:nomorwa"):
+	case method == "POST" && at.URLParam(path, "/webhook/nomor/:nomorwa"):
 		controller.PostInboxNomor(w, r)
-	case method == "POST" && helper.URLParam(path, "/webhook/telebot/:nomorwa"):
+	case method == "POST" && at.URLParam(path, "/webhook/telebot/:nomorwa"):
 		controller.TelebotWebhook(w, r)
 	case method == "POST" && path == "/register":
 		controller.Register(w, r)

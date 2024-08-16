@@ -1,10 +1,12 @@
-package helper
+package at
 
 import (
 	"strings"
 
 	"github.com/gocroot/mod"
 
+	"github.com/gocroot/helper/atapi"
+	"github.com/gocroot/helper/atdb"
 	"github.com/gocroot/helper/module"
 	"github.com/whatsauth/itmodel"
 
@@ -29,13 +31,13 @@ func RefreshToken(dt *itmodel.WebHook, WAPhoneNumber, WAAPIGetToken string, db *
 	}
 	var resp itmodel.User
 	if profile.Token != "" {
-		resp, err = PostStructWithToken[itmodel.User]("Token", profile.Token, dt, WAAPIGetToken)
+		resp, err = atapi.PostStructWithToken[itmodel.User]("Token", profile.Token, dt, WAAPIGetToken)
 		if err != nil {
 			return
 		}
 		profile.Phonenumber = resp.PhoneNumber
 		profile.Token = resp.Token
-		res, err = ReplaceOneDoc(db, "profile", bson.M{"phonenumber": resp.PhoneNumber}, profile)
+		res, err = atdb.ReplaceOneDoc(db, "profile", bson.M{"phonenumber": resp.PhoneNumber}, profile)
 		if err != nil {
 			return
 		}
@@ -62,7 +64,7 @@ func HandlerQRLogin(msg itmodel.IteungMessage, WAKeyword string, WAPhoneNumber s
 	if err != nil {
 		return
 	}
-	resp, err = PostStructWithToken[itmodel.Response]("Token", structtoken.Token, dt, WAAPIQRLogin)
+	resp, err = atapi.PostStructWithToken[itmodel.Response]("Token", structtoken.Token, dt, WAAPIQRLogin)
 	return
 }
 
@@ -93,7 +95,7 @@ func HandlerIncomingMessage(msg itmodel.IteungMessage, WAPhoneNumber string, db 
 					IsGroup:     false,
 				}
 				urlpost := "https://api.wa.my.id/api/send/message/image"
-				resp, err = PostStructWithToken[itmodel.Response]("Token", profile.Token, dt, urlpost)
+				resp, err = atapi.PostStructWithToken[itmodel.Response]("Token", profile.Token, dt, urlpost)
 				if err != nil {
 					return
 				}
@@ -103,7 +105,7 @@ func HandlerIncomingMessage(msg itmodel.IteungMessage, WAPhoneNumber string, db 
 					IsGroup:  false,
 					Messages: msgstr,
 				}
-				resp, err = PostStructWithToken[itmodel.Response]("Token", profile.Token, dt, WAAPIMessage)
+				resp, err = atapi.PostStructWithToken[itmodel.Response]("Token", profile.Token, dt, WAAPIMessage)
 				if err != nil {
 					return
 				}
@@ -124,7 +126,7 @@ func HandlerIncomingMessage(msg itmodel.IteungMessage, WAPhoneNumber string, db 
 					IsGroup:     true,
 				}
 				urlpost := "https://api.wa.my.id/api/send/message/image"
-				resp, err = PostStructWithToken[itmodel.Response]("Token", profile.Token, dt, urlpost)
+				resp, err = atapi.PostStructWithToken[itmodel.Response]("Token", profile.Token, dt, urlpost)
 				if err != nil {
 					return
 				}
@@ -134,7 +136,7 @@ func HandlerIncomingMessage(msg itmodel.IteungMessage, WAPhoneNumber string, db 
 					IsGroup:  true,
 					Messages: msgstr,
 				}
-				resp, err = PostStructWithToken[itmodel.Response]("Token", profile.Token, dt, WAAPIMessage)
+				resp, err = atapi.PostStructWithToken[itmodel.Response]("Token", profile.Token, dt, WAAPIMessage)
 				if err != nil {
 					return
 				}
@@ -147,7 +149,7 @@ func HandlerIncomingMessage(msg itmodel.IteungMessage, WAPhoneNumber string, db 
 }
 
 func GetRandomReplyFromMongo(msg itmodel.IteungMessage, botname string, db *mongo.Database) string {
-	rply, err := GetRandomDoc[itmodel.Reply](db, "reply", 1)
+	rply, err := atdb.GetRandomDoc[itmodel.Reply](db, "reply", 1)
 	if err != nil {
 		return "Koneksi Database Gagal: " + err.Error()
 	}
@@ -167,7 +169,7 @@ func GetRandomReplyFromMongo(msg itmodel.IteungMessage, botname string, db *mong
 
 func GetAppProfile(phonenumber string, db *mongo.Database) (apitoken itmodel.Profile, err error) {
 	filter := bson.M{"phonenumber": phonenumber}
-	apitoken, err = GetOneDoc[itmodel.Profile](db, "profile", filter)
+	apitoken, err = atdb.GetOneDoc[itmodel.Profile](db, "profile", filter)
 
 	return
 }
