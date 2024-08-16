@@ -2,13 +2,7 @@ package controller
 
 import (
 	"context"
-	"crypto/rsa"
-	"crypto/x509"
-	"encoding/hex"
-	"encoding/pem"
-	"errors"
 	"log"
-	"os"
 
 	"github.com/gocroot/config"
 	"github.com/gocroot/model"
@@ -40,31 +34,3 @@ func GetUserByEmail(email string) (model.User, error) {
 	return user, err
 }
 
-// Securely get public key from environment variable
-func getRSAPublicKey() (*rsa.PublicKey, error) {
-    publicKeyHex := os.Getenv("PUBLIC_KEY")
-    if publicKeyHex == "" {
-        return nil, errors.New("public key not found in environment variables")
-    }
-
-    publicKeyBytes, err := hex.DecodeString(publicKeyHex)
-    if err != nil {
-        return nil, err
-    }
-
-    pemBlock := &pem.Block{
-        Bytes: publicKeyBytes,
-    }
-
-    pub, err := x509.ParsePKIXPublicKey(pemBlock.Bytes)
-    if err != nil {
-        return nil, err
-    }
-
-    rsaPublicKey, ok := pub.(*rsa.PublicKey)
-    if !ok {
-        return nil, errors.New("could not parse RSA public key")
-    }
-
-    return rsaPublicKey, nil
-}

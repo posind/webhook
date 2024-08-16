@@ -2,9 +2,14 @@ package controller
 
 import (
 	"context"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/hex"
 	"encoding/json"
+	"encoding/pem"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/dgrijalva/jwt-go"
@@ -22,21 +27,51 @@ func GetItemByField(w http.ResponseWriter, r *http.Request) {
     // Retrieve token from Authorization header
     authHeader := r.Header.Get("Authorization")
     if authHeader == "" {
+        log.Println("Authorization header missing")
         http.Error(w, "Unauthorized", http.StatusUnauthorized)
         return
     }
 
     parts := strings.Split(authHeader, " ")
     if len(parts) != 2 || parts[0] != "Bearer" {
+        log.Println("Authorization header format invalid")
         http.Error(w, "Unauthorized", http.StatusUnauthorized)
         return
     }
-    tokenStr := parts[1]
 
-    // Get RSA public key securely
-    publicKey, err := getRSAPublicKey()
+    tokenStr := parts[1]
+    log.Printf("Received token: %s", tokenStr)
+
+    // Directly parse the public key from environment variable
+    publicKeyHex := os.Getenv("PUBLIC_KEY")
+    if publicKeyHex == "" {
+        log.Println("Public key not found in environment variables")
+        http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+        return
+    }
+
+    publicKeyBytes, err := hex.DecodeString(publicKeyHex)
     if err != nil {
-        log.Printf("Error retrieving public key: %v", err)
+        log.Printf("Error decoding public key: %v", err)
+        http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+        return
+    }
+
+    pemBlock := &pem.Block{
+        Type:  "PUBLIC KEY",
+        Bytes: publicKeyBytes,
+    }
+
+    pub, err := x509.ParsePKIXPublicKey(pemBlock.Bytes)
+    if err != nil {
+        log.Printf("Error parsing public key: %v", err)
+        http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+        return
+    }
+
+    rsaPublicKey, ok := pub.(*rsa.PublicKey)
+    if !ok {
+        log.Println("Failed to parse RSA public key")
         http.Error(w, "Internal Server Error", http.StatusInternalServerError)
         return
     }
@@ -44,13 +79,14 @@ func GetItemByField(w http.ResponseWriter, r *http.Request) {
     // Verify JWT token
     token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
         if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
+            log.Println("Unexpected signing method")
             return nil, http.ErrAbortHandler
         }
-        return publicKey, nil
+        return rsaPublicKey, nil
     })
 
     if err != nil || !token.Valid {
-        log.Printf("Token invalid: %v", err)
+        log.Printf("Token invalid or error: %v", err)
         http.Error(w, "Unauthorized", http.StatusUnauthorized)
         return
     }
@@ -58,7 +94,10 @@ func GetItemByField(w http.ResponseWriter, r *http.Request) {
     // Retrieve query parameters
     query := r.URL.Query()
     destinasi := query.Get("destinasi")
-    barang := query.Get("Barang")
+    barang := query.Get("barang")
+
+    // Log query parameters
+    log.Printf("Received query parameters - destinasi: %s, barang: %s", destinasi, barang)
 
     // Build the filter
     filter := bson.M{}
@@ -69,6 +108,9 @@ func GetItemByField(w http.ResponseWriter, r *http.Request) {
         filter["Barang"] = barang
     }
 
+    // Log filter
+    log.Printf("Filter created: %+v", filter)
+
     // Set MongoDB query options
     findOptions := options.Find().SetLimit(20)
 
@@ -78,27 +120,30 @@ func GetItemByField(w http.ResponseWriter, r *http.Request) {
     cursor, err := collection.Find(context.Background(), filter, findOptions)
     if err != nil {
         log.Printf("Error fetching items: %v", err)
-        helper.WriteJSON(w, http.StatusInternalServerError, "Error fetching items")
+        http.Error(w, "Error fetching items", http.StatusInternalServerError)
         return
     }
     defer cursor.Close(context.Background())
 
     if err = cursor.All(context.Background(), &items); err != nil {
         log.Printf("Error decoding items: %v", err)
-        helper.WriteJSON(w, http.StatusInternalServerError, "Error decoding items")
+        http.Error(w, "Error decoding items", http.StatusInternalServerError)
         return
     }
 
     // If no items found
     if len(items) == 0 {
+        log.Println("No items found")
         helper.WriteJSON(w, http.StatusNotFound, "No items found")
         return
     }
 
+    // Log found items
+    log.Printf("Items found: %+v", items)
+
     // Return items as JSON
     helper.WriteJSON(w, http.StatusOK, items)
 }
-
 
 
 // PostItem menambahkan item baru ke dalam database.
