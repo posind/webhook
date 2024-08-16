@@ -24,13 +24,13 @@ func GetMaxWeight(Pesan itmodel.IteungMessage, db *mongo.Database) string {
     }
 
     if country == "" {
-        return "Nama negaranya tidak ada di database kita kakak"
+        return "Nama negaranya tidak ada di database kita kakak :("
     }
 
-    filter := bson.M{"DestinasiNegara": bson.M{"$regex": kimseok.Stemmer(country), "$options": "i"}}
+    filter := bson.M{"Destinasi Negara": bson.M{"$regex": kimseok.Stemmer(country), "$options": "i"}}
     if item != "" {
         regexPattern := BuildFlexibleRegexWithTypos([]string{item}, db)
-        filter["KodeNegara"] = bson.M{"$regex": regexPattern, "$options": "i"}
+        filter["Kode Negara"] = bson.M{"$regex": regexPattern, "$options": "i"}
     }
 
     reply, _, err := populateList(db, filter, item)
@@ -51,13 +51,13 @@ func GetCountryAndItemFromKeywords(keywords []string, db *mongo.Database) (strin
             return country, item, nil
         }
     }
-    return "", "", errors.New("nama negaranya mana kak")
+    return "", "", errors.New("nama negaranya mana kak?")
 }
 
 // GetCountryNameLike searches for a country name in the database
 func GetCountryNameLike(db *mongo.Database, country string) (string, error) {
     filter := bson.M{
-        "DestinasiNegara": bson.M{"$regex": kimseok.Stemmer(country), "$options": "i"},
+        "Destinasi Negara": bson.M{"$regex": kimseok.Stemmer(country), "$options": "i"},
     }
     maxw, err := atdb.GetOneDoc[Item](db, "max_weight", filter)
     if err != nil {
@@ -67,20 +67,6 @@ func GetCountryNameLike(db *mongo.Database, country string) (string, error) {
     return dest, nil
 }
 
-// GetItemNameLike searches for an item name in the database
-func GetItemNameLike(db *mongo.Database, item string) (string, string, error) {
-    filter := bson.M{
-        "BarangTerlarang": bson.M{"$regex": item, "$options": "i"},
-    }
-    maxwei, err := atdb.GetOneDoc[Item](db, "max_weight", filter)
-    if err != nil {
-        return "", "", err
-    }
-    kodeNegara := strings.ReplaceAll(maxwei.KodeNegara, "\u00A0", " ")
-    beratPerKoli := strings.ReplaceAll(maxwei.BeratPerKoli, "\u00A0", " ")
-    return kodeNegara, beratPerKoli, nil
-}
-
 // populateList creates a list of items based on the filter
 func populateList(db *mongo.Database, filter bson.M, keyword string) (string, string, error) {
     listmax, err := atdb.GetAllDoc[Item](db, "max_weight", filter)
@@ -88,7 +74,7 @@ func populateList(db *mongo.Database, filter bson.M, keyword string) (string, st
         return "Terdapat kesalahan pada GetAllDoc", "", err
     }
     if len(listmax) == 0 {
-        return "Tidak ada barang terlarang yang ditemukan", "", errors.New("zero results")
+        return "Tidak ada berat maksimal per koli yang ditemukan", "", errors.New("zero results")
     }
     dest := listmax[0].DestinasiNegara
     var msg strings.Builder
@@ -104,7 +90,7 @@ func populateList(db *mongo.Database, filter bson.M, keyword string) (string, st
 
 // ExtractKeywords extracts meaningful keywords from a message
 func ExtractKeywords(message string, commonWordsAdd []string) []string {
-    commonWords := []string{"berat", "max", "maks", "weight", "mymy"}
+    commonWords := []string{"berat", "max", "maks", "mymy"}
     commonWords = append(commonWords, commonWordsAdd...)
     message = strings.ToLower(message)
     message = strings.ReplaceAll(message, "\u00A0", " ")
