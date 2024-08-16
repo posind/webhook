@@ -122,10 +122,8 @@ func GetItemByID(respw http.ResponseWriter, req *http.Request) {
     // Log the query
     log.Printf("Querying MongoDB with filter: %+v", bson.M{"_id": objectID})
 
-    // Query MongoDB for the item with the specified ID
-    var item model.Itemlarangan
-    collection := config.Mongoconn.Collection("prohibited_items_id")
-    err = collection.FindOne(req.Context(), bson.M{"_id": objectID}).Decode(&item)
+    // Query MongoDB for the item with the specified ID using GetOneDoc
+    item, err := atdb.GetOneDoc[model.Itemlarangan](config.Mongoconn, "prohibited_items_id", bson.M{"_id": objectID})
     if err != nil {
         if err == mongo.ErrNoDocuments {
             log.Println("Item not found")
