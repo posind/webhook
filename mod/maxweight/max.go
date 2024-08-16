@@ -69,7 +69,7 @@ func GetCountryNameLike(db *mongo.Database, country string) (string, error) {
 
 // populateList creates a list of items based on the filter
 func populateList(db *mongo.Database, filter bson.M, keyword string) (string, string, error) {
-    listmax, err := atdb.GetAllDoc[Item](db, "max_weight", filter)
+    listmax, err := atdb.GetAllDoc[[]Item](db, "max_weight", filter)
     if err != nil {
         return "Terdapat kesalahan pada GetAllDoc", "", err
     }
@@ -114,7 +114,7 @@ func ExtractKeywords(message string, commonWordsAdd []string) []string {
 // BuildFlexibleRegexWithTypos creates a flexible regex that accounts for typos
 func BuildFlexibleRegexWithTypos(keywords []string, db *mongo.Database) string {
     var allKeywords []string
-    items, err := atdb.GetAllDoc[Item](db, "max_weight", bson.M{})
+    items, err := atdb.GetAllDoc[[]Item](db, "max_weight", bson.M{})
     if err != nil {
         // Handle error, possibly return an empty regex or some default
         return ""
