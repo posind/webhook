@@ -20,18 +20,18 @@ func GetItemByField(w http.ResponseWriter, r *http.Request) {
     // Ambil query parameter dari URL
     query := r.URL.Query()
     destinasi := query.Get("destinasi")
-    barangTerlarang := query.Get("barangTerlarang")
+    barang := query.Get("Barang")  // Ubah menjadi 'Barang' sesuai dengan MongoDB
 
     // Log parameter yang diterima
-    log.Printf("Received query parameters - destinasi: %s, barangTerlarang: %s", destinasi, barangTerlarang)
+    log.Printf("Received query parameters - destinasi: %s, Barang: %s", destinasi, barang)
 
     // Buat filter berdasarkan parameter yang ada
     filter := bson.M{}
     if destinasi != "" {
-        filter["destinasi"] = destinasi
+        filter["Destinasi"] = destinasi
     }
-    if barangTerlarang != "" {
-        filter["barang_terlarang"] = barangTerlarang
+    if barang != "" {
+        filter["Barang"] = barang
     }
 
     // Log filter yang dibuat
@@ -68,7 +68,7 @@ func GetItemByField(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    // Kirim hasil item sebagai JSON
+    // Kirim hasil item sebagai JSON dengan format yang sesuai untuk frontend
     helper.WriteJSON(w, http.StatusOK, items)
 }
 
