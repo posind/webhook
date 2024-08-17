@@ -119,28 +119,32 @@ func GetUniqueDestinations(w http.ResponseWriter, r *http.Request) {
 	collection := config.Mongoconn.Collection("prohibited_items_en")
 	// Mengambil daftar destinasi unik
 	var uniqueDestinations []interface{}
-	uniqueDestinations, err := collection.Distinct(context.Background(), "destination", bson.M{})
-	if err != nil {
-		log.Printf("Error fetching distinct destinations: %v", err)
-		http.Error(w, "Error fetching distinct destinations from the database.", http.StatusInternalServerError)
-		return
-	}
+	var err error
 
-	// Mengonversi hasil dari []interface{} ke []string jika diperlukan
-	destinations := make([]string, len(uniqueDestinations))
-	for i, v := range uniqueDestinations {
-		if str, ok := v.(string); ok {
-			destinations[i] = str
-		} else {
-			log.Printf("Unexpected type %T in uniqueDestinations slice", v)
+	if destination != "" {
+		uniqueDestinations = append(uniqueDestinations, destination)
+	} else {
+		uniqueDestinations, err = collection.Distinct(context.Background(), "destination", bson.M{})
+		if err != nil {
+			log.Printf("Error fetching distinct destinations: %v", err)
+			http.Error(w, "Error fetching distinct destinations from the database.", http.StatusInternalServerError)
+			return
 		}
 	}
 
-	log.Printf("Unique destinations found: %d", len(destinations))
+	// Jika Anda ingin mengonversi `uniqueDestinations` ke `[]string`:
+	var destinationStrings []string
+	for _, dest := range uniqueDestinations {
+		if str, ok := dest.(string); ok {
+			destinationStrings = append(destinationStrings, str)
+		}
+	}
+
+	log.Printf("Unique destinations found: %d", len(destinationStrings))
 
 	// Mengambil satu dokumen untuk setiap destinasi unik
 	var items []model.ProhibitedItems
-	for _, dest := range uniqueDestinations {
+	for _, dest := range destinationStrings {
 		var item model.ProhibitedItems
 		err = collection.FindOne(context.Background(), bson.M{"destination": dest}).Decode(&item)
 		if err != nil {
