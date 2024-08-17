@@ -110,6 +110,57 @@ func GetProhibitedItemByField(w http.ResponseWriter, r *http.Request) {
 	at.WriteJSON(w, http.StatusOK, items)
 }
 
+func GetUniqueDestinations(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+	destination := query.Get("destination")
+
+	log.Printf("Received query parameters - destination: %s", destination)
+
+	collection := config.Mongoconn.Collection("prohibited_items_en")
+	// Mengambil daftar destinasi unik
+	var uniqueDestinations []interface{}
+	uniqueDestinations, err := collection.Distinct(context.Background(), "destination", bson.M{})
+	if err != nil {
+		log.Printf("Error fetching distinct destinations: %v", err)
+		http.Error(w, "Error fetching distinct destinations from the database.", http.StatusInternalServerError)
+		return
+	}
+
+	// Mengonversi hasil dari []interface{} ke []string jika diperlukan
+	destinations := make([]string, len(uniqueDestinations))
+	for i, v := range uniqueDestinations {
+		if str, ok := v.(string); ok {
+			destinations[i] = str
+		} else {
+			log.Printf("Unexpected type %T in uniqueDestinations slice", v)
+		}
+	}
+
+	log.Printf("Unique destinations found: %d", len(destinations))
+
+	// Mengambil satu dokumen untuk setiap destinasi unik
+	var items []model.ProhibitedItems
+	for _, dest := range uniqueDestinations {
+		var item model.ProhibitedItems
+		err = collection.FindOne(context.Background(), bson.M{"destination": dest}).Decode(&item)
+		if err != nil {
+			log.Printf("Error fetching item for destination %s: %v", dest, err)
+			continue
+		}
+		items = append(items, item)
+	}
+
+	if len(items) == 0 {
+		http.Error(w, "No items found for the provided filters.", http.StatusNotFound)
+		return
+	}
+
+	// Merespons dengan data sebagai JSON
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(items)
+}
+
 func PostProhibitedItem(w http.ResponseWriter, r *http.Request) {
 	var respn model.Response
 
