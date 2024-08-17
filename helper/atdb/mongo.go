@@ -125,6 +125,27 @@ func GetOneLatestDoc[T any](db *mongo.Database, collection string, filter bson.M
 	return
 }
 
+// FindDocs mencari dokumen dalam koleksi berdasarkan filter yang diberikan
+func FindDocs(database *mongo.Database, collection string, filter bson.M) (*mongo.Cursor, error) {
+	// Membuat context dengan timeout 10 detik
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Mengakses koleksi yang diinginkan
+	coll := database.Collection(collection)
+
+	// Membuat opsi pencarian (misalnya, untuk mengatur batasan hasil, mengurutkan, dll)
+	opts := options.Find()
+
+	// Melakukan pencarian dokumen dengan filter yang diberikan
+	cursor, err := coll.Find(ctx, filter, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	return cursor, nil
+}
+
 func CountDocs(db *mongo.Database, collection string, filter bson.M) (count int64, err error) {
 	count, err = db.Collection(collection).CountDocuments(context.Background(), filter)
 	if err != nil {

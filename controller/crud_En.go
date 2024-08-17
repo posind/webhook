@@ -193,30 +193,31 @@ func PostProhibitedItem(w http.ResponseWriter, r *http.Request) {
 }
 
 func EnsureIDItemExists(w http.ResponseWriter, r *http.Request) {
-	var newItem model.ProhibitedItems
-	err := json.NewDecoder(r.Body).Decode(&newItem)
-	if err != nil {
-		at.WriteJSON(w, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	// Cari kode negara berdasarkan destinasi
-	var destinationCode model.DestinationCode
-	destinationCode, err = atdb.GetOneDoc[model.DestinationCode](config.Mongoconn, "destination_code", bson.M{"destination": newItem.Destination})
-	if err != nil || destinationCode.DestinationID == "" {
-		at.WriteJSON(w, http.StatusBadRequest, "Error: Could not find the country code for the given destination.")
-		return
-	}
-
-	// Cek apakah item dengan id_item sudah ada
-	existingItem, err := atdb.GetOneDoc[model.ProhibitedItems](config.Mongoconn, "prohibited_items_en", bson.M{"id_item": newItem.IDItem})
+	// Temukan semua dokumen yang belum memiliki id_item
+	cursor, err := atdb.FindDocs(config.Mongoconn, "prohibited_items_en", bson.M{"id_item": bson.M{"$exists": false}})
 	if err != nil {
 		at.WriteJSON(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	defer cursor.Close(context.Background())
 
-	if existingItem.IDItem == "" {
-		// Hitung jumlah item yang ada untuk destinasi tersebut jika id_item belum ada
+	for cursor.Next(context.Background()) {
+		var newItem model.ProhibitedItems
+		err := cursor.Decode(&newItem)
+		if err != nil {
+			at.WriteJSON(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		// Cari kode negara berdasarkan destinasi
+		var destinationCode model.DestinationCode
+		destinationCode, err = atdb.GetOneDoc[model.DestinationCode](config.Mongoconn, "destination_code", bson.M{"destination": newItem.Destination})
+		if err != nil || destinationCode.DestinationID == "" {
+			at.WriteJSON(w, http.StatusBadRequest, "Error: Could not find the country code for the given destination.")
+			return
+		}
+
+		// Hitung jumlah item yang ada untuk destinasi tersebut
 		itemCount, err := atdb.CountDocs(config.Mongoconn, "prohibited_items_en", bson.M{"destination": newItem.Destination})
 		if err != nil {
 			at.WriteJSON(w, http.StatusInternalServerError, err.Error())
@@ -237,13 +238,10 @@ func EnsureIDItemExists(w http.ResponseWriter, r *http.Request) {
 			at.WriteJSON(w, http.StatusInternalServerError, err.Error())
 			return
 		}
-
-		// Berikan respon sukses
-		at.WriteJSON(w, http.StatusOK, "Prohibited item ID created successfully.")
-	} else {
-		// Jika id_item sudah ada, tidak perlu melakukan apa-apa
-		at.WriteJSON(w, http.StatusOK, "Item ID already exists. No action taken.")
 	}
+
+	// Berikan respon sukses setelah semua dokumen diperbarui
+	at.WriteJSON(w, http.StatusOK, "Prohibited items updated successfully with new IDs where applicable.")
 }
 
 // UpdateProhibitedItem updates an item in the database.
