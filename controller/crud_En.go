@@ -69,7 +69,7 @@ func GetProhibitedItemByField(w http.ResponseWriter, r *http.Request) {
 		filterItems["destination"] = destination
 	}
 	if prohibitedItems != "" {
-		filterItems["prohibited_items"] = prohibitedItems
+		filterItems["Prohibited Items"] = prohibitedItems
 	}
 
 	log.Printf("Filter created: %+v", filterItems)
@@ -106,18 +106,8 @@ func GetProhibitedItemByField(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Respond with the items as JSON
-	respn.Status = "Success"
-	jsonItems, err := json.Marshal(items)
-	if err != nil {
-		log.Printf("Error encoding items to JSON: %v", err)
-		respn.Status = "Error: Internal Server Error"
-		respn.Info = "Error encoding items to JSON."
-		at.WriteJSON(w, http.StatusInternalServerError, respn)
-		return
-	}
-	respn.Response = string(jsonItems)
-	at.WriteJSON(w, http.StatusOK, respn)
+	// Langsung merespons dengan items sebagai JSON
+	at.WriteJSON(w, http.StatusOK, items)
 }
 
 func PostProhibitedItem(w http.ResponseWriter, r *http.Request) {
@@ -252,7 +242,7 @@ func UpdateProhibitedItem(w http.ResponseWriter, r *http.Request) {
 	filter := bson.M{"id_item": item.IDItem}
 	update := bson.M{
 		"$set": bson.M{
-			"prohibited_items": item.ProhibitedItems,
+			"Prohibited Items": item.ProhibitedItems,
 		},
 	}
 
