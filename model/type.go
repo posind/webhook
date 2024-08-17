@@ -68,9 +68,9 @@ type VerifyRequest struct {
 	Password    string `json:"password"`
 }
 
-type CountryInfo struct {
-	Negara     string `json:"negara" bson:"negara"`
-	KodeNegara string `json:"kode_negara" bson:"kode_negara"`
+type DestinationCode struct {
+	DestinationID string `json:"destination_id" bson:"destination_id"`
+	Destination   string `json:"destination" bson:"destination"`
 }
 
 type ProhibitedItems struct {

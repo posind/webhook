@@ -110,61 +110,6 @@ func GetProhibitedItemByField(w http.ResponseWriter, r *http.Request) {
 	at.WriteJSON(w, http.StatusOK, items)
 }
 
-func GetUniqueDestinations(w http.ResponseWriter, r *http.Request) {
-	query := r.URL.Query()
-	destination := query.Get("destination")
-
-	log.Printf("Received query parameters - destination: %s", destination)
-
-	collection := config.Mongoconn.Collection("prohibited_items_en")
-	// Mengambil daftar destinasi unik
-	var uniqueDestinations []interface{}
-	var err error
-
-	if destination != "" {
-		uniqueDestinations = append(uniqueDestinations, destination)
-	} else {
-		uniqueDestinations, err = collection.Distinct(context.Background(), "destination", bson.M{})
-		if err != nil {
-			log.Printf("Error fetching distinct destinations: %v", err)
-			http.Error(w, "Error fetching distinct destinations from the database.", http.StatusInternalServerError)
-			return
-		}
-	}
-
-	// Jika Anda ingin mengonversi `uniqueDestinations` ke `[]string`:
-	var destinationStrings []string
-	for _, dest := range uniqueDestinations {
-		if str, ok := dest.(string); ok {
-			destinationStrings = append(destinationStrings, str)
-		}
-	}
-
-	log.Printf("Unique destinations found: %d", len(destinationStrings))
-
-	// Mengambil satu dokumen untuk setiap destinasi unik
-	var items []model.ProhibitedItems
-	for _, dest := range destinationStrings {
-		var item model.ProhibitedItems
-		err = collection.FindOne(context.Background(), bson.M{"destination": dest}).Decode(&item)
-		if err != nil {
-			log.Printf("Error fetching item for destination %s: %v", dest, err)
-			continue
-		}
-		items = append(items, item)
-	}
-
-	if len(items) == 0 {
-		http.Error(w, "No items found for the provided filters.", http.StatusNotFound)
-		return
-	}
-
-	// Merespons dengan data sebagai JSON
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(items)
-}
-
 func PostProhibitedItem(w http.ResponseWriter, r *http.Request) {
 	var respn model.Response
 
@@ -216,10 +161,10 @@ func PostProhibitedItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var countryInfo model.CountryInfo
+	var destinationCode model.DestinationCode
 
-	countryInfo, err = atdb.GetOneDoc[model.CountryInfo](config.Mongoconn, "id_negara", bson.M{"negara": newItem.Destination})
-	if err != nil || countryInfo.KodeNegara == "" {
+	destinationCode, err = atdb.GetOneDoc[model.DestinationCode](config.Mongoconn, "destination_code", bson.M{"destination": newItem.Destination})
+	if err != nil || destinationCode.DestinationID == "" {
 		respn.Status = "Error: Invalid destination"
 		respn.Info = "Could not find the country code for the given destination."
 		at.WriteJSON(w, http.StatusBadRequest, respn)
@@ -236,7 +181,7 @@ func PostProhibitedItem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Buat id_item otomatis berdasarkan kode negara dan urutan
-	newItem.IDItem = fmt.Sprintf("%s-%03d", countryInfo.KodeNegara, itemCount+1)
+	newItem.IDItem = fmt.Sprintf("%s-%03d", destinationCode.DestinationID, itemCount+1)
 
 	// Masukkan data baru ke database
 	if _, err := atdb.InsertOneDoc(config.Mongoconn, "prohibited_items_en", newItem); err != nil {
@@ -245,6 +190,60 @@ func PostProhibitedItem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	at.WriteJSON(w, http.StatusOK, newItem)
+}
+
+func EnsureIDItemExists(w http.ResponseWriter, r *http.Request) {
+	var newItem model.ProhibitedItems
+	err := json.NewDecoder(r.Body).Decode(&newItem)
+	if err != nil {
+		at.WriteJSON(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	// Cari kode negara berdasarkan destinasi
+	var destinationCode model.DestinationCode
+	destinationCode, err = atdb.GetOneDoc[model.DestinationCode](config.Mongoconn, "destination_code", bson.M{"destination": newItem.Destination})
+	if err != nil || destinationCode.DestinationID == "" {
+		at.WriteJSON(w, http.StatusBadRequest, "Error: Could not find the country code for the given destination.")
+		return
+	}
+
+	// Cek apakah item dengan id_item sudah ada
+	existingItem, err := atdb.GetOneDoc[model.ProhibitedItems](config.Mongoconn, "prohibited_items_en", bson.M{"id_item": newItem.IDItem})
+	if err != nil {
+		at.WriteJSON(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	if existingItem.IDItem == "" {
+		// Hitung jumlah item yang ada untuk destinasi tersebut jika id_item belum ada
+		itemCount, err := atdb.CountDocs(config.Mongoconn, "prohibited_items_en", bson.M{"destination": newItem.Destination})
+		if err != nil {
+			at.WriteJSON(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		// Buat id_item otomatis berdasarkan kode negara dan urutan
+		newItem.IDItem = fmt.Sprintf("%s-%03d", destinationCode.DestinationID, itemCount+1)
+
+		// Perbarui dokumen dengan id_item baru
+		updateQuery := bson.M{
+			"$set": bson.M{
+				"id_item": newItem.IDItem,
+			},
+		}
+		_, err = atdb.UpdateOneDoc(config.Mongoconn, "prohibited_items_en", bson.M{"id_item": newItem.IDItem}, updateQuery)
+		if err != nil {
+			at.WriteJSON(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		// Berikan respon sukses
+		at.WriteJSON(w, http.StatusOK, "Prohibited item ID created successfully.")
+	} else {
+		// Jika id_item sudah ada, tidak perlu melakukan apa-apa
+		at.WriteJSON(w, http.StatusOK, "Item ID already exists. No action taken.")
+	}
 }
 
 // UpdateProhibitedItem updates an item in the database.
