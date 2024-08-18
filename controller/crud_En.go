@@ -243,30 +243,31 @@ func EnsureIDItemExists(w http.ResponseWriter, r *http.Request) {
 		bulkWrites = append(bulkWrites, update)
 		counter++
 
-		// Eksekusi batch jika batchSize tercapai
+		// Eksekusi batch dan berhenti jika batchSize tercapai
 		if counter >= batchSize {
 			_, err := config.Mongoconn.Collection("prohibited_items_en").BulkWrite(context.Background(), bulkWrites)
 			if err != nil {
 				at.WriteJSON(w, http.StatusInternalServerError, err.Error())
 				return
 			}
-			// Reset batch
-			bulkWrites = nil
-			counter = 0
+			// Berikan respon sukses setelah batch pertama
+			at.WriteJSON(w, http.StatusOK, "Prohibited items updated successfully with new IDs where applicable.")
+			return
 		}
 	}
 
-	// Eksekusi sisa batch yang belum dieksekusi
+	// Jika tidak ada dokumen yang diproses atau tidak mencapai batchSize, eksekusi sisa batch yang ada
 	if len(bulkWrites) > 0 {
 		_, err := config.Mongoconn.Collection("prohibited_items_en").BulkWrite(context.Background(), bulkWrites)
 		if err != nil {
 			at.WriteJSON(w, http.StatusInternalServerError, err.Error())
 			return
 		}
+		// Berikan respon sukses setelah semua dokumen diperbarui
+		at.WriteJSON(w, http.StatusOK, "Prohibited items updated successfully with new IDs where applicable.")
+	} else {
+		at.WriteJSON(w, http.StatusOK, "No documents required updating.")
 	}
-
-	// Berikan respon sukses setelah semua dokumen diperbarui
-	at.WriteJSON(w, http.StatusOK, "Prohibited items updated successfully with new IDs where applicable.")
 }
 
 // UpdateProhibitedItem updates an item in the database.
