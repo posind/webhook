@@ -230,7 +230,7 @@ func EnsureIDItemExists(w http.ResponseWriter, r *http.Request) {
 
 			// Cek apakah id_item sudah digunakan
 			existingItem, err := atdb.GetOneDoc[model.ProhibitedItems](config.Mongoconn, "prohibited_items_en", bson.M{"id_item": potentialIDItem})
-			if err != nil {
+			if err != nil && err != mongo.ErrNoDocuments {
 				at.WriteJSON(w, http.StatusInternalServerError, err.Error())
 				return
 			}
