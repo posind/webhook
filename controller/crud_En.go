@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"github.com/gocroot/config"
@@ -201,6 +202,10 @@ func EnsureIDItemExists(w http.ResponseWriter, r *http.Request) {
 	}
 	defer cursor.Close(context.Background())
 
+	batchSize := 20
+	counter := 0
+	var bulkWrites []mongo.WriteModel
+
 	for cursor.Next(context.Background()) {
 		var newItem model.ProhibitedItems
 		err := cursor.Decode(&newItem)
@@ -227,13 +232,33 @@ func EnsureIDItemExists(w http.ResponseWriter, r *http.Request) {
 		// Buat id_item otomatis berdasarkan kode negara dan urutan
 		newItem.IDItem = fmt.Sprintf("%s-%03d", destinationCode.DestinationID, itemCount+1)
 
-		// Perbarui dokumen dengan id_item baru
+		// Siapkan update model untuk bulk write
 		updateQuery := bson.M{
 			"$set": bson.M{
 				"id_item": newItem.IDItem,
 			},
 		}
-		_, err = atdb.UpdateOneDoc(config.Mongoconn, "prohibited_items_en", bson.M{"id_item": newItem.IDItem}, updateQuery)
+		filter := bson.M{"prohibited_items": newItem.ProhibitedItems}
+		update := mongo.NewUpdateOneModel().SetFilter(filter).SetUpdate(updateQuery)
+		bulkWrites = append(bulkWrites, update)
+		counter++
+
+		// Eksekusi batch jika batchSize tercapai
+		if counter >= batchSize {
+			_, err := config.Mongoconn.Collection("prohibited_items_en").BulkWrite(context.Background(), bulkWrites)
+			if err != nil {
+				at.WriteJSON(w, http.StatusInternalServerError, err.Error())
+				return
+			}
+			// Reset batch
+			bulkWrites = nil
+			counter = 0
+		}
+	}
+
+	// Eksekusi sisa batch yang belum dieksekusi
+	if len(bulkWrites) > 0 {
+		_, err := config.Mongoconn.Collection("prohibited_items_en").BulkWrite(context.Background(), bulkWrites)
 		if err != nil {
 			at.WriteJSON(w, http.StatusInternalServerError, err.Error())
 			return
