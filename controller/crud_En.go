@@ -267,8 +267,8 @@ func EnsureIDItemExists(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			// Reset batch setelah eksekusi
-			bulkWrites = nil
-			counter = 0
+			at.WriteJSON(w, http.StatusOK, "Prohibited items updated successfully with new IDs where applicable.")
+			return
 		}
 	}
 
