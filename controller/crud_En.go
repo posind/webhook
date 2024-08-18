@@ -222,18 +222,28 @@ func EnsureIDItemExists(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Hitung jumlah item yang ada untuk destinasi tersebut, tetapi hanya yang sudah memiliki id_item
-		itemCount, err := atdb.CountDocs(config.Mongoconn, "prohibited_items_en", bson.M{
-			"destination": newItem.Destination,
-			"id_item":     bson.M{"$exists": true},
-		})
-		if err != nil {
-			at.WriteJSON(w, http.StatusInternalServerError, err.Error())
-			return
-		}
+		// Mulai dengan itemCount dan teruskan menambahkan hingga kita menemukan nomor yang belum terpakai
+		itemCount := 1
+		for {
+			// Buat id_item berdasarkan itemCount saat ini
+			potentialIDItem := fmt.Sprintf("%s-%03d", destinationCode.DestinationID, itemCount)
 
-		// Buat id_item otomatis berdasarkan kode negara dan urutan
-		newItem.IDItem = fmt.Sprintf("%s-%03d", destinationCode.DestinationID, itemCount+1)
+			// Cek apakah id_item sudah digunakan
+			existingItem, err := atdb.GetOneDoc[model.ProhibitedItems](config.Mongoconn, "prohibited_items_en", bson.M{"id_item": potentialIDItem})
+			if err != nil {
+				at.WriteJSON(w, http.StatusInternalServerError, err.Error())
+				return
+			}
+
+			// Jika id_item belum digunakan, gunakan nomor ini
+			if existingItem.IDItem == "" {
+				newItem.IDItem = potentialIDItem
+				break
+			}
+
+			// Jika id_item sudah digunakan, coba nomor berikutnya
+			itemCount++
+		}
 
 		// Siapkan update model untuk bulk write, menggunakan filter berdasarkan _id untuk update yang tepat
 		updateQuery := bson.M{
