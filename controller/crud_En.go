@@ -198,7 +198,7 @@ func EnsureIDItemExists(w http.ResponseWriter, r *http.Request) {
 	cursor, err := atdb.FindDocs(config.Mongoconn, "prohibited_items_en", bson.M{
 		"$or": []bson.M{
 			{"id_item": bson.M{"$exists": false}},
-			{"id_item": bson.M{"$ne": ""}},
+			{"id_item": ""},
 		},
 	})
 	if err != nil {
@@ -227,34 +227,24 @@ func EnsureIDItemExists(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Periksa apakah id_item sudah ada di destination yang sama
-		for {
+		// Periksa apakah id_item sudah ada di destination yang sama dan buat ID yang unik
+		isUnique := false
+		itemCount := 1
+		for !isUnique {
+			potentialID := fmt.Sprintf("%s-%03d", destinationCode.DestinationID, itemCount)
 			existingItem, err := atdb.GetOneDoc[model.ProhibitedItems](config.Mongoconn, "prohibited_items_en", bson.M{
 				"destination": newItem.Destination,
-				"id_item":     newItem.IDItem,
-				"_id":         bson.M{"$ne": newItem.ID}, // pastikan tidak mengecek item yang sama
+				"id_item":     potentialID,
 			})
 			if err != nil && err != mongo.ErrNoDocuments {
 				at.WriteJSON(w, http.StatusInternalServerError, err.Error())
 				return
 			}
-
-			// Jika id_item sudah digunakan, perbarui dengan nomor berikutnya
-			if existingItem.IDItem != "" && existingItem.IDItem == newItem.IDItem {
-				// Hitung ulang itemCount untuk menghindari duplikasi
-				itemCount, err := atdb.CountDocs(config.Mongoconn, "prohibited_items_en", bson.M{
-					"destination": newItem.Destination,
-					"id_item":     bson.M{"$exists": true},
-				})
-				if err != nil {
-					at.WriteJSON(w, http.StatusInternalServerError, err.Error())
-					return
-				}
-
-				newItem.IDItem = fmt.Sprintf("%s-%03d", destinationCode.DestinationID, itemCount+1)
+			if existingItem.IDItem == "" {
+				newItem.IDItem = potentialID
+				isUnique = true
 			} else {
-				// Jika tidak ada duplikasi, lanjutkan
-				break
+				itemCount++
 			}
 		}
 
@@ -282,18 +272,8 @@ func EnsureIDItemExists(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Jika tidak ada dokumen yang diproses atau tidak mencapai batchSize, eksekusi sisa batch yang ada
-	if len(bulkWrites) > 0 {
-		_, err := config.Mongoconn.Collection("prohibited_items_en").BulkWrite(context.Background(), bulkWrites)
-		if err != nil {
-			at.WriteJSON(w, http.StatusInternalServerError, err.Error())
-			return
-		}
-		// Berikan respon sukses setelah semua dokumen diperbarui
-		at.WriteJSON(w, http.StatusOK, "Prohibited items updated successfully with new IDs where applicable.")
-	} else {
-		at.WriteJSON(w, http.StatusOK, "No documents required updating.")
-	}
+	// Berikan respon sukses setelah batch pertama dan berhenti
+	at.WriteJSON(w, http.StatusOK, "Prohibited items updated successfully with new IDs where applicable.")
 }
 
 // UpdateProhibitedItem updates an item in the database.
