@@ -227,12 +227,11 @@ func EnsureIDItemExists(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Periksa apakah id_item sudah ada di destination yang sama untuk prohibited_items tersebut
+		// Periksa apakah id_item sudah ada di destination yang sama
 		for {
 			existingItem, err := atdb.GetOneDoc[model.ProhibitedItems](config.Mongoconn, "prohibited_items_en", bson.M{
-				"destination":      newItem.Destination,
-				"prohibited_items": newItem.ProhibitedItems,
-				"id_item":          newItem.IDItem,
+				"destination": newItem.Destination,
+				"id_item":     newItem.IDItem,
 			})
 			if err != nil && err != mongo.ErrNoDocuments {
 				at.WriteJSON(w, http.StatusInternalServerError, err.Error())
@@ -258,16 +257,13 @@ func EnsureIDItemExists(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		// Siapkan update model untuk bulk write, menggunakan filter berdasarkan prohibited_items untuk update yang tepat
+		// Siapkan update model untuk bulk write, menggunakan filter berdasarkan _id untuk update yang tepat
 		updateQuery := bson.M{
 			"$set": bson.M{
 				"id_item": newItem.IDItem,
 			},
 		}
-		filter := bson.M{
-			"destination":      newItem.Destination,
-			"prohibited_items": newItem.ProhibitedItems,
-		}
+		filter := bson.M{"_id": newItem.ID}
 		update := mongo.NewUpdateOneModel().SetFilter(filter).SetUpdate(updateQuery)
 		bulkWrites = append(bulkWrites, update)
 		counter++
