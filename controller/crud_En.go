@@ -194,8 +194,13 @@ func PostProhibitedItem(w http.ResponseWriter, r *http.Request) {
 }
 
 func EnsureIDItemExists(w http.ResponseWriter, r *http.Request) {
-	// Temukan semua dokumen yang belum memiliki id_item
-	cursor, err := atdb.FindDocs(config.Mongoconn, "prohibited_items_en", bson.M{"id_item": bson.M{"$exists": false}})
+	// Temukan semua dokumen yang belum memiliki id_item atau yang memiliki id_item duplikat
+	cursor, err := atdb.FindDocs(config.Mongoconn, "prohibited_items_en", bson.M{
+		"$or": []bson.M{
+			{"id_item": bson.M{"$exists": false}},
+			{"id_item": bson.M{"$ne": ""}},
+		},
+	})
 	if err != nil {
 		at.WriteJSON(w, http.StatusInternalServerError, err.Error())
 		return
@@ -222,36 +227,47 @@ func EnsureIDItemExists(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Mulai dengan itemCount dan teruskan menambahkan hingga kita menemukan nomor yang belum terpakai
-		itemCount := 1
+		// Periksa apakah id_item sudah ada di destination yang sama untuk prohibited_items tersebut
 		for {
-			// Buat id_item berdasarkan itemCount saat ini
-			potentialIDItem := fmt.Sprintf("%s-%03d", destinationCode.DestinationID, itemCount)
-
-			// Cek apakah id_item sudah digunakan
-			existingItem, err := atdb.GetOneDoc[model.ProhibitedItems](config.Mongoconn, "prohibited_items_en", bson.M{"id_item": potentialIDItem})
+			existingItem, err := atdb.GetOneDoc[model.ProhibitedItems](config.Mongoconn, "prohibited_items_en", bson.M{
+				"destination":      newItem.Destination,
+				"prohibited_items": newItem.ProhibitedItems,
+				"id_item":          newItem.IDItem,
+			})
 			if err != nil && err != mongo.ErrNoDocuments {
 				at.WriteJSON(w, http.StatusInternalServerError, err.Error())
 				return
 			}
 
-			// Jika id_item belum digunakan, gunakan nomor ini
-			if existingItem.IDItem == "" {
-				newItem.IDItem = potentialIDItem
+			// Jika id_item sudah digunakan, perbarui dengan nomor berikutnya
+			if existingItem.IDItem != "" && existingItem.IDItem == newItem.IDItem {
+				// Hitung ulang itemCount untuk menghindari duplikasi
+				itemCount, err := atdb.CountDocs(config.Mongoconn, "prohibited_items_en", bson.M{
+					"destination":      newItem.Destination,
+					"prohibited_items": newItem.ProhibitedItems,
+				})
+				if err != nil {
+					at.WriteJSON(w, http.StatusInternalServerError, err.Error())
+					return
+				}
+
+				newItem.IDItem = fmt.Sprintf("%s-%03d", destinationCode.DestinationID, itemCount+1)
+			} else {
+				// Jika tidak ada duplikasi, lanjutkan
 				break
 			}
-
-			// Jika id_item sudah digunakan, coba nomor berikutnya
-			itemCount++
 		}
 
-		// Siapkan update model untuk bulk write, menggunakan filter berdasarkan _id untuk update yang tepat
+		// Siapkan update model untuk bulk write, menggunakan filter berdasarkan prohibited_items untuk update yang tepat
 		updateQuery := bson.M{
 			"$set": bson.M{
 				"id_item": newItem.IDItem,
 			},
 		}
-		filter := bson.M{"_id": newItem.ID}
+		filter := bson.M{
+			"destination":      newItem.Destination,
+			"prohibited_items": newItem.ProhibitedItems,
+		}
 		update := mongo.NewUpdateOneModel().SetFilter(filter).SetUpdate(updateQuery)
 		bulkWrites = append(bulkWrites, update)
 		counter++

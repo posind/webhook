@@ -74,10 +74,9 @@ type DestinationCode struct {
 }
 
 type ProhibitedItems struct {
-	ID              primitive.ObjectID `bson:"_id,omitempty" json:"_id,omitempty"`
-	IDItem          string             `json:"id_item" bson:"id_item"`
-	Destination     string             `json:"destination" bson:"Destination"`
-	ProhibitedItems string             `json:"prohibited_items" bson:"Prohibited Items"`
+	IDItem          string `json:"id_item" bson:"id_item"`
+	Destination     string `json:"destination" bson:"Destination"`
+	ProhibitedItems string `json:"prohibited_items" bson:"Prohibited Items"`
 }
 
 type Itemlarangan struct {
