@@ -232,6 +232,7 @@ func EnsureIDItemExists(w http.ResponseWriter, r *http.Request) {
 			existingItem, err := atdb.GetOneDoc[model.ProhibitedItems](config.Mongoconn, "prohibited_items_en", bson.M{
 				"destination": newItem.Destination,
 				"id_item":     newItem.IDItem,
+				"_id":         bson.M{"$ne": newItem.ID}, // pastikan tidak mengecek item yang sama
 			})
 			if err != nil && err != mongo.ErrNoDocuments {
 				at.WriteJSON(w, http.StatusInternalServerError, err.Error())
@@ -242,8 +243,8 @@ func EnsureIDItemExists(w http.ResponseWriter, r *http.Request) {
 			if existingItem.IDItem != "" && existingItem.IDItem == newItem.IDItem {
 				// Hitung ulang itemCount untuk menghindari duplikasi
 				itemCount, err := atdb.CountDocs(config.Mongoconn, "prohibited_items_en", bson.M{
-					"destination":      newItem.Destination,
-					"prohibited_items": newItem.ProhibitedItems,
+					"destination": newItem.Destination,
+					"id_item":     bson.M{"$exists": true},
 				})
 				if err != nil {
 					at.WriteJSON(w, http.StatusInternalServerError, err.Error())
@@ -268,16 +269,16 @@ func EnsureIDItemExists(w http.ResponseWriter, r *http.Request) {
 		bulkWrites = append(bulkWrites, update)
 		counter++
 
-		// Eksekusi batch dan berhenti jika batchSize tercapai
+		// Eksekusi batch jika batchSize tercapai
 		if counter >= batchSize {
 			_, err := config.Mongoconn.Collection("prohibited_items_en").BulkWrite(context.Background(), bulkWrites)
 			if err != nil {
 				at.WriteJSON(w, http.StatusInternalServerError, err.Error())
 				return
 			}
-			// Berikan respon sukses setelah batch pertama
-			at.WriteJSON(w, http.StatusOK, "Prohibited items updated successfully with new IDs where applicable.")
-			return
+			// Reset batch setelah eksekusi
+			bulkWrites = nil
+			counter = 0
 		}
 	}
 
