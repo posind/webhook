@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/gocroot/helper/atdb"
-	// "github.com/gocroot/mod/helpdesk"
-	// "github.com/whatsauth/itmodel"
+	"github.com/gocroot/mod/helpdesk"
+	"github.com/whatsauth/itmodel"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -52,11 +52,47 @@ func GetQnAfromSliceWithJaro(q string, qnas []Datasets) (dt Datasets) {
 
 }
 
-func QueriesDataRegexpALL(db *mongo.Database, queries string) (dest Datasets, err error) {
-	// Kata akhiran imbuhan
-	// queries = SeparateSuffixMu(queries)
+// balasan jika tidak ditemukan key word
+func GetMessage(Profile itmodel.Profile, msg itmodel.IteungMessage, botname string, db *mongo.Database) string {
 
-	// Ubah ke kata dasar
+	//check apakah ada permintaan operator masuk
+	reply, err := helpdesk.PenugasanOperator(Profile, msg, db)
+	if err != nil {
+		return err.Error()
+	}
+	//deteksi nama negara dan prohibited items
+	if reply == "" {
+		//deteksi negara
+		var negara, katakunci, coll string
+		negara, katakunci, coll, err = GetCountryFromMessage(msg.Message, db)
+		if err != nil {
+			return err.Error()
+		}
+		//deteksi prohibited items
+
+		_, reply, err = GetProhibitedItemsFromMessage(negara, katakunci, db, coll)
+		if err != nil {
+			return err.Error()
+		}
+
+	}
+	//jika tidak ada di db komplain lanjut ke selanjutnya
+	if reply == "" {
+		dt, err := QueriesDataRegexpALL(db, msg.Message)
+		if err != nil {
+			return err.Error()
+		}
+		reply = strings.TrimSpace(dt.Answer)
+
+	}
+	return reply
+}
+
+func QueriesDataRegexpALL(db *mongo.Database, queries string) (dest Datasets, err error) {
+	//kata akhiran imbuhan
+	//queries = SeparateSuffixMu(queries)
+
+	//ubah ke kata dasar
 	queries = Stemmer(queries)
 	filter := bson.M{"question": queries}
 	qnas, err := atdb.GetAllDoc[[]Datasets](db, "qna", filter)
@@ -64,50 +100,37 @@ func QueriesDataRegexpALL(db *mongo.Database, queries string) (dest Datasets, er
 		return
 	}
 	if len(qnas) > 0 {
-		// Flatten qnas if it's [][]Datasets
-		flatQnas := flattenDatasets(qnas)
-		dest = GetRandomFromQnASlice(flatQnas)
+		dest = GetRandomFromQnASlice(qnas)
 		return
 	}
 
 	wordsdepan := strings.Fields(queries) // Tokenization
 	wordsbelakang := wordsdepan
-	// Pencarian dengan pengurangan kata dari belakang
+	//pencarian dengan pengurangan kata dari belakang
 	for len(wordsdepan) > 0 || len(wordsbelakang) > 0 {
 		// Join remaining elements back into a string for wordsdepan
 		filter := bson.M{"question": primitive.Regex{Pattern: strings.Join(wordsdepan, " "), Options: "i"}}
 		qnas, err = atdb.GetAllDoc[[]Datasets](db, "qna", filter)
 		if err != nil {
 			return
-		}
-		if len(qnas) > 0 {
-			flatQnas := flattenDatasets(qnas)
-			dest = GetQnAfromSliceWithJaro(queries, flatQnas)
+		} else if len(qnas) > 0 {
+			dest = GetQnAfromSliceWithJaro(queries, qnas)
 			return
 		}
-
 		// Join remaining elements back into a string for wordsbelakang
 		filter = bson.M{"question": primitive.Regex{Pattern: strings.Join(wordsbelakang, " "), Options: "i"}}
 		qnas, err = atdb.GetAllDoc[[]Datasets](db, "qna", filter)
 		if err != nil {
 			return
-		}
-		if len(qnas) > 0 {
-			flatQnas := flattenDatasets(qnas)
-			dest = GetQnAfromSliceWithJaro(queries, flatQnas)
+		} else if len(qnas) > 0 {
+			dest = GetQnAfromSliceWithJaro(queries, qnas)
 			return
 		}
-
 		// Remove the last element
 		wordsdepan = wordsdepan[:len(wordsdepan)-1]
-		// Remove element pertama
+		// remove element pertama
 		wordsbelakang = wordsbelakang[1:]
 	}
 
 	return
-}
-
-// Helper function to flatten a [][]Datasets into []Datasets
-func flattenDatasets(qnas []Datasets) []Datasets {
-	return qnas
 }

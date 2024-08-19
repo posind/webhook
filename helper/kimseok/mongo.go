@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"regexp"
 	"strings"
 
@@ -13,8 +14,18 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"golang.org/x/crypto/bcrypt"
 
+	"github.com/aiteung/atdb"
+
 	"go.mongodb.org/mongo-driver/mongo"
 )
+
+func SetConnection() *mongo.Database {
+	var DBmongoinfo = atdb.DBInfo{
+		DBString: os.Getenv("MONGOSTRING"),
+		DBName:   "Webhook",
+	}
+	return atdb.MongoConnect(DBmongoinfo)
+}
 
 func InsertUserdata(MongoConn *mongo.Database, username, email, password, passwordhash string) (InsertedID interface{}) {
 	req := new(model.User)
