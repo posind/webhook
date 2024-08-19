@@ -7,6 +7,7 @@ import (
 	"github.com/gocroot/config"
 	"github.com/gocroot/helper/at"
 	"github.com/gocroot/helper/atdb"
+	"github.com/gocroot/helper/whatsauth"
 	"github.com/whatsauth/itmodel"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -22,7 +23,7 @@ func PostInboxNomor(respw http.ResponseWriter, req *http.Request) {
 	var resp itmodel.Response
 	var msg itmodel.IteungMessage
 	waphonenumber := at.GetParam(req)
-	prof, err := at.GetAppProfile(waphonenumber, config.Mongoconn)
+	prof, err := whatsauth.GetAppProfile(waphonenumber, config.Mongoconn)
 	if err != nil {
 		resp.Response = err.Error()
 		at.WriteResponse(respw, http.StatusServiceUnavailable, resp)
@@ -39,7 +40,7 @@ func PostInboxNomor(respw http.ResponseWriter, req *http.Request) {
 			if err != nil {
 				resp.Response = err.Error()
 			}
-			resp, err = at.WebHook(prof.QRKeyword, waphonenumber, config.WAAPIQRLogin, config.WAAPIMessageText, msg, config.Mongoconn)
+			resp, err = whatsauth.WebHook(prof, msg, config.Mongoconn)
 			if err != nil {
 				resp.Response = err.Error()
 			}
@@ -71,7 +72,7 @@ func GetNewToken(respw http.ResponseWriter, req *http.Request) {
 				URL:    prof.URL,
 				Secret: prof.Secret,
 			}
-			res, err := at.RefreshToken(dt, prof.Phonenumber, config.WAAPIGetToken, config.Mongoconn)
+			res, err := whatsauth.RefreshToken(dt, prof.Phonenumber, config.WAAPIGetToken, config.Mongoconn)
 			if err != nil {
 				resp.Response = err.Error()
 				break

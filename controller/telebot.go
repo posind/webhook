@@ -8,6 +8,7 @@ import (
 	"github.com/gocroot/helper/at"
 	"github.com/gocroot/helper/atdb"
 	"github.com/gocroot/helper/telebot"
+	"github.com/gocroot/helper/whatsauth"
 	"github.com/whatsauth/itmodel"
 	"go.mongodb.org/mongo-driver/bson"
 )
@@ -24,7 +25,7 @@ func TelebotWebhook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	chatID := update.Message.Chat.ID
-	prof, err := at.GetAppProfile(waphonenumber, config.Mongoconn)
+	prof, err := whatsauth.GetAppProfile(waphonenumber, config.Mongoconn)
 	if err != nil {
 		resp.Response = err.Error()
 		at.WriteResponse(w, http.StatusServiceUnavailable, resp)

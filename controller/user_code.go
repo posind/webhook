@@ -8,6 +8,7 @@ import (
 	"github.com/gocroot/config"
 	"github.com/gocroot/helper/at"
 	"github.com/gocroot/helper/atdb"
+	"github.com/gocroot/helper/whatsauth"
 	"github.com/gocroot/model"
 	"github.com/whatsauth/watoken"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -155,7 +156,7 @@ func PostDataUser(respw http.ResponseWriter, req *http.Request) {
 // PostDataUserFromWA handles the POST request to update user data from WhatsApp
 func PostDataUserFromWA(respw http.ResponseWriter, req *http.Request) {
 	var resp model.Response
-	prof, err := at.GetAppProfile(at.GetParam(req), config.Mongoconn)
+	prof, err := whatsauth.GetAppProfile(at.GetParam(req), config.Mongoconn)
 	if err != nil {
 		resp.Response = err.Error()
 		at.WriteJSON(respw, http.StatusBadRequest, resp)
