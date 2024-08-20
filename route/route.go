@@ -52,7 +52,7 @@ func URL(w http.ResponseWriter, r *http.Request) {
 	case method == "PUT" && path == "/put/prohibited-items/en":
 		controller.UpdateProhibitedItem(w, r)
 	case method == "DELETE" && path == "/delete/prohibited-items/en":
-		controller.DeleteProhibitedItemByField(w, r)
+		controller.DeleteProhibitedItem(w, r)
 
 	// ProhibitedItem Routes (Indonesian)
 	case method == "GET" && path == "/get/item":
