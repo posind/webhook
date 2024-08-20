@@ -10,6 +10,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"golang.org/x/exp/rand"
 
 	"github.com/gocroot/config"
 	"github.com/gocroot/helper/at"
@@ -172,17 +173,11 @@ func PostProhibitedItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Hitung jumlah item saat ini untuk negara tersebut untuk membuat ID baru
-	itemCount, err := atdb.CountDocs(config.Mongoconn, "prohibited_items_en", bson.M{"destination": newItem.Destination})
-	if err != nil {
-		respn.Status = "Error: Could not generate item ID"
-		respn.Info = "Failed to count existing items for the given destination."
-		at.WriteJSON(w, http.StatusInternalServerError, respn)
-		return
-	}
+	// Buat tiga digit acak
+	randomDigits := fmt.Sprintf("%03d", rand.Intn(1000))
 
-	// Buat id_item otomatis berdasarkan kode negara dan urutan
-	newItem.IDItem = fmt.Sprintf("%s-%03d", destinationCode.DestinationID, itemCount+1)
+	// Buat id_item otomatis berdasarkan kode negara dan tiga digit acak
+	newItem.IDItem = fmt.Sprintf("%s-%s", destinationCode.DestinationID, randomDigits)
 
 	// Masukkan data baru ke database
 	if _, err := atdb.InsertOneDoc(config.Mongoconn, "prohibited_items_en", newItem); err != nil {
