@@ -52,40 +52,54 @@ func GetQnAfromSliceWithJaro(q string, qnas []Datasets) (dt Datasets) {
 
 }
 
-// balasan jika tidak ditemukan key word
+// Balasan jika tidak ditemukan Key Word
 func GetMessage(Profile itmodel.Profile, msg itmodel.IteungMessage, botname string, db *mongo.Database) string {
+    // Check apakah ada permintaan operator masuk
+    reply, err := helpdesk.PenugasanOperator(Profile, msg, db)
+    if err != nil {
+        return err.Error()
+    }
 
-	//check apakah ada permintaan operator masuk
-	reply, err := helpdesk.PenugasanOperator(Profile, msg, db)
-	if err != nil {
-		return err.Error()
-	}
-	//deteksi nama negara dan prohibited items
-	if reply == "" {
-		//deteksi negara
-		var negara, katakunci, coll string
-		negara, katakunci, coll, err = GetCountryFromMessage(msg.Message, db)
-		if err != nil {
-			return err.Error()
-		}
-		//deteksi prohibited items
+    // Deteksi nama negara dan prohibited items
+    if reply == "" {
+        var negara, katakunci, coll string
+        negara, katakunci, coll, err = GetCountryFromMessage(msg.Message, db)
+        if err != nil {
+            return err.Error()
+        }
 
-		_, reply, err = GetProhibitedItemsFromMessage(negara, katakunci, db, coll)
-		if err != nil {
-			return err.Error()
-		}
+        // Deteksi prohibited items
+        foundProhibited, prohibitedMsg, err := GetProhibitedItemsFromMessage(negara, katakunci, db, coll)
+        if err != nil {
+            return err.Error()
+        }
+        
+        // Menambahkan pesan terkait prohibited items jika ditemukan
+        if foundProhibited {
+            reply += prohibitedMsg
+        }
 
-	}
-	//jika tidak ada di db komplain lanjut ke selanjutnya
-	if reply == "" {
-		dt, err := QueriesDataRegexpALL(db, msg.Message)
-		if err != nil {
-			return err.Error()
-		}
-		reply = strings.TrimSpace(dt.Answer)
+        // Deteksi max weight
+        foundMaxWeight, maxWeightMsg, err := GetMaxWeight(negara, katakunci, db, coll)
+        if err != nil {
+            return err.Error()
+        }
 
-	}
-	return reply
+        // Menambahkan pesan terkait max weight jika ditemukan
+        if foundMaxWeight {
+            reply += "\n" + maxWeightMsg
+        }
+    }
+
+    // Jika tidak ada data di db, komplain lanjut ke selanjutnya
+    if reply == "" {
+        dt, err := QueriesDataRegexpALL(db, msg.Message)
+        if err != nil {
+            return err.Error()
+        }
+        reply = strings.TrimSpace(dt.Answer)
+    }
+    return reply
 }
 
 func QueriesDataRegexpALL(db *mongo.Database, queries string) (dest Datasets, err error) {
