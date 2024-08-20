@@ -338,11 +338,11 @@ func UpdateProhibitedItem(w http.ResponseWriter, r *http.Request) {
 	at.WriteJSON(w, http.StatusOK, item)
 }
 
-// DeleteProhibitedItemByField deletes an item based on the provided id_item in the request body.
-func DeleteProhibitedItemByField(w http.ResponseWriter, r *http.Request) {
+// DeleteProhibitedItem deletes an item based on the provided id_item in the request body.
+func DeleteProhibitedItem(w http.ResponseWriter, r *http.Request) {
 	var respn model.Response
 
-	// Ekstrak token dari header Login
+	// Extract token from the Login header
 	tokenLogin := r.Header.Get("Login")
 	if tokenLogin == "" {
 		respn.Status = "Error: Missing Login header"
@@ -351,7 +351,7 @@ func DeleteProhibitedItemByField(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Cari user berdasarkan token di database
+	// Find user based on token in the database
 	userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user_email", bson.M{"token": tokenLogin})
 	if err != nil || userData.Email == "" {
 		respn.Status = "Error: Unauthorized"
@@ -360,7 +360,7 @@ func DeleteProhibitedItemByField(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Decode token menggunakan public key user
+	// Decode token using the user's public key
 	decodedUsername, err := passwordhash.DecodeGetUser(userData.Public, tokenLogin)
 	if err != nil {
 		respn.Status = "Error: Invalid token"
@@ -369,7 +369,7 @@ func DeleteProhibitedItemByField(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Periksa apakah username yang didecode ada di database
+	// Check if the decoded username exists in the database
 	userByUsername, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user_email", bson.M{"username": decodedUsername})
 	if err != nil || userByUsername.Username == "" {
 		respn.Status = "Error: User not found"
@@ -378,7 +378,7 @@ func DeleteProhibitedItemByField(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Lanjutkan dengan logika asli untuk menghapus item
+	// Continue with the original logic to delete an item
 	var requestBody struct {
 		IDItem string `json:"id_item"`
 	}
@@ -389,24 +389,17 @@ func DeleteProhibitedItemByField(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validasi apakah id_item ada dalam body
+	// Validate if id_item is present in the body
 	if requestBody.IDItem == "" {
 		at.WriteJSON(w, http.StatusBadRequest, "id_item is required")
 		return
 	}
 
-	filter := bson.M{"id_item": requestBody.IDItem}
-
-	collection := config.Mongoconn.Collection("prohibited_items_en")
-	deleteResult, err := collection.DeleteOne(context.Background(), filter)
-	if err != nil {
-		log.Printf("Error deleting item: %v", err)
+	// Use atdb.DeleteOneDoc to delete the item from the "prohibited_items_en" collection
+	_, delErr := atdb.DeleteOneDoc(config.Mongoconn, "prohibited_items_en", bson.M{"id_item": requestBody.IDItem})
+	if delErr != nil {
+		log.Printf("Error deleting item: %v", delErr)
 		at.WriteJSON(w, http.StatusInternalServerError, "Error deleting item")
-		return
-	}
-
-	if deleteResult.DeletedCount == 0 {
-		at.WriteJSON(w, http.StatusNotFound, "No item found to delete")
 		return
 	}
 
