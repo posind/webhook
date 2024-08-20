@@ -44,7 +44,7 @@ func GetCountryFromMessage(message string, db *mongo.Database) (negara, msg, col
 	}
 
 	collection = "max_weight"
-    maxweight, err := atdb.GetAllDistinctDoc(db, bson.M{}, "DestinasiNegara", collection)
+    maxweight, err := atdb.GetAllDistinctDoc(db, bson.M{}, "Destinasi Negara", collection)
     if err != nil {
         log.Printf("Error fetching countries from DB: %v", err)
         return
@@ -134,7 +134,7 @@ func GetMaxWeight(negara, message string, db *mongo.Database, collectionName str
 }
 
 func GetProhibitedItemsFromMessage(negara, message string, db *mongo.Database, collectionName string) (found bool, msg string, err error) {
-	var fieldTujuan, fieldBarang string
+    var fieldTujuan, fieldBarang string
 	if collectionName == "prohibited_items_id" {
 		fieldTujuan = "Destinasi"
 		fieldBarang = "Barang Terlarang"
@@ -144,17 +144,17 @@ func GetProhibitedItemsFromMessage(negara, message string, db *mongo.Database, c
 	}
 	// Mengambil data prohibited items dari database MongoDB
 	if negara != "" {
-		msg = "Daftar barang terlarang dari negara *" + negara + "*:\n"
+		msg = "💡 Daftar barang terlarang dari negara *" + negara + "*:\n"
 		// Membuat filter untuk pencarian nama negara dengan regex yang tidak case-sensitive
 		var filter bson.M
-		if message == "" { //tidak ada kata kunci hanya nama negara saja di pesan
+		if message == "" { // tidak ada kata kunci hanya nama negara saja di pesan
 			filter = bson.M{
 				fieldTujuan: bson.M{
 					"$regex":   negara,
 					"$options": "i",
 				},
 			}
-		} else { //ada nama negara dan kata kunci
+		} else { // ada nama negara dan kata kunci
 			msg += "Dengan kata kunci _" + message + "_:\n"
 			filter = bson.M{
 				fieldTujuan: bson.M{
@@ -180,25 +180,9 @@ func GetProhibitedItemsFromMessage(negara, message string, db *mongo.Database, c
 					msg += strconv.Itoa(i+1) + ". " + item.BarangTerlarang + "\n"
 				}
 				found = true
-			} else if message != "" { // jika degnan menggunakan keyword tidak ditemukan maka kembalikan list satu negara
-				msg += "_tidak ditemukan_\n" + "Berikut daftar terlarang keseluruhan untuk negara " + negara + ":\n"
-				filter = bson.M{
-					fieldTujuan: bson.M{
-						"$regex":   negara,
-						"$options": "i",
-					},
-				}
-				prohitems, err = atdb.GetAllDoc[[]DestinasiTerlarang](db, collectionName, filter)
-				if err != nil {
-					err = fmt.Errorf("error fetching countries from DB: %v", err)
-					return
-				}
-				if len(prohitems) != 0 {
-					for i, item := range prohitems {
-						msg += strconv.Itoa(i+1) + ". " + item.BarangTerlarang + "\n"
-					}
-					found = true
-				}
+			} else {
+                filter = bson.M{"Destinasi": negara}
+                return true, "📚 " + message + " diperbolehkan untuk dikirim ke negara " + negara, nil
 			}
 		} else {
 			prohitems, errr := atdb.GetAllDoc[[]DestinationProhibit](db, collectionName, filter)
@@ -211,25 +195,9 @@ func GetProhibitedItemsFromMessage(negara, message string, db *mongo.Database, c
 					msg += strconv.Itoa(i+1) + ". " + item.ProhibitedItems + "\n"
 				}
 				found = true
-			} else if message != "" { // jika degnan menggunakan keyword tidak ditemukan maka kembalikan list satu negara
-				msg += "_tidak ditemukan_\n" + "Berikut daftar terlarang keseluruhan untuk negara " + negara + ":\n"
-				filter = bson.M{
-					fieldTujuan: bson.M{
-						"$regex":   negara,
-						"$options": "i",
-					},
-				}
-				prohitems, err = atdb.GetAllDoc[[]DestinationProhibit](db, collectionName, filter)
-				if err != nil {
-					err = fmt.Errorf("error fetching countries from DB: %v", err)
-					return
-				}
-				if len(prohitems) != 0 {
-					for i, item := range prohitems {
-						msg += strconv.Itoa(i+1) + ". " + item.ProhibitedItems + "\n"
-					}
-					found = true
-				}
+			} else {
+                filter = bson.M{"Destination": negara}
+                return true, "📚 " + message + " diperbolehkan untuk dikirim ke negara " + negara, nil
 			}
 		}
 	}
