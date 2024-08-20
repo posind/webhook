@@ -2,6 +2,7 @@ package posint
 
 import (
 	"errors"
+	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
@@ -9,30 +10,31 @@ import (
 	"github.com/gocroot/helper/atdb"
 	"github.com/gocroot/helper/kimseok"
 	"github.com/whatsauth/itmodel"
+	"github.com/xrash/smetrics"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
+// GetProhibitedItems fetches prohibited items based on the message and database
 func GetProhibitedItems(Pesan itmodel.IteungMessage, db *mongo.Database) (reply string) {
 	country, _, _, err := kimseok.GetCountryFromMessage(Pesan.Message, db)
 	var filter bson.M
 	var keyword string
 	if err != nil {
 		countryandkeyword := ExtractKeywords(Pesan.Message, []string{})
-		words := strings.Split(countryandkeyword, " ")
+		words := strings.Split(strings.Join(countryandkeyword, " "), " ")
 		var key []string
-		// Iterate through the slice, popping elements from the end
+		if country == "" {
+			return "Nama negara nya tidak ada di database kita kak!"
+		}
 		for len(words) > 0 {
-			// Join remaining elements back into a string
 			remainingMessage := strings.Join(words, " ")
 			country, err = GetCountryNameLike(db, remainingMessage)
 			if err == nil {
 				break
 			}
-			// Get the last element
 			lastWord := words[len(words)-1]
 			key = append(key, lastWord)
-			// Remove the last element
 			words = words[:len(words)-1]
 		}
 		if len(key) > 0 {
@@ -44,43 +46,75 @@ func GetProhibitedItems(Pesan itmodel.IteungMessage, db *mongo.Database) (reply 
 		} else {
 			filter = bson.M{"Destination": country}
 		}
-		reply, _, err = populateList(db, filter, keyword)
+		reply, _, err = populateListProhibited(db, filter, keyword)
 		reply = "💡" + reply
 		if err != nil {
 			if err.Error() == "zero results" {
 				return " is allowed to send to " + country
 			}
 			jsonData, _ := bson.Marshal(filter)
-			return "💡" + countryandkeyword + "|" + country + " : " + err.Error() + "\n" + string(jsonData)
+			return "💡" + strings.Join(countryandkeyword, " ") + "|" + country + " : " + err.Error() + "\n" + string(jsonData)
 		}
 		return
 	}
-	if country == "" {
-		return "Nama negaranya tidak ada kak di database kita kak!"
-	}
-	keyword = ExtractKeywords(Pesan.Message, []string{country})
-	if keyword != "" {
-		filter = bson.M{
-			"Destination":      country,
-			"Prohibited Items": bson.M{"$regex": keyword, "$options": "i"},
-		}
-	} else {
-		filter = bson.M{"Destination": country}
-	}
-	reply, _, err = populateList(db, filter, keyword)
-	reply = "📚" + reply
-	if err != nil {
-		if err.Error() == "zero results" {
-			return "📚" + keyword + " is allowed to send to " + country
-		}
-		jsonData, _ := bson.Marshal(filter)
-		return "📚 " + keyword + "|" + country + " : " + err.Error() + "\n" + string(jsonData)
-	}
+
+	// Integrasi GetMaxWeight
+	reply += "\n\n" + GetMaxWeight(Pesan, db)
 	return
 }
 
-func populateList(db *mongo.Database, filter bson.M, keyword string) (msg, dest string, err error) {
-	listprob, err := atdb.GetAllDoc[[]Item](db, "prohibited_items_en", filter)
+// GetMaxWeight fetches max weight based on the message and database
+func GetMaxWeight(Pesan itmodel.IteungMessage, db *mongo.Database) string {
+	keywords := ExtractKeywords(Pesan.Message, nil)
+	country, item, err := GetCountryAndItemFromKeywords(keywords, db)
+	if err != nil {
+		return fmt.Sprintf("Error: %v", err)
+	}
+	if country == "" {
+		return "Nama negaranya tidak ada di database kita kakak :("
+	}
+	filter := bson.M{"Destinasi Negara": bson.M{"$regex": kimseok.Stemmer(country), "$options": "i"}}
+	if item != "" {
+		regexPattern := BuildFlexibleRegexWithTypos([]string{item}, db)
+		filter["Kode Negara"] = bson.M{"$regex": regexPattern, "$options": "i"}
+	}
+	reply, _, err := populateListMaxWeight(db, filter, item)
+	if err != nil {
+		jsonData, _ := bson.Marshal(filter)
+		return fmt.Sprintf("📚%s|%s : %v\n%s", strings.Join(keywords, " "), country, err, string(jsonData))
+	}
+	return "📚" + reply
+}
+
+// GetCountryAndItemFromKeywords determines the country and item from the given keywords
+func GetCountryAndItemFromKeywords(keywords []string, db *mongo.Database) (string, string, error) {
+	for i := 0; i < len(keywords); i++ {
+		stemmedKeyword := kimseok.Stemmer(keywords[i])
+		country, err := GetCountryNameLike(db, stemmedKeyword)
+		if err == nil {
+			item := strings.Join(append(keywords[:i], keywords[i+1:]...), " ")
+			return country, item, nil
+		}
+	}
+	return "", "", errors.New("nama negaranya mana kak?")
+}
+
+// GetCountryNameLike searches for a country name in the database
+func GetCountryNameLike(db *mongo.Database, country string) (string, error) {
+	filter := bson.M{
+		"Destination": bson.M{"$regex": country, "$options": "i"},
+	}
+	itemprohb, err := atdb.GetOneDoc[ItemProhibited](db, "prohibited_items_en", filter)
+	if err != nil {
+		return "", err
+	}
+	dest := strings.ReplaceAll(itemprohb.Destination, "\u00A0", " ")
+	return dest, nil
+}
+
+// populateListProhibited creates a list of prohibited items based on the filter
+func populateListProhibited(db *mongo.Database, filter bson.M, keyword string) (msg, dest string, err error) {
+	listprob, err := atdb.GetAllDoc[[]ItemProhibited](db, "prohibited_items_en", filter)
 	if err != nil {
 		return "Terdapat kesalahan pada GetAllDoc", "", err
 	}
@@ -98,68 +132,77 @@ func populateList(db *mongo.Database, filter bson.M, keyword string) (msg, dest 
 	return msg, dest, nil
 }
 
-func GetCountryNameLike(db *mongo.Database, country string) (dest string, err error) {
-	filter := bson.M{
-		"Destination": bson.M{"$regex": country, "$options": "i"},
-	}
-	itemprohb, err := atdb.GetOneDoc[Item](db, "prohibited_items_en", filter)
+// populateListMaxWeight creates a list of max weight items based on the filter
+func populateListMaxWeight(db *mongo.Database, filter bson.M, keyword string) (msg, dest string, err error) {
+	listmax, err := atdb.GetAllDoc[[]ItemWeight](db, "max_weight", filter)
 	if err != nil {
-		return
+		return "Terdapat kesalahan pada GetAllDoc", "", err
 	}
-	dest = strings.ReplaceAll(itemprohb.Destination, "\u00A0", " ")
-	return
+	if len(listmax) == 0 {
+		return "Tidak ada berat maksimal per koli yang ditemukan", "", errors.New("zero results")
+	}
+	dest = listmax[0].DestinasiNegara
+	var msgBuilder strings.Builder
+	msgBuilder.WriteString(" Ini dia berat maksimal per koli dari negara *" + dest + "*:\n")
+	if keyword != "" {
+		msgBuilder.WriteString("kata-kunci:_" + keyword + "_\n")
+	}
+	for i, item := range listmax {
+		msgBuilder.WriteString(strconv.Itoa(i+1) + ". Kode Negara: " + item.KodeNegara + ", Berat per Koli: " + item.BeratPerKoli + "\n")
+	}
+	return msgBuilder.String(), dest, nil
 }
 
-func GetCountryFromMessage(message string, db *mongo.Database) (country string, err error) {
-	// Ubah pesan menjadi huruf kecil
-	lowerMessage := strings.ToLower(message)
-	// Mengganti non-breaking space dengan spasi biasa
-	lowerMessage = strings.ReplaceAll(lowerMessage, "\u00A0", " ")
-	// Hapus spasi berlebih
-	lowerMessage = strings.TrimSpace(lowerMessage)
-	lowerMessage = regexp.MustCompile(`\s+`).ReplaceAllString(lowerMessage, " ")
-	// Mendapatkan nama negara
-	countries, err := atdb.GetAllDistinctDoc(db, bson.M{}, "Destination", "prohibited_items_en")
-	if err != nil {
-		return "", err
-	}
-	var strcountry string
-	// Iterasi melalui daftar negara
-	for _, country := range countries {
-		lowerCountry := strings.ToLower(strings.TrimSpace(country.(string)))
-		// Mengganti non-breaking space dengan spasi biasa
-		lowerCountry = strings.ReplaceAll(lowerCountry, "\u00A0", " ")
-		strcountry += lowerCountry + ","
-		if strings.Contains(lowerMessage, lowerCountry) {
-			return country.(string), nil
-		}
-	}
-	return "", errors.New("tidak ditemukan nama negara di pesan berikut:" + lowerMessage + "|" + strcountry)
-}
-
-// ExtractKeywords Berungsi untuk menghilangkan semua kata kecuali keyword yang diinginkan
-func ExtractKeywords(message string, commonWordsAdd []string) string {
-	// Daftar kata umum yang mungkin ingin dihilangkan
-	commonWords := []string{"list", "en", "mymy"}
-
-	// Gabungkan commonWords dengan commonWordsAdd
+// ExtractKeywords extracts meaningful keywords from a message
+func ExtractKeywords(message string, commonWordsAdd []string) []string {
+	commonWords := []string{"list", "en", "id", "mymy", "berat", "max", "maks"}
 	commonWords = append(commonWords, commonWordsAdd...)
-
-	// Ubah pesan menjadi huruf kecil
 	message = strings.ToLower(message)
-
-	// Ganti non-breaking space dengan spasi biasa
 	message = strings.ReplaceAll(message, "\u00A0", " ")
-
-	// Hapus kata-kata umum dari pesan
 	for _, word := range commonWords {
 		word = strings.ToLower(strings.ReplaceAll(word, "\u00A0", " "))
 		message = strings.ReplaceAll(message, word, "")
 	}
-
-	// Hapus spasi berlebih
 	message = strings.TrimSpace(message)
 	message = regexp.MustCompile(`\s+`).ReplaceAllString(message, " ")
+	keywords := strings.Split(message, " ")
+	if len(keywords) > 2 {
+		keywords = keywords[:2]
+	}
+	return keywords
+}
 
-	return message
+// BuildFlexibleRegexWithTypos creates a flexible regex that accounts for typos
+func BuildFlexibleRegexWithTypos(keywords []string, db *mongo.Database) string {
+	var allKeywords []string
+	items, err := atdb.GetAllDoc[[]ItemWeight](db, "max_weight", bson.M{})
+	if err != nil {
+		return ""
+	}
+	for _, item := range items {
+		words := strings.Split(item.KodeNegara, " ")
+		allKeywords = append(allKeywords, words...)
+	}
+	var regexBuilder strings.Builder
+	for _, keyword := range keywords {
+		closestKeyword := findClosestKeyword(keyword, allKeywords)
+		regexBuilder.WriteString("(?=.*\\b" + regexp.QuoteMeta(closestKeyword) + "\\b)")
+	}
+	regexBuilder.WriteString(".*")
+	return regexBuilder.String()
+}
+
+// findClosestKeyword finds the closest match for a keyword from a list of known words
+func findClosestKeyword(keyword string, allKeywords []string) string {
+	const insertionCost, deletionCost, substitutionCost = 1, 1, 2
+	closestKeyword := keyword
+	minDistance := len(keyword) + 1
+	for _, kw := range allKeywords {
+		distance := smetrics.WagnerFischer(keyword, kw, insertionCost, deletionCost, substitutionCost)
+		if distance < minDistance {
+			minDistance = distance
+			closestKeyword = kw
+		}
+	}
+	return closestKeyword
 }
