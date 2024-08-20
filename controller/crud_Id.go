@@ -2,235 +2,415 @@ package controller
 
 import (
 	"context"
-	"crypto/rsa"
-	"crypto/x509"
 	"encoding/json"
-	"encoding/pem"
+	"fmt"
 	"log"
 	"net/http"
-	"strings"
 
-	"github.com/dgrijalva/jwt-go"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+
 	"github.com/gocroot/config"
 	"github.com/gocroot/helper/at"
 	"github.com/gocroot/helper/atdb"
+	"github.com/gocroot/helper/passwordhash"
 	"github.com/gocroot/model"
-
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
 )
 
-func GetItemByID(respw http.ResponseWriter, req *http.Request) {
+// GetProhibitedItemByField fetches prohibited items based on the specified destination and prohibited item filters.
+func GetitemIND(w http.ResponseWriter, r *http.Request) {
 	var respn model.Response
 
-	// Log the incoming request headers
-	log.Printf("Request headers: %+v", req.Header)
-
-	// Retrieve token from Authorization header
-	authHeader := req.Header.Get("Authorization")
-	if authHeader == "" {
-		respn.Status = "Error: Authorization header missing"
-		at.WriteJSON(respw, http.StatusUnauthorized, respn)
+	tokenLogin := r.Header.Get("Login")
+	if tokenLogin == "" {
+		respn.Status = "Error: Missing Login header"
+		respn.Info = "Login header is missing."
+		at.WriteJSON(w, http.StatusUnauthorized, respn)
 		return
 	}
 
-	parts := strings.Split(authHeader, " ")
-	if len(parts) != 2 || parts[0] != "Bearer" {
-		respn.Status = "Error: Authorization header format invalid"
-		at.WriteJSON(respw, http.StatusUnauthorized, respn)
-		return
-	}
-
-	tokenStr := parts[1]
-	log.Printf("Received token: [REDACTED]")
-
-	// Get the public key from the config package
-	publicKeyPEM := config.PublicKey
-	if publicKeyPEM == "" {
-		log.Println("Public key not found in config")
-		respn.Status = "Error: Internal Server Error"
-		respn.Info = "Public key missing"
-		at.WriteJSON(respw, http.StatusInternalServerError, respn)
-		return
-	}
-
-	// Decode PEM block
-	block, _ := pem.Decode([]byte(publicKeyPEM))
-	if block == nil {
-		log.Println("Failed to decode PEM block")
-		respn.Status = "Error: Internal Server Error"
-		respn.Info = "Failed to decode PEM block"
-		at.WriteJSON(respw, http.StatusInternalServerError, respn)
-		return
-	}
-
-	// Parse the public key
-	pub, err := x509.ParsePKIXPublicKey(block.Bytes)
-	if err != nil {
-		log.Printf("Error parsing public key: %v", err)
-		respn.Status = "Error: Internal Server Error"
-		respn.Info = "Failed to parse public key"
-		at.WriteJSON(respw, http.StatusInternalServerError, respn)
-		return
-	}
-
-	rsaPublicKey, ok := pub.(*rsa.PublicKey)
-	if !ok {
-		log.Println("Failed to parse RSA public key")
-		respn.Status = "Error: Internal Server Error"
-		respn.Info = "Public key format is incorrect"
-		at.WriteJSON(respw, http.StatusInternalServerError, respn)
-		return
-	}
-
-	// Verify JWT token
-	token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
-			log.Println("Unexpected signing method")
-			return nil, http.ErrAbortHandler
-		}
-		return rsaPublicKey, nil
-	})
-
-	if err != nil || !token.Valid {
-		log.Printf("Token invalid or error: %v", err)
+	userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user_email", bson.M{"token": tokenLogin})
+	if err != nil || userData.Email == "" {
 		respn.Status = "Error: Unauthorized"
-		respn.Info = "Invalid token"
-		at.WriteJSON(respw, http.StatusUnauthorized, respn)
+		respn.Info = "You do not have permission to access this data."
+		at.WriteJSON(w, http.StatusForbidden, respn)
 		return
 	}
 
-	// Extract the ID from the URL query parameters
-	idStr := req.URL.Query().Get("id")
-	if idStr == "" {
-		respn.Status = "Error: Missing ID parameter"
-		at.WriteJSON(respw, http.StatusBadRequest, respn)
-		return
-	}
-
-	// Convert the ID string to ObjectID
-	objectID, err := primitive.ObjectIDFromHex(idStr)
+	decodedUsername, err := passwordhash.DecodeGetUser(userData.Public, tokenLogin)
 	if err != nil {
-		log.Printf("Invalid ID format: %v", err)
-		respn.Status = "Error: Invalid ID format"
-		respn.Response = err.Error()
-		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		respn.Status = "Error: Invalid token"
+		respn.Info = "The provided token is not valid."
+		at.WriteJSON(w, http.StatusUnauthorized, respn)
 		return
 	}
 
-	// Log the query
-	log.Printf("Querying MongoDB with filter: %+v", bson.M{"_id": objectID})
+	userByUsername, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user_email", bson.M{"username": decodedUsername})
+	if err != nil || userByUsername.Username == "" {
+		respn.Status = "Error: User not found"
+		respn.Info = fmt.Sprintf("The username '%s' extracted from the token does not exist in the database.", decodedUsername)
+		at.WriteJSON(w, http.StatusForbidden, respn)
+		return
+	}
 
-	// Query MongoDB for the item with the specified ID using GetOneDoc
-	item, err := atdb.GetOneDoc[model.Itemlarangan](config.Mongoconn, "prohibited_items_id", bson.M{"_id": objectID})
+	query := r.URL.Query()
+	destination := query.Get("destinasi")
+	prohibitedItems := query.Get("barang_terlarang")
+
+	filterItems := bson.M{}
+	if destination != "" {
+		filterItems["destinasi"] = destination
+	}
+	if prohibitedItems != "" {
+		filterItems["Barang Terlarang"] = prohibitedItems
+	}
+
+	findOptions := options.Find().SetLimit(20)
+
+	var items []model.Itemlarangan
+	collection := config.Mongoconn.Collection("prohibited_items_id")
+
+	cursor, err := collection.Find(context.Background(), filterItems, findOptions)
 	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			log.Println("Item not found")
-			respn.Status = "Error: Item not found"
-			respn.Info = "No document with the specified ID"
-			at.WriteJSON(respw, http.StatusNotFound, respn)
-		} else {
-			log.Printf("Error fetching item: %v", err)
-			respn.Status = "Error: Internal Server Error"
-			respn.Info = "Failed to fetch item"
-			at.WriteJSON(respw, http.StatusInternalServerError, respn)
-		}
+		log.Printf("Error fetching items: %v", err)
+		respn.Status = "Error: Internal Server Error"
+		respn.Info = "Error fetching items from the database."
+		at.WriteJSON(w, http.StatusInternalServerError, respn)
+		return
+	}
+	defer cursor.Close(context.Background())
+
+	if err = cursor.All(context.Background(), &items); err != nil {
+		log.Printf("Error decoding items: %v", err)
+		respn.Status = "Error: Internal Server Error"
+		respn.Info = "Error decoding items."
+		at.WriteJSON(w, http.StatusInternalServerError, respn)
 		return
 	}
 
-	// Respond with the item data
-	respn.Status = "Success"
-	respn.Response = item.BarangTerlarang
-	at.WriteJSON(respw, http.StatusOK, respn)
+	if len(items) == 0 {
+		respn.Status = "Error: No items found"
+		respn.Info = "No items match the provided filters."
+		at.WriteJSON(w, http.StatusNotFound, respn)
+		return
+	}
+
+	at.WriteJSON(w, http.StatusOK, items)
 }
 
-// PostItem menambahkan item baru ke dalam database.
-func PostItem(respw http.ResponseWriter, req *http.Request) {
-	var newItem model.Itemlarangan
-	if err := json.NewDecoder(req.Body).Decode(&newItem); err != nil {
-		at.WriteJSON(respw, http.StatusBadRequest, err.Error())
-		return
-	}
-	newItem.ID = primitive.NewObjectID()
+// PostProhibitedItem adds a new prohibited item to the database.
+func PostitemIND(w http.ResponseWriter, r *http.Request) {
+	var respn model.Response
 
-	// Validasi destinasi dan barang terlarang
-	if newItem.Destinasi == "" || newItem.BarangTerlarang == "" {
-		at.WriteJSON(respw, http.StatusBadRequest, "Destinasi dan Barang Terlarang tidak boleh kosong")
+	tokenLogin := r.Header.Get("Login")
+	if tokenLogin == "" {
+		respn.Status = "Error: Missing Login header"
+		respn.Info = "Login header is missing."
+		at.WriteJSON(w, http.StatusUnauthorized, respn)
 		return
 	}
+
+	userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user_email", bson.M{"token": tokenLogin})
+	if err != nil || userData.Email == "" {
+		respn.Status = "Error: Unauthorized"
+		respn.Info = "You do not have permission to access this data."
+		at.WriteJSON(w, http.StatusForbidden, respn)
+		return
+	}
+
+	decodedUsername, err := passwordhash.DecodeGetUser(userData.Public, tokenLogin)
+	if err != nil {
+		respn.Status = "Error: Invalid token"
+		respn.Info = "The provided token is not valid."
+		at.WriteJSON(w, http.StatusUnauthorized, respn)
+		return
+	}
+
+	userByUsername, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user_email", bson.M{"username": decodedUsername})
+	if err != nil || userByUsername.Username == "" {
+		respn.Status = "Error: User not found"
+		respn.Info = fmt.Sprintf("The username '%s' extracted from the token does not exist in the database.", decodedUsername)
+		at.WriteJSON(w, http.StatusForbidden, respn)
+		return
+	}
+
+	var newItem model.Itemlarangan
+	if err := json.NewDecoder(r.Body).Decode(&newItem); err != nil {
+		at.WriteJSON(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if newItem.Destinasi == "" || newItem.BarangTerlarang == "" {
+		at.WriteJSON(w, http.StatusBadRequest, "Destination and Prohibited Items cannot be empty")
+		return
+	}
+
+	var destinationCode model.DestinationCode
+
+	destinationCode, err = atdb.GetOneDoc[model.DestinationCode](config.Mongoconn, "destination_code", bson.M{"destination": newItem.Destinasi})
+	if err != nil || destinationCode.DestinationID == "" {
+		respn.Status = "Error: Invalid destination"
+		respn.Info = "Could not find the country code for the given destination."
+		at.WriteJSON(w, http.StatusBadRequest, respn)
+		return
+	}
+
+	itemCount, err := atdb.CountDocs(config.Mongoconn, "prohibited_items_id", bson.M{"destinasi": newItem.Destinasi})
+	if err != nil {
+		respn.Status = "Error: Could not generate item ID"
+		respn.Info = "Failed to count existing items for the given destination."
+		at.WriteJSON(w, http.StatusInternalServerError, respn)
+		return
+	}
+
+	newItem.IDItemIND = fmt.Sprintf("%s-%03d", destinationCode.DestinationID, itemCount+1)
 
 	if _, err := atdb.InsertOneDoc(config.Mongoconn, "prohibited_items_id", newItem); err != nil {
-		at.WriteJSON(respw, http.StatusInternalServerError, err.Error())
+		at.WriteJSON(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	at.WriteJSON(respw, http.StatusOK, newItem)
+
+	at.WriteJSON(w, http.StatusOK, newItem)
 }
 
-// UpdateItem updates an item in the database.
-func UpdateItem(respw http.ResponseWriter, req *http.Request) {
-	var item model.Itemlarangan
-	if err := json.NewDecoder(req.Body).Decode(&item); err != nil {
-		at.WriteJSON(respw, http.StatusBadRequest, err.Error())
+// UpdateProhibitedItem updates an existing prohibited item in the database.
+func UpdateitemIND(w http.ResponseWriter, r *http.Request) {
+	var respn model.Response
+
+	tokenLogin := r.Header.Get("Login")
+	if tokenLogin == "" {
+		respn.Status = "Error: Missing Login header"
+		respn.Info = "Login header is missing."
+		at.WriteJSON(w, http.StatusUnauthorized, respn)
 		return
 	}
 
-	filter := bson.M{"_id": item.ID}
+	userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user_email", bson.M{"token": tokenLogin})
+	if err != nil || userData.Email == "" {
+		respn.Status = "Error: Unauthorized"
+		respn.Info = "You do not have permission to access this data."
+		at.WriteJSON(w, http.StatusForbidden, respn)
+		return
+	}
+
+	decodedUsername, err := passwordhash.DecodeGetUser(userData.Public, tokenLogin)
+	if err != nil {
+		respn.Status = "Error: Invalid token"
+		respn.Info = "The provided token is not valid."
+		at.WriteJSON(w, http.StatusUnauthorized, respn)
+		return
+	}
+
+	userByUsername, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user_email", bson.M{"username": decodedUsername})
+	if err != nil || userByUsername.Username == "" {
+		respn.Status = "Error: User not found"
+		respn.Info = fmt.Sprintf("The username '%s' extracted from the token does not exist in the database.", decodedUsername)
+		at.WriteJSON(w, http.StatusForbidden, respn)
+		return
+	}
+
+	var item model.Itemlarangan
+	if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
+		at.WriteJSON(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	filter := bson.M{"id_itemind": item.IDItemIND}
 	update := bson.M{
 		"$set": bson.M{
-			"barang_terlarang": item.BarangTerlarang,
+			"destinasi":         item.Destinasi,
+			"Barang Terlarang": item.BarangTerlarang,
 		},
 	}
 
-	// Update item di MongoDB
 	if _, err := atdb.UpdateOneDoc(config.Mongoconn, "prohibited_items_id", filter, update); err != nil {
-		at.WriteJSON(respw, http.StatusInternalServerError, err.Error())
+		at.WriteJSON(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	// Kirim respons sukses
-	at.WriteJSON(respw, http.StatusOK, item)
+	at.WriteJSON(w, http.StatusOK, item)
 }
 
-func DeleteItemByField(w http.ResponseWriter, r *http.Request) {
-	query := r.URL.Query()
-	destinasi := query.Get("destinasi")
-	barangTerlarang := query.Get("barangTerlarang")
+// DeleteProhibitedItem deletes a prohibited item from the database.
+func DeleteitemIND(w http.ResponseWriter, r *http.Request) {
+	var respn model.Response
 
-	// Log parameter yang diterima
-	log.Printf("Received query parameters - destinasi: %s, barangTerlarang: %s", destinasi, barangTerlarang)
-
-	// Buat filter berdasarkan parameter yang ada
-	filter := bson.M{}
-	if destinasi != "" {
-		filter["destinasi"] = destinasi
-	}
-	if barangTerlarang != "" {
-		filter["barang_terlarang"] = barangTerlarang
+	tokenLogin := r.Header.Get("Login")
+	if tokenLogin == "" {
+		respn.Status = "Error: Missing Login header"
+		respn.Info = "Login header is missing."
+		at.WriteJSON(w, http.StatusUnauthorized, respn)
+		return
 	}
 
-	log.Printf("Filter created: %+v", filter)
-
-	// Opsi 1: Jika tidak ada filter, kembalikan semua item
-	if len(filter) == 0 {
-		log.Println("No query parameters provided, returning all items.")
+	userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user_email", bson.M{"token": tokenLogin})
+	if err != nil || userData.Email == "" {
+		respn.Status = "Error: Unauthorized"
+		respn.Info = "You do not have permission to access this data."
+		at.WriteJSON(w, http.StatusForbidden, respn)
+		return
 	}
 
-	// Koneksi ke MongoDB dan gunakan filter untuk menghapus dokumen
-	collection := config.Mongoconn.Collection("prohibited_items_id")
-	deleteResult, err := collection.DeleteOne(context.Background(), filter)
+	decodedUsername, err := passwordhash.DecodeGetUser(userData.Public, tokenLogin)
 	if err != nil {
-		log.Printf("Error deleting items: %v", err)
-		at.WriteJSON(w, http.StatusInternalServerError, "Error deleting items")
+		respn.Status = "Error: Invalid token"
+		respn.Info = "The provided token is not valid."
+		at.WriteJSON(w, http.StatusUnauthorized, respn)
 		return
 	}
 
-	// Cek apakah ada item yang dihapus
-	if deleteResult.DeletedCount == 0 {
-		at.WriteJSON(w, http.StatusNotFound, "No items found to delete")
+	userByUsername, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user_email", bson.M{"username": decodedUsername})
+	if err != nil || userByUsername.Username == "" {
+		respn.Status = "Error: User not found"
+		respn.Info = fmt.Sprintf("The username '%s' extracted from the token does not exist in the database.", decodedUsername)
+		at.WriteJSON(w, http.StatusForbidden, respn)
 		return
 	}
 
-	// Kirim respon sukses jika item berhasil dihapus
-	at.WriteJSON(w, http.StatusOK, "Items deleted successfully")
+	var item model.Itemlarangan
+	if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
+		at.WriteJSON(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	filter := bson.M{"id_itemind": item.IDItemIND}
+
+	// Cek apakah item dengan ID tersebut ada
+	existingItem, err := atdb.GetOneDoc[model.Itemlarangan](config.Mongoconn, "prohibited_items_id", filter)
+	if err != nil || existingItem.IDItemIND == "" {
+		respn.Status = "Error: Item not found"
+		respn.Info = fmt.Sprintf("No prohibited item found with ID: %s", item.IDItemIND)
+		at.WriteJSON(w, http.StatusNotFound, respn)
+		return
+	}
+
+	// Hapus item
+	if _, err := atdb.DeleteOneDoc(config.Mongoconn, "prohibited_items_id", filter); err != nil {
+		at.WriteJSON(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	respn.Status = "Success: Item deleted"
+	respn.Info = fmt.Sprintf("Prohibited item with ID: %s has been successfully deleted.", item.IDItemIND)
+	at.WriteJSON(w, http.StatusOK, respn)
 }
+
+// EnsureItemIDExists ensures all items have unique IDItemIND.
+func EnsureItemIDExists(w http.ResponseWriter, r *http.Request) {
+	var respn model.Response
+
+	tokenLogin := r.Header.Get("Login")
+	if tokenLogin == "" {
+		respn.Status = "Error: Missing Login header"
+		respn.Info = "Login header is missing."
+		at.WriteJSON(w, http.StatusUnauthorized, respn)
+		return
+	}
+
+	userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user_email", bson.M{"token": tokenLogin})
+	if err != nil || userData.Email == "" {
+		respn.Status = "Error: Unauthorized"
+		respn.Info = "You do not have permission to access this data."
+		at.WriteJSON(w, http.StatusForbidden, respn)
+		return
+	}
+
+	decodedUsername, err := passwordhash.DecodeGetUser(userData.Public, tokenLogin)
+	if err != nil {
+		respn.Status = "Error: Invalid token"
+		respn.Info = "The provided token is not valid."
+		at.WriteJSON(w, http.StatusUnauthorized, respn)
+		return
+	}
+
+	userByUsername, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user_email", bson.M{"username": decodedUsername})
+	if err != nil || userByUsername.Username == "" {
+		respn.Status = "Error: User not found"
+		respn.Info = fmt.Sprintf("The username '%s' extracted from the token does not exist in the database.", decodedUsername)
+		at.WriteJSON(w, http.StatusForbidden, respn)
+		return
+	}
+
+	// Temukan semua dokumen yang belum memiliki ID atau yang memiliki ID duplikat
+	cursor, err := atdb.FindDocs(config.Mongoconn, "prohibited_items_id", bson.M{
+		"$or": []bson.M{
+			{"id_itemind": bson.M{"$exists": false}},
+			{"id_itemind": ""},
+		},
+	})
+	if err != nil {
+		at.WriteJSON(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	defer cursor.Close(context.Background())
+
+	batchSize := 20
+	counter := 0
+	var bulkWrites []mongo.WriteModel
+
+	for cursor.Next(context.Background()) {
+		var item model.Itemlarangan
+		err := cursor.Decode(&item)
+		if err != nil {
+			at.WriteJSON(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		// Cek apakah IDItemIND sudah ada di destinasi yang sama dan buat ID unik
+		isUnique := false
+		itemCount := 1
+		for !isUnique {
+			potentialID := fmt.Sprintf("%s-%03d", item.Destinasi, itemCount)
+			existingItem, err := atdb.GetOneDoc[model.Itemlarangan](config.Mongoconn, "prohibited_items_id", bson.M{
+				"destinasi":   item.Destinasi,
+				"id_itemind":  potentialID,
+			})
+			if err != nil && err != mongo.ErrNoDocuments {
+				at.WriteJSON(w, http.StatusInternalServerError, err.Error())
+				return
+			}
+			if existingItem.IDItemIND == "" {
+				item.IDItemIND = potentialID
+				isUnique = true
+			} else {
+				itemCount++
+			}
+		}
+
+		// Siapkan model update untuk bulk write
+		updateQuery := bson.M{
+			"$set": bson.M{
+				"id_itemind": item.IDItemIND,
+			},
+		}
+		filter := bson.M{"_id": item.ID}
+		update := mongo.NewUpdateOneModel().SetFilter(filter).SetUpdate(updateQuery)
+		bulkWrites = append(bulkWrites, update)
+		counter++
+
+		// Eksekusi batch jika batchSize tercapai
+		if counter >= batchSize {
+			_, err := config.Mongoconn.Collection("prohibited_items_id").BulkWrite(context.Background(), bulkWrites)
+			if err != nil {
+				at.WriteJSON(w, http.StatusInternalServerError, err.Error())
+				return
+			}
+			// Reset batch setelah eksekusi
+			bulkWrites = []mongo.WriteModel{}
+			counter = 0
+		}
+	}
+
+	// Berikan respon sukses setelah batch pertama dan berhenti
+	if len(bulkWrites) > 0 {
+		_, err := config.Mongoconn.Collection("prohibited_items_id").BulkWrite(context.Background(), bulkWrites)
+		if err != nil {
+			at.WriteJSON(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+	}
+
+	at.WriteJSON(w, http.StatusOK, "Prohibited items updated successfully with new IDs where applicable.")
+}
+
