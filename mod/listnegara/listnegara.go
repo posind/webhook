@@ -3,7 +3,7 @@ package listnegara
 import "github.com/whatsauth/itmodel"
 
 func ListNegara(Pesan itmodel.IteungMessage) (reply string) {
-	return ` 📚 Berikut adalah daftar negara yang tersedia:
+	return ` 📚 Berikut ini adalah daftar negara yang tersedia:
 
 Afghanistan
 Albania

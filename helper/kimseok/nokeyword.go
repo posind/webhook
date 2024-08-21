@@ -171,7 +171,7 @@ func GetProhibitedItemsFromMessage(negara, message string, db *mongo.Database, c
 		if collectionName == "prohibited_items_id" {
 			prohitems, errr := atdb.GetAllDoc[[]DestinasiTerlarang](db, collectionName, filter)
 			if errr != nil {
-				err = fmt.Errorf("error fetching countries from DB: %v", errr)
+				err = fmt.Errorf("error fetching countries from DB IND: %v", errr)
 				return
 			}
 			//check apakah hasilnya kosong
@@ -187,7 +187,7 @@ func GetProhibitedItemsFromMessage(negara, message string, db *mongo.Database, c
 		} else {
 			prohitems, errr := atdb.GetAllDoc[[]DestinationProhibit](db, collectionName, filter)
 			if errr != nil {
-				err = fmt.Errorf("error fetching countries from DB: %v", errr)
+				err = fmt.Errorf("error fetching countries from DB ENG: %v", errr)
 				return
 			}
 			if len(prohitems) != 0 {
@@ -197,7 +197,7 @@ func GetProhibitedItemsFromMessage(negara, message string, db *mongo.Database, c
 				found = true
 			} else {
                 filter = bson.M{"Destination": negara}
-                return true, "📚 " + message + " diperbolehkan untuk dikirim ke negara " + negara, nil
+                return true, "📚 " + message + " is allowed to be send to " + negara, nil
 			}
 		}
 	}
