@@ -19,7 +19,7 @@ import (
 )
 
 // ProhibitedItem (English) Handlers
-func GetProhibitedItemByField(w http.ResponseWriter, r *http.Request) {
+func GetProhibitedItem(w http.ResponseWriter, r *http.Request) {
 	var respn model.Response
 
 	// Extract token from Login header
