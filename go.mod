@@ -13,6 +13,7 @@ require (
 	github.com/xrash/smetrics v0.0.0-20240521201337-686a1a2994c1
 	go.mongodb.org/mongo-driver v1.16.0
 	golang.org/x/crypto v0.26.0
+	golang.org/x/exp v0.0.0-20220827204233-334a2380cb91
 )
 
 require (
