@@ -37,18 +37,17 @@ type Profile_user struct {
 }
 
 type User struct {
-	ID       primitive.ObjectID `bson:"_id,omitempty" `
-	Username string             `json:"username" bson:"username"`
-	Email    string             `bson:"email,omitempty" json:"email,omitempty"`
-	Password string             `json:"password" bson:"password"`
-	Token    string             `json:"token,omitempty" bson:"token,omitempty"`
-	Private  string             `json:"private,omitempty" bson:"private,omitempty"`
-	Public   string             `json:"public,omitempty" bson:"public,omitempty"`
+	Name        string `json:"name" bson:"name"`
+	PhoneNumber string `bson:"phonenumber,omitempty" json:"phonenumber,omitempty"`
+	Team        string `json:"team" bson:"team"`
+	Scope       string `json:"scope" bson:"scope"`
+	Token       string `json:"token,omitempty" bson:"token,omitempty"`
+	Private     string `json:"private,omitempty" bson:"private,omitempty"`
+	Public      string `json:"public,omitempty" bson:"public,omitempty"`
 }
 
 type LoginRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
+	PhoneNumber string `json:"phonenumber"`
 }
 
 type Credential struct {
@@ -82,7 +81,7 @@ type ProhibitedItems struct {
 
 type Itemlarangan struct {
 	ID              primitive.ObjectID `bson:"_id,omitempty" json:"_id,omitempty"`
-	IDItemIND          string            `json:"id_itemind" bson:"id_itemind"`
+	IDItemIND       string             `json:"id_itemind" bson:"id_itemind"`
 	Destinasi       string             `bson:"destinasi" json:"destinasi"`
 	BarangTerlarang string             `bson:"Barang Terlarang" json:"barang_terlarang"`
 }

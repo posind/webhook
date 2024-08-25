@@ -33,8 +33,8 @@ func GetProhibitedItem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Find user by token in the database
-	userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user_email", bson.M{"token": tokenLogin})
-	if err != nil || userData.Email == "" {
+	userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user", bson.M{"token": tokenLogin})
+	if err != nil || userData.PhoneNumber == "" {
 		respn.Status = "Error: Unauthorized"
 		respn.Info = "You do not have permission to access this data."
 		at.WriteJSON(w, http.StatusForbidden, respn)
@@ -42,7 +42,7 @@ func GetProhibitedItem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Decode the token using the user's public key
-	decodedUsername, err := passwordhash.DecodeGetUser(userData.Public, tokenLogin)
+	decodedPhoneNumber, err := passwordhash.DecodeGetUser(userData.Public, tokenLogin)
 	if err != nil {
 		respn.Status = "Error: Invalid token"
 		respn.Info = "The provided token is not valid."
@@ -50,11 +50,11 @@ func GetProhibitedItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check if the decoded username exists in the database
-	userByUsername, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user_email", bson.M{"username": decodedUsername})
-	if err != nil || userByUsername.Username == "" {
+	// Check if the decoded phone number exists in the database
+	userByPhoneNumber, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user", bson.M{"phonenumber": decodedPhoneNumber})
+	if err != nil || userByPhoneNumber.PhoneNumber == "" {
 		respn.Status = "Error: User not found"
-		respn.Info = fmt.Sprintf("The username '%s' extracted from the token does not exist in the database.", decodedUsername)
+		respn.Info = fmt.Sprintf("The phone number '%s' extracted from the token does not exist in the database.", decodedPhoneNumber)
 		at.WriteJSON(w, http.StatusForbidden, respn)
 		return
 	}
@@ -64,8 +64,6 @@ func GetProhibitedItem(w http.ResponseWriter, r *http.Request) {
 	destination := query.Get("destination")
 	prohibitedItems := query.Get("prohibited_items")
 
-	log.Printf("Received query parameters - destination: %s, prohibited_items: %s", destination, prohibitedItems)
-
 	filterItems := bson.M{}
 	if destination != "" {
 		filterItems["destination"] = destination
@@ -74,9 +72,6 @@ func GetProhibitedItem(w http.ResponseWriter, r *http.Request) {
 		filterItems["Prohibited Items"] = prohibitedItems
 	}
 
-	log.Printf("Filter created: %+v", filterItems)
-
-	// Set MongoDB query options
 	findOptions := options.Find().SetLimit(20)
 
 	// Query MongoDB
@@ -85,7 +80,6 @@ func GetProhibitedItem(w http.ResponseWriter, r *http.Request) {
 
 	cursor, err := collection.Find(context.Background(), filterItems, findOptions)
 	if err != nil {
-		log.Printf("Error fetching items: %v", err)
 		respn.Status = "Error: Internal Server Error"
 		respn.Info = "Error fetching items from the database."
 		at.WriteJSON(w, http.StatusInternalServerError, respn)
@@ -94,7 +88,6 @@ func GetProhibitedItem(w http.ResponseWriter, r *http.Request) {
 	defer cursor.Close(context.Background())
 
 	if err = cursor.All(context.Background(), &items); err != nil {
-		log.Printf("Error decoding items: %v", err)
 		respn.Status = "Error: Internal Server Error"
 		respn.Info = "Error decoding items."
 		at.WriteJSON(w, http.StatusInternalServerError, respn)
@@ -108,14 +101,14 @@ func GetProhibitedItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Langsung merespons dengan items sebagai JSON
+	// Respond with the items as JSON
 	at.WriteJSON(w, http.StatusOK, items)
 }
 
 func PostProhibitedItem(w http.ResponseWriter, r *http.Request) {
 	var respn model.Response
 
-	// Ekstrak token dari header Login
+	// Extract token from Login header
 	tokenLogin := r.Header.Get("Login")
 	if tokenLogin == "" {
 		respn.Status = "Error: Missing Login header"
@@ -124,17 +117,17 @@ func PostProhibitedItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Cari user berdasarkan token di database
-	userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user_email", bson.M{"token": tokenLogin})
-	if err != nil || userData.Email == "" {
+	// Find user by token in the database
+	userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user", bson.M{"token": tokenLogin})
+	if err != nil || userData.PhoneNumber == "" {
 		respn.Status = "Error: Unauthorized"
 		respn.Info = "You do not have permission to access this data."
 		at.WriteJSON(w, http.StatusForbidden, respn)
 		return
 	}
 
-	// Decode token menggunakan public key user
-	decodedUsername, err := passwordhash.DecodeGetUser(userData.Public, tokenLogin)
+	// Decode the token using the user's public key
+	decodedPhoneNumber, err := passwordhash.DecodeGetUser(userData.Public, tokenLogin)
 	if err != nil {
 		respn.Status = "Error: Invalid token"
 		respn.Info = "The provided token is not valid."
@@ -142,11 +135,11 @@ func PostProhibitedItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Periksa apakah username yang didecode ada di database
-	userByUsername, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user_email", bson.M{"username": decodedUsername})
-	if err != nil || userByUsername.Username == "" {
+	// Check if the decoded phone number exists in the database
+	userByPhoneNumber, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user", bson.M{"phonenumber": decodedPhoneNumber})
+	if err != nil || userByPhoneNumber.PhoneNumber == "" {
 		respn.Status = "Error: User not found"
-		respn.Info = fmt.Sprintf("The username '%s' extracted from the token does not exist in the database.", decodedUsername)
+		respn.Info = fmt.Sprintf("The phone number '%s' extracted from the token does not exist in the database.", decodedPhoneNumber)
 		at.WriteJSON(w, http.StatusForbidden, respn)
 		return
 	}
@@ -275,7 +268,7 @@ func EnsureIDItemExists(w http.ResponseWriter, r *http.Request) {
 func UpdateProhibitedItem(w http.ResponseWriter, r *http.Request) {
 	var respn model.Response
 
-	// Ekstrak token dari header Login
+	// Extract token from Login header
 	tokenLogin := r.Header.Get("Login")
 	if tokenLogin == "" {
 		respn.Status = "Error: Missing Login header"
@@ -284,17 +277,17 @@ func UpdateProhibitedItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Cari user berdasarkan token di database
-	userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user_email", bson.M{"token": tokenLogin})
-	if err != nil || userData.Email == "" {
+	// Find user by token in the database
+	userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user", bson.M{"token": tokenLogin})
+	if err != nil || userData.PhoneNumber == "" {
 		respn.Status = "Error: Unauthorized"
 		respn.Info = "You do not have permission to access this data."
 		at.WriteJSON(w, http.StatusForbidden, respn)
 		return
 	}
 
-	// Decode token menggunakan public key user
-	decodedUsername, err := passwordhash.DecodeGetUser(userData.Public, tokenLogin)
+	// Decode the token using the user's public key
+	decodedPhoneNumber, err := passwordhash.DecodeGetUser(userData.Public, tokenLogin)
 	if err != nil {
 		respn.Status = "Error: Invalid token"
 		respn.Info = "The provided token is not valid."
@@ -302,11 +295,11 @@ func UpdateProhibitedItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Periksa apakah username yang didecode ada di database
-	userByUsername, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user_email", bson.M{"username": decodedUsername})
-	if err != nil || userByUsername.Username == "" {
+	// Check if the decoded phone number exists in the database
+	userByPhoneNumber, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user", bson.M{"phonenumber": decodedPhoneNumber})
+	if err != nil || userByPhoneNumber.PhoneNumber == "" {
 		respn.Status = "Error: User not found"
-		respn.Info = fmt.Sprintf("The username '%s' extracted from the token does not exist in the database.", decodedUsername)
+		respn.Info = fmt.Sprintf("The phone number '%s' extracted from the token does not exist in the database.", decodedPhoneNumber)
 		at.WriteJSON(w, http.StatusForbidden, respn)
 		return
 	}
@@ -337,7 +330,7 @@ func UpdateProhibitedItem(w http.ResponseWriter, r *http.Request) {
 func DeleteProhibitedItem(w http.ResponseWriter, r *http.Request) {
 	var respn model.Response
 
-	// Extract token from the Login header
+	// Extract token from Login header
 	tokenLogin := r.Header.Get("Login")
 	if tokenLogin == "" {
 		respn.Status = "Error: Missing Login header"
@@ -346,17 +339,17 @@ func DeleteProhibitedItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Find user based on token in the database
-	userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user_email", bson.M{"token": tokenLogin})
-	if err != nil || userData.Email == "" {
+	// Find user by token in the database
+	userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user", bson.M{"token": tokenLogin})
+	if err != nil || userData.PhoneNumber == "" {
 		respn.Status = "Error: Unauthorized"
 		respn.Info = "You do not have permission to access this data."
 		at.WriteJSON(w, http.StatusForbidden, respn)
 		return
 	}
 
-	// Decode token using the user's public key
-	decodedUsername, err := passwordhash.DecodeGetUser(userData.Public, tokenLogin)
+	// Decode the token using the user's public key
+	decodedPhoneNumber, err := passwordhash.DecodeGetUser(userData.Public, tokenLogin)
 	if err != nil {
 		respn.Status = "Error: Invalid token"
 		respn.Info = "The provided token is not valid."
@@ -364,11 +357,11 @@ func DeleteProhibitedItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check if the decoded username exists in the database
-	userByUsername, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user_email", bson.M{"username": decodedUsername})
-	if err != nil || userByUsername.Username == "" {
+	// Check if the decoded phone number exists in the database
+	userByPhoneNumber, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user", bson.M{"phonenumber": decodedPhoneNumber})
+	if err != nil || userByPhoneNumber.PhoneNumber == "" {
 		respn.Status = "Error: User not found"
-		respn.Info = fmt.Sprintf("The username '%s' extracted from the token does not exist in the database.", decodedUsername)
+		respn.Info = fmt.Sprintf("The phone number '%s' extracted from the token does not exist in the database.", decodedPhoneNumber)
 		at.WriteJSON(w, http.StatusForbidden, respn)
 		return
 	}
