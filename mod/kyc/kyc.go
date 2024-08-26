@@ -30,7 +30,7 @@ func CekSelfiePulang(Pesan itmodel.IteungMessage, db *mongo.Database) (reply str
 	if err != nil {
 		return "Wah kak " + Pesan.Alias_name + " mohon maaf ada kesalahan dalam pengambilan config di database " + err.Error()
 	}
-	statuscode, faceinfo, err := atapi.PostStructWithTokenMod[FaceInfo]("secret", conf.LeaflySecret, dt, conf.LeaflyURL)
+	statuscode, faceinfo, err := atapi.PostStructWithToken[FaceInfo]("secret", conf.LeaflySecret, dt, conf.LeaflyURL)
 	if err != nil {
 		return "Wah kak " + Pesan.Alias_name + " mohon maaf ada kesalahan pemanggilan API leafly " + err.Error()
 	}
@@ -84,7 +84,7 @@ func CekSelfiePulang(Pesan itmodel.IteungMessage, db *mongo.Database) (reply str
 		LamaDetik:   diff.Seconds(),
 		Lokasi:      pstoday.Lokasi.Nama,
 	}
-	statuscode, httpresp, err := atapi.PostStructWithTokenMod[itmodel.Response]("secret", conf.DomyikadoSecret, datapresensi, conf.DomyikadoPresensiURL)
+	statuscode, httpresp, err := atapi.PostStructWithToken[itmodel.Response]("secret", conf.DomyikadoSecret, datapresensi, conf.DomyikadoPresensiURL)
 	if err != nil {
 		return "Akses ke endpoint domyikado gagal: " + err.Error()
 	}
@@ -107,7 +107,7 @@ func CekKTP(Profile itmodel.Profile, Pesan itmodel.IteungMessage, db *mongo.Data
 	if err != nil {
 		return "Wah kak " + Pesan.Alias_name + " mohon maaf ada kesalahan dalam pengambilan config di database " + err.Error()
 	}
-	statuscode, faceinfo, err := atapi.PostStructWithTokenMod[FaceInfo]("secret", conf.LeaflySecret, dt, conf.LeaflyURLKTP)
+	statuscode, faceinfo, err := atapi.PostStructWithToken[FaceInfo]("secret", conf.LeaflySecret, dt, conf.LeaflyURLKTP)
 	if err != nil {
 		return "Wah kak " + strconv.Itoa(statuscode) + " " + Pesan.Alias_name + " mohon maaf ada kesalahan pemanggilan API leafly :" + err.Error()
 	}

@@ -25,7 +25,7 @@ func ArsipGambar(Pesan itmodel.IteungMessage, db *mongo.Database) (reply string)
 	if err != nil {
 		return "Wah kak " + Pesan.Alias_name + " mohon maaf ada kesalahan dalam pengambilan config di database " + err.Error()
 	}
-	statuscode, faceinfo, err := atapi.PostStructWithTokenMod[FaceInfo]("secret", conf.LeaflySecret, dt, conf.LeaflyURLLMSDesaGambar)
+	statuscode, faceinfo, err := atapi.PostStructWithToken[FaceInfo]("secret", conf.LeaflySecret, dt, conf.LeaflyURLLMSDesaGambar)
 	if err != nil {
 		return "Wah kak " + Pesan.Alias_name + " mohon maaf ada kesalahan pemanggilan API leafly: " + err.Error()
 	}
@@ -56,7 +56,7 @@ func ArsipFile(Pesan itmodel.IteungMessage, db *mongo.Database) (reply string) {
 	if err != nil {
 		return "Wah kak " + Pesan.Alias_name + " mohon maaf ada kesalahan dalam pengambilan config di database " + err.Error()
 	}
-	statuscode, faceinfo, err := atapi.PostStructWithTokenMod[FaceInfo]("secret", conf.LeaflySecret, dt, conf.LeaflyURLLMSDesaFile)
+	statuscode, faceinfo, err := atapi.PostStructWithToken[FaceInfo]("secret", conf.LeaflySecret, dt, conf.LeaflyURLLMSDesaFile)
 	if err != nil {
 		return "Wah kak " + Pesan.Alias_name + " mohon maaf ada kesalahan pemanggilan API leafly: " + err.Error()
 	}
