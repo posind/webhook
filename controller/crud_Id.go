@@ -17,6 +17,7 @@ import (
 	"github.com/gocroot/helper/passwordhash"
 	"github.com/gocroot/model"
 )
+
 func EnsureItemIDExists(w http.ResponseWriter, r *http.Request) error {
 	// Cari semua dokumen yang belum memiliki ID atau yang memiliki ID duplikat
 	filter := bson.M{
@@ -82,41 +83,61 @@ func EnsureItemIDExists(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-
 func GetitemIND(w http.ResponseWriter, r *http.Request) {
     var respn model.Response
 
-    tokenLogin := r.Header.Get("Login")
-    if tokenLogin == "" {
-        respn.Status = "Error: Missing Login header"
-        respn.Info = "Login header is missing."
-        at.WriteJSON(w, http.StatusUnauthorized, respn)
-        return
-    }
+	tokenLogin := r.Header.Get("Login")
+	if tokenLogin == "" {
+		respn.Status = "Error: Missing Login header"
+		respn.Info = "Login header is missing."
+		at.WriteJSON(w, http.StatusUnauthorized, respn)
+		return
+	}
 
-    userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user_email", bson.M{"token": tokenLogin})
-    if err != nil || userData.Email == "" {
-        respn.Status = "Error: Unauthorized"
-        respn.Info = "You do not have permission to access this data."
-        at.WriteJSON(w, http.StatusForbidden, respn)
-        return
-    }
+	// Fetch user data by token
+	userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user_email", bson.M{"token": tokenLogin})
+	if err != nil {
+		log.Printf("Error finding user by token: %v", err)
+		respn.Status = "Error: Unauthorized"
+		respn.Info = "You do not have permission to access this data."
+		at.WriteJSON(w, http.StatusForbidden, respn)
+		return
+	}
 
-    decodedUsername, err := passwordhash.DecodeGetUser(userData.Public, tokenLogin)
-    if err != nil {
-        respn.Status = "Error: Invalid token"
-        respn.Info = "The provided token is not valid."
-        at.WriteJSON(w, http.StatusUnauthorized, respn)
-        return
-    }
+	if userData.Email == "" {
+		log.Printf("Token not associated with any user: %s", tokenLogin)
+		respn.Status = "Error: Unauthorized"
+		respn.Info = "You do not have permission to access this data."
+		at.WriteJSON(w, http.StatusForbidden, respn)
+		return
+	}
 
-    userByUsername, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user_email", bson.M{"username": decodedUsername})
-    if err != nil || userByUsername.Username == "" {
-        respn.Status = "Error: User not found"
-        respn.Info = fmt.Sprintf("The username '%s' extracted from the token does not exist in the database.", decodedUsername)
-        at.WriteJSON(w, http.StatusForbidden, respn)
-        return
-    }
+	decodedUsername, err := passwordhash.DecodeGetUser(userData.Public, tokenLogin)
+	if err != nil {
+		log.Printf("Error decoding token: %v", err)
+		respn.Status = "Error: Invalid token"
+		respn.Info = "The provided token is not valid."
+		at.WriteJSON(w, http.StatusUnauthorized, respn)
+		return
+	}
+
+	// Fetch user by decoded username
+	userByUsername, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user_email", bson.M{"username": decodedUsername})
+	if err != nil {
+		log.Printf("Error finding user by decoded username: %v", err)
+		respn.Status = "Error: Unauthorized"
+		respn.Info = "You do not have permission to access this data."
+		at.WriteJSON(w, http.StatusForbidden, respn)
+		return
+	}
+
+	if userByUsername.Username == "" {
+		log.Printf("Username extracted from token does not exist: %s", decodedUsername)
+		respn.Status = "Error: User not found"
+		respn.Info = fmt.Sprintf("The username '%s' extracted from the token does not exist in the database.", decodedUsername)
+		at.WriteJSON(w, http.StatusForbidden, respn)
+		return
+	}
 
     query := r.URL.Query()
     destinasi := query.Get("destinasi")
@@ -212,8 +233,6 @@ func PostitemIND(w http.ResponseWriter, r *http.Request) {
 	at.WriteJSON(w, http.StatusOK, newItem)
 }
 
-
-
 func UpdateitemIND(w http.ResponseWriter, r *http.Request) {
 	var item model.Itemlarangan
 	if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
@@ -243,8 +262,6 @@ func UpdateitemIND(w http.ResponseWriter, r *http.Request) {
 
 	at.WriteJSON(w, http.StatusOK, item)
 }
-
-
 
 // DeleteProhibitedItem deletes a prohibited item from the database.
 func DeleteitemIND(w http.ResponseWriter, r *http.Request) {
@@ -277,8 +294,3 @@ func DeleteitemIND(w http.ResponseWriter, r *http.Request) {
 	respn.Info = fmt.Sprintf("Prohibited item with ID: %s has been successfully deleted.", item.IDItemIND)
 	at.WriteJSON(w, http.StatusOK, respn)
 }
-
-
-
-
-
