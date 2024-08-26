@@ -38,6 +38,8 @@ type Profile_user struct {
 
 type User struct {
 	Name        string `json:"name" bson:"name"`
+	Email       string `json:"email" bson:"email"`
+	Username    string `json:"username" bson:"username"`
 	PhoneNumber string `bson:"phonenumber,omitempty" json:"phonenumber,omitempty"`
 	Team        string `json:"team" bson:"team"`
 	Scope       string `json:"scope" bson:"scope"`
