@@ -33,7 +33,7 @@ func RefreshToken(dt *itmodel.WebHook, WAPhoneNumber, WAAPIGetToken string, db *
 	}
 	var resp itmodel.User
 	if profile.Token != "" {
-		resp, err = atapi.PostStructWithToken[itmodel.User]("Token", profile.Token, dt, WAAPIGetToken)
+		_, resp, err = atapi.PostStructWithToken[itmodel.User]("Token", profile.Token, dt, WAAPIGetToken)
 		if err != nil {
 			return
 		}
@@ -66,7 +66,7 @@ func HandlerQRLogin(msg itmodel.IteungMessage, profile itmodel.Profile, db *mong
 	if err != nil {
 		return
 	}
-	resp, err = atapi.PostStructWithToken[itmodel.Response]("Token", structtoken.Token, dt, profile.URLQRLogin)
+	_, resp, err = atapi.PostStructWithToken[itmodel.Response]("Token", structtoken.Token, dt, profile.URLQRLogin)
 	return
 }
 
@@ -85,7 +85,8 @@ func HandlerIncomingMessage(msg itmodel.IteungMessage, profile itmodel.Profile, 
 				msgstr = kimseok.GetMessage(profile, msg, profile.Botname, db)
 			}
 
-		} else if strings.Contains(strings.ToLower(msg.Message), profile.Triggerword) { //chat group
+			//chat group
+		} else if strings.Contains(strings.ToLower(msg.Message), profile.Triggerword+" ") || strings.Contains(strings.ToLower(msg.Message), " "+profile.Triggerword) || strings.ToLower(msg.Message) == profile.Triggerword {
 			msg.Message = HapusNamaPanggilanBot(msg.Message, profile.Triggerword, profile.Botname)
 			//set grup true
 			isgrup = true
@@ -100,7 +101,7 @@ func HandlerIncomingMessage(msg itmodel.IteungMessage, profile itmodel.Profile, 
 			IsGroup:  isgrup,
 			Messages: msgstr,
 		}
-		resp, err = atapi.PostStructWithToken[itmodel.Response]("Token", profile.Token, dt, profile.URLAPIText)
+		_, resp, err = atapi.PostStructWithToken[itmodel.Response]("Token", profile.Token, dt, profile.URLAPIText)
 		if err != nil {
 			return
 		}
