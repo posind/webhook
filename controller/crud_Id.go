@@ -83,11 +83,9 @@ func EnsureItemIDExists(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-// GetProhibitedItemByField fetches prohibited items based on the specified destination and prohibited item filters.
 func GetitemIND(w http.ResponseWriter, r *http.Request) {
-	var respn model.Response
+    var respn model.Response
 
-	// Extract token from Login header
 	tokenLogin := r.Header.Get("Login")
 	if tokenLogin == "" {
 		respn.Status = "Error: Missing Login header"
@@ -96,77 +94,100 @@ func GetitemIND(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Find user by token in the database
-	userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user", bson.M{"token": tokenLogin})
-	if err != nil || userData.PhoneNumber == "" {
+	// Fetch user data by token
+	userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user_email", bson.M{"token": tokenLogin})
+	if err != nil {
+		log.Printf("Error finding user by token: %v", err)
 		respn.Status = "Error: Unauthorized"
 		respn.Info = "You do not have permission to access this data."
 		at.WriteJSON(w, http.StatusForbidden, respn)
 		return
 	}
 
-	// Decode the token using the user's public key
-	decodedPhoneNumber, err := passwordhash.DecodeGetUser(userData.Public, tokenLogin)
+	if userData.Email == "" {
+		log.Printf("Token not associated with any user: %s", tokenLogin)
+		respn.Status = "Error: Unauthorized"
+		respn.Info = "You do not have permission to access this data."
+		at.WriteJSON(w, http.StatusForbidden, respn)
+		return
+	}
+
+	decodedUsername, err := passwordhash.DecodeGetUser(userData.Public, tokenLogin)
 	if err != nil {
+		log.Printf("Error decoding token: %v", err)
 		respn.Status = "Error: Invalid token"
 		respn.Info = "The provided token is not valid."
 		at.WriteJSON(w, http.StatusUnauthorized, respn)
 		return
 	}
 
-	// Check if the decoded phone number exists in the database
-	userByPhoneNumber, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user", bson.M{"phonenumber": decodedPhoneNumber})
-	if err != nil || userByPhoneNumber.PhoneNumber == "" {
-		respn.Status = "Error: User not found"
-		respn.Info = fmt.Sprintf("The phone number '%s' extracted from the token does not exist in the database.", decodedPhoneNumber)
+	// Fetch user by decoded username
+	userByUsername, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user_email", bson.M{"username": decodedUsername})
+	if err != nil {
+		log.Printf("Error finding user by decoded username: %v", err)
+		respn.Status = "Error: Unauthorized"
+		respn.Info = "You do not have permission to access this data."
 		at.WriteJSON(w, http.StatusForbidden, respn)
 		return
 	}
 
-	query := r.URL.Query()
-	destination := query.Get("destinasi")
-	prohibitedItems := query.Get("barang_terlarang")
-
-	filterItems := bson.M{}
-	if destination != "" {
-		filterItems["destinasi"] = destination
-	}
-	if prohibitedItems != "" {
-		filterItems["Barang Terlarang"] = prohibitedItems
-	}
-
-	findOptions := options.Find().SetLimit(20)
-
-	var items []model.Itemlarangan
-	collection := config.Mongoconn.Collection("prohibited_items_id")
-
-	cursor, err := collection.Find(context.Background(), filterItems, findOptions)
-	if err != nil {
-		log.Printf("Error fetching items: %v", err)
-		respn.Status = "Error: Internal Server Error"
-		respn.Info = "Error fetching items from the database."
-		at.WriteJSON(w, http.StatusInternalServerError, respn)
-		return
-	}
-	defer cursor.Close(context.Background())
-
-	if err = cursor.All(context.Background(), &items); err != nil {
-		log.Printf("Error decoding items: %v", err)
-		respn.Status = "Error: Internal Server Error"
-		respn.Info = "Error decoding items."
-		at.WriteJSON(w, http.StatusInternalServerError, respn)
+	if userByUsername.Username == "" {
+		log.Printf("Username extracted from token does not exist: %s", decodedUsername)
+		respn.Status = "Error: User not found"
+		respn.Info = fmt.Sprintf("The username '%s' extracted from the token does not exist in the database.", decodedUsername)
+		at.WriteJSON(w, http.StatusForbidden, respn)
 		return
 	}
 
-	if len(items) == 0 {
-		respn.Status = "Error: No items found"
-		respn.Info = "No items match the provided filters."
-		at.WriteJSON(w, http.StatusNotFound, respn)
-		return
-	}
+    query := r.URL.Query()
+    destinasi := query.Get("destinasi")
+    barangTerlarang := query.Get("barang_terlarang")
 
-	at.WriteJSON(w, http.StatusOK, items)
+    log.Printf("Received query parameters - destinasi: %s, barang_terlarang: %s", destinasi, barangTerlarang)
+
+    filterItems := bson.M{}
+    if destinasi != "" {
+        filterItems["destinasi"] = destinasi
+    }
+    if barangTerlarang != "" {
+        filterItems["barang_terlarang"] = barangTerlarang
+    }
+
+    log.Printf("Filter created: %+v", filterItems)
+
+    findOptions := options.Find().SetLimit(20)
+
+    var items []model.Itemlarangan
+    collection := config.Mongoconn.Collection("prohibited_items_id")
+
+    cursor, err := collection.Find(context.Background(), filterItems, findOptions)
+    if err != nil {
+        log.Printf("Error fetching items: %v", err)
+        respn.Status = "Error: Internal Server Error"
+        respn.Info = "Error fetching items from the database."
+        at.WriteJSON(w, http.StatusInternalServerError, respn)
+        return
+    }
+    defer cursor.Close(context.Background())
+
+    if err = cursor.All(context.Background(), &items); err != nil {
+        log.Printf("Error decoding items: %v", err)
+        respn.Status = "Error: Internal Server Error"
+        respn.Info = "Error decoding items."
+        at.WriteJSON(w, http.StatusInternalServerError, respn)
+        return
+    }
+
+    if len(items) == 0 {
+        respn.Status = "Error: No items found"
+        respn.Info = "No items match the provided filters."
+        at.WriteJSON(w, http.StatusNotFound, respn)
+        return
+    }
+
+    at.WriteJSON(w, http.StatusOK, items)
 }
+
 
 func PostitemIND(w http.ResponseWriter, r *http.Request) {
 	var newItem model.Itemlarangan
