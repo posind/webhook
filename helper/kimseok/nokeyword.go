@@ -144,7 +144,7 @@ func GetProhibitedItemsFromMessage(negara, message string, db *mongo.Database, c
 	}
 	// Mengambil data prohibited items dari database MongoDB
 	if negara != "" {
-		msg = "💡 Daftar barang terlarang dari negara *_" + message + "_*:\n"
+		msg = "💡 Daftar barang terlarang dari negara *" + negara + "*:\n"
 		// Membuat filter untuk pencarian nama negara dengan regex yang tidak case-sensitive
 		var filter bson.M
 		if message == "" { // tidak ada kata kunci hanya nama negara saja di pesan
@@ -155,7 +155,7 @@ func GetProhibitedItemsFromMessage(negara, message string, db *mongo.Database, c
 				},
 			}
 		} else { // ada nama negara dan kata kunci
-			msg += "Dengan kata kunci *_" + message + "_*:\n"
+			msg += "Dengan kata kunci _*" + message + "*_:\n"
 			filter = bson.M{
 				fieldTujuan: bson.M{
 					"$regex":   negara,
