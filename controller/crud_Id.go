@@ -193,6 +193,7 @@ func GetitemIND(w http.ResponseWriter, r *http.Request) {
 func PostitemIND(w http.ResponseWriter, r *http.Request) {
     var respn model.Response
 
+    // Extract token from Login header
     tokenLogin := r.Header.Get("Login")
     if tokenLogin == "" {
         respn.Status = "Error: Missing Login header"
@@ -201,6 +202,7 @@ func PostitemIND(w http.ResponseWriter, r *http.Request) {
         return
     }
 
+    // Find user by token in the database
     userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user_email", bson.M{"token": tokenLogin})
     if err != nil || userData.Email == "" {
         respn.Status = "Error: Unauthorized"
@@ -209,6 +211,7 @@ func PostitemIND(w http.ResponseWriter, r *http.Request) {
         return
     }
 
+    // Decode the token using the user's public key
     decodedUsername, err := passwordhash.DecodeGetUser(userData.Public, tokenLogin)
     if err != nil {
         respn.Status = "Error: Invalid token"
@@ -217,6 +220,7 @@ func PostitemIND(w http.ResponseWriter, r *http.Request) {
         return
     }
 
+    // Check if the decoded username exists in the database
     userByUsername, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user_email", bson.M{"username": decodedUsername})
     if err != nil || userByUsername.Username == "" {
         respn.Status = "Error: User not found"
@@ -225,6 +229,7 @@ func PostitemIND(w http.ResponseWriter, r *http.Request) {
         return
     }
 
+    // Lanjutkan dengan logika asli
     var newItem model.Itemlarangan
     if err := json.NewDecoder(r.Body).Decode(&newItem); err != nil {
         at.WriteJSON(w, http.StatusBadRequest, err.Error())
@@ -236,9 +241,23 @@ func PostitemIND(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    randomDigits := fmt.Sprintf("%03d", rand.Intn(1000))
-    newItem.IDItemIND = fmt.Sprintf("%s-%s", newItem.Destinasi, randomDigits)
+    // Mendapatkan kode destinasi dari database (menyesuaikan dengan logika versi Inggris)
+    var destinationCode model.DestinationCode
+    destinationCode, err = atdb.GetOneDoc[model.DestinationCode](config.Mongoconn, "destination_code", bson.M{"destination": newItem.Destinasi})
+    if err != nil || destinationCode.DestinationID == "" {
+        respn.Status = "Error: Invalid destination"
+        respn.Info = "Could not find the country code for the given destination."
+        at.WriteJSON(w, http.StatusBadRequest, respn)
+        return
+    }
 
+    // Buat tiga digit acak
+    randomDigits := fmt.Sprintf("%03d", rand.Intn(1000))
+
+    // Buat IDItemIND otomatis berdasarkan kode negara dan tiga digit acak
+    newItem.IDItemIND = fmt.Sprintf("%s-%s", destinationCode.DestinationID, randomDigits)
+
+    // Masukkan data baru ke database
     if _, err := atdb.InsertOneDoc(config.Mongoconn, "prohibited_items_id", newItem); err != nil {
         at.WriteJSON(w, http.StatusInternalServerError, err.Error())
         return
@@ -246,6 +265,7 @@ func PostitemIND(w http.ResponseWriter, r *http.Request) {
 
     at.WriteJSON(w, http.StatusOK, newItem)
 }
+
 
 
 func UpdateitemIND(w http.ResponseWriter, r *http.Request) {
