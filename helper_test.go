@@ -31,7 +31,7 @@ func CompareUsername(MongoConn *mongo.Database, Colname, username string) bool {
 	}
 
 	// Return true if the username exists in the document
-	return user.Username != ""
+	return user.Name != ""
 }
 
 // TestCompareUsername tests the CompareUsername function

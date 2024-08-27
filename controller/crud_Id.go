@@ -104,7 +104,7 @@ func GetitemIND(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if userData.Email == "" {
+	if userData.PhoneNumber == "" {
 		log.Printf("Token not associated with any user: %s", tokenLogin)
 		respn.Status = "Error: Unauthorized"
 		respn.Info = "You do not have permission to access this data."
@@ -131,7 +131,7 @@ func GetitemIND(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if userByUsername.Username == "" {
+	if userByUsername.Name == "" {
 		log.Printf("Username extracted from token does not exist: %s", decodedUsername)
 		respn.Status = "Error: User not found"
 		respn.Info = fmt.Sprintf("The username '%s' extracted from the token does not exist in the database.", decodedUsername)
