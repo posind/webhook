@@ -8,8 +8,8 @@ import (
 	"github.com/gocroot/mod/listnegara"
 	"github.com/gocroot/mod/lmsdesa"
 	"github.com/gocroot/mod/maxweight"
+	"github.com/gocroot/mod/menubantuan"
 	"github.com/gocroot/mod/posint"
-	// "github.com/gocroot/mod/posintind"
 	"github.com/gocroot/mod/presensi"
 	"github.com/whatsauth/itmodel"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -38,8 +38,6 @@ func Caller(Profile itmodel.Profile, Modulename string, Pesan itmodel.IteungMess
 
 	case "prohibited-items":
 		reply = posint.GetProhibitedItems(Pesan, db)
-	// case "prohibited-items-id":
-	// 	reply = posintind.GetProhibitedItems(Pesan, db)
 	case "max-weight":
 		reply = maxweight.GetMaxWeight(Pesan, db)
 
@@ -47,6 +45,9 @@ func Caller(Profile itmodel.Profile, Modulename string, Pesan itmodel.IteungMess
 		reply = listcountry.ListCountry(Pesan)
 	case "listnegara":
 		reply = listnegara.ListNegara(Pesan)
+
+	case "menubantuan":
+		reply = menubantuan.SendWhatsAppMenu(Pesan.Message)
 	default:
 		reply = "Modul tidak ditemukan"
 	}
