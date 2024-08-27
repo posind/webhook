@@ -8,7 +8,6 @@ import (
 	"github.com/gocroot/mod/listnegara"
 	"github.com/gocroot/mod/lmsdesa"
 	"github.com/gocroot/mod/maxweight"
-	"github.com/gocroot/mod/menubantuan"
 	"github.com/gocroot/mod/posint"
 	"github.com/gocroot/mod/presensi"
 	"github.com/whatsauth/itmodel"
@@ -46,8 +45,8 @@ func Caller(Profile itmodel.Profile, Modulename string, Pesan itmodel.IteungMess
 	case "listnegara":
 		reply = listnegara.ListNegara(Pesan)
 
-	case "menubantuan":
-		reply = menubantuan.SendWhatsAppMenu(Pesan.Message)
+	// case "menubantuan":
+	// 	reply = menubantuan.SendWhatsAppMenu(Pesan.Message)
 	default:
 		reply = "Modul tidak ditemukan"
 	}

@@ -190,7 +190,7 @@ func GetitemIND(w http.ResponseWriter, r *http.Request) {
 }
 
 
-func PostItemlarangan(w http.ResponseWriter, r *http.Request) {
+func PostitemIND(w http.ResponseWriter, r *http.Request) {
     var respn model.Response
 
     tokenLogin := r.Header.Get("Login")
