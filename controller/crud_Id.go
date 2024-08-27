@@ -10,6 +10,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"golang.org/x/exp/rand"
 
 	"github.com/gocroot/config"
 	"github.com/gocroot/helper/at"
@@ -189,49 +190,63 @@ func GetitemIND(w http.ResponseWriter, r *http.Request) {
 }
 
 
-func PostitemIND(w http.ResponseWriter, r *http.Request) {
-	var newItem model.Itemlarangan
-	if err := json.NewDecoder(r.Body).Decode(&newItem); err != nil {
-		at.WriteJSON(w, http.StatusBadRequest, err.Error())
-		return
-	}
+func PostItemlarangan(w http.ResponseWriter, r *http.Request) {
+    var respn model.Response
 
-	if newItem.Destinasi == "" || newItem.BarangTerlarang == "" {
-		at.WriteJSON(w, http.StatusBadRequest, "Destination and Prohibited Items cannot be empty")
-		return
-	}
+    tokenLogin := r.Header.Get("Login")
+    if tokenLogin == "" {
+        respn.Status = "Error: Missing Login header"
+        respn.Info = "Login header is missing."
+        at.WriteJSON(w, http.StatusUnauthorized, respn)
+        return
+    }
 
-	// Pastikan ID item unik untuk semua item di koleksi
-	if err := EnsureItemIDExists(w, r); err != nil {
-		at.WriteJSON(w, http.StatusInternalServerError, err.Error())
-		return
-	}
+    userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user_email", bson.M{"token": tokenLogin})
+    if err != nil || userData.Email == "" {
+        respn.Status = "Error: Unauthorized"
+        respn.Info = "You do not have permission to access this data."
+        at.WriteJSON(w, http.StatusForbidden, respn)
+        return
+    }
 
-	// Ambil kode destinasi
-	destinationCode, err := atdb.GetOneDoc[model.DestinationCode](config.Mongoconn, "destination_code", bson.M{"destination": newItem.Destinasi})
-	if err != nil || destinationCode.DestinationID == "" {
-		at.WriteJSON(w, http.StatusBadRequest, "Invalid destination")
-		return
-	}
+    decodedUsername, err := passwordhash.DecodeGetUser(userData.Public, tokenLogin)
+    if err != nil {
+        respn.Status = "Error: Invalid token"
+        respn.Info = "The provided token is not valid."
+        at.WriteJSON(w, http.StatusUnauthorized, respn)
+        return
+    }
 
-	// Hitung jumlah item yang ada untuk destinasi tertentu
-	itemCount, err := atdb.CountDocs(config.Mongoconn, "prohibited_items_id", bson.M{"destinasi": newItem.Destinasi})
-	if err != nil {
-		at.WriteJSON(w, http.StatusInternalServerError, "Failed to count existing items for the destination")
-		return
-	}
+    userByUsername, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user_email", bson.M{"username": decodedUsername})
+    if err != nil || userByUsername.Username == "" {
+        respn.Status = "Error: User not found"
+        respn.Info = fmt.Sprintf("The username '%s' extracted from the token does not exist in the database.", decodedUsername)
+        at.WriteJSON(w, http.StatusForbidden, respn)
+        return
+    }
 
-	// Buat ID baru berdasarkan kode destinasi dan jumlah item
-	newItem.IDItemIND = fmt.Sprintf("%s-%03d", destinationCode.DestinationID, itemCount+1)
+    var newItem model.Itemlarangan
+    if err := json.NewDecoder(r.Body).Decode(&newItem); err != nil {
+        at.WriteJSON(w, http.StatusBadRequest, err.Error())
+        return
+    }
 
-	// Simpan item baru ke database
-	if _, err := atdb.InsertOneDoc(config.Mongoconn, "prohibited_items_id", newItem); err != nil {
-		at.WriteJSON(w, http.StatusInternalServerError, err.Error())
-		return
-	}
+    if newItem.Destinasi == "" || newItem.BarangTerlarang == "" {
+        at.WriteJSON(w, http.StatusBadRequest, "Destinasi dan Barang Terlarang tidak boleh kosong")
+        return
+    }
 
-	at.WriteJSON(w, http.StatusOK, newItem)
+    randomDigits := fmt.Sprintf("%03d", rand.Intn(1000))
+    newItem.IDItemIND = fmt.Sprintf("%s-%s", newItem.Destinasi, randomDigits)
+
+    if _, err := atdb.InsertOneDoc(config.Mongoconn, "prohibited_items_id", newItem); err != nil {
+        at.WriteJSON(w, http.StatusInternalServerError, err.Error())
+        return
+    }
+
+    at.WriteJSON(w, http.StatusOK, newItem)
 }
+
 
 func UpdateitemIND(w http.ResponseWriter, r *http.Request) {
 	var item model.Itemlarangan
