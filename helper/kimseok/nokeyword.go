@@ -182,7 +182,7 @@ func GetProhibitedItemsFromMessage(negara, message string, db *mongo.Database, c
 				found = true
 			} else {
                 filter = bson.M{"Destinasi": negara}
-                return true, "📚 " + message + " diperbolehkan untuk dikirim ke negara " + negara, nil
+                return true, "📚 *" + message + "* diperbolehkan untuk dikirim ke negara *" + negara + "*:\n", nil
 			}
 		} else {
 			prohitems, errr := atdb.GetAllDoc[[]DestinationProhibit](db, collectionName, filter)
@@ -197,7 +197,7 @@ func GetProhibitedItemsFromMessage(negara, message string, db *mongo.Database, c
 				found = true
 			} else {
                 filter = bson.M{"Destination": negara}
-                return true, "📚 " + message + " is allowed to be send to " + negara, nil
+                return true, "📚 *" + message + "* is allowed to be send to *" + negara+ "*:\n", nil
 			}
 		}
 	}
