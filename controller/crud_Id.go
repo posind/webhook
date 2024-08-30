@@ -268,7 +268,47 @@ func PostitemIND(w http.ResponseWriter, r *http.Request) {
 
 
 
+// UpdateitemIND updates an item in the prohibited_items_id collection.
 func UpdateitemIND(w http.ResponseWriter, r *http.Request) {
+	var respn model.Response
+
+	// Extract token from Login header
+	tokenLogin := r.Header.Get("Login")
+	if tokenLogin == "" {
+		respn.Status = "Error: Missing Login header"
+		respn.Info = "Login header is missing."
+		at.WriteJSON(w, http.StatusUnauthorized, respn)
+		return
+	}
+
+	// Find user by token in the database
+	userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user", bson.M{"token": tokenLogin})
+	if err != nil || userData.PhoneNumber == "" {
+		respn.Status = "Error: Unauthorized"
+		respn.Info = "You do not have permission to access this data."
+		at.WriteJSON(w, http.StatusForbidden, respn)
+		return
+	}
+
+	// Decode the token using the user's public key
+	decodedPhoneNumber, err := passwordhash.DecodeGetUser(userData.Public, tokenLogin)
+	if err != nil {
+		respn.Status = "Error: Invalid token"
+		respn.Info = "The provided token is not valid."
+		at.WriteJSON(w, http.StatusUnauthorized, respn)
+		return
+	}
+
+	// Check if the decoded phone number exists in the database
+	userByPhoneNumber, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user", bson.M{"phonenumber": decodedPhoneNumber})
+	if err != nil || userByPhoneNumber.PhoneNumber == "" {
+		respn.Status = "Error: User not found"
+		respn.Info = fmt.Sprintf("The phone number '%s' extracted from the token does not exist in the database.", decodedPhoneNumber)
+		at.WriteJSON(w, http.StatusForbidden, respn)
+		return
+	}
+
+	// Lanjutkan dengan logika asli untuk mengupdate item
 	var item model.Itemlarangan
 	if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
 		at.WriteJSON(w, http.StatusBadRequest, err.Error())
@@ -297,6 +337,7 @@ func UpdateitemIND(w http.ResponseWriter, r *http.Request) {
 
 	at.WriteJSON(w, http.StatusOK, item)
 }
+
 
 // DeleteProhibitedItem deletes a prohibited item from the database.
 func DeleteitemIND(w http.ResponseWriter, r *http.Request) {
