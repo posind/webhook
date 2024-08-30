@@ -339,34 +339,71 @@ func UpdateitemIND(w http.ResponseWriter, r *http.Request) {
 }
 
 
-// DeleteProhibitedItem deletes a prohibited item from the database.
+// DeleteitemIND deletes a prohibited item from the prohibited_items_id collection.
 func DeleteitemIND(w http.ResponseWriter, r *http.Request) {
 	var respn model.Response
 
-	var item model.Itemlarangan
-	if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
-		at.WriteJSON(w, http.StatusBadRequest, err.Error())
+	// Extract token from Login header
+	tokenLogin := r.Header.Get("Login")
+	if tokenLogin == "" {
+		respn.Status = "Error: Missing Login header"
+		respn.Info = "Login header is missing."
+		at.WriteJSON(w, http.StatusUnauthorized, respn)
 		return
 	}
 
-	filter := bson.M{"id_itemind": item.IDItemIND}
-
-	// Cek apakah item dengan ID tersebut ada
-	existingItem, err := atdb.GetOneDoc[model.Itemlarangan](config.Mongoconn, "prohibited_items_id", filter)
-	if err != nil || existingItem.IDItemIND == "" {
-		respn.Status = "Error: Item not found"
-		respn.Info = fmt.Sprintf("No prohibited item found with ID: %s", item.IDItemIND)
-		at.WriteJSON(w, http.StatusNotFound, respn)
+	// Find user by token in the database
+	userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user", bson.M{"token": tokenLogin})
+	if err != nil || userData.PhoneNumber == "" {
+		respn.Status = "Error: Unauthorized"
+		respn.Info = "You do not have permission to access this data."
+		at.WriteJSON(w, http.StatusForbidden, respn)
 		return
 	}
 
-	// Hapus item
-	if _, err := atdb.DeleteOneDoc(config.Mongoconn, "prohibited_items_id", filter); err != nil {
-		at.WriteJSON(w, http.StatusInternalServerError, err.Error())
+	// Decode the token using the user's public key
+	decodedPhoneNumber, err := passwordhash.DecodeGetUser(userData.Public, tokenLogin)
+	if err != nil {
+		respn.Status = "Error: Invalid token"
+		respn.Info = "The provided token is not valid."
+		at.WriteJSON(w, http.StatusUnauthorized, respn)
 		return
 	}
 
-	respn.Status = "Success: Item deleted"
-	respn.Info = fmt.Sprintf("Prohibited item with ID: %s has been successfully deleted.", item.IDItemIND)
-	at.WriteJSON(w, http.StatusOK, respn)
+	// Check if the decoded phone number exists in the database
+	userByPhoneNumber, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user", bson.M{"phonenumber": decodedPhoneNumber})
+	if err != nil || userByPhoneNumber.PhoneNumber == "" {
+		respn.Status = "Error: User not found"
+		respn.Info = fmt.Sprintf("The phone number '%s' extracted from the token does not exist in the database.", decodedPhoneNumber)
+		at.WriteJSON(w, http.StatusForbidden, respn)
+		return
+	}
+
+	// Continue with the original logic to delete an item
+	var requestBody struct {
+		IDItemIND string `json:"id_itemind"`
+	}
+
+	// Decode request body
+	if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
+		at.WriteJSON(w, http.StatusBadRequest, "Invalid JSON format")
+		return
+	}
+
+	// Validate if id_itemind is present in the body
+	if requestBody.IDItemIND == "" {
+		at.WriteJSON(w, http.StatusBadRequest, "id_itemind is required")
+		return
+	}
+
+	// Use atdb.DeleteOneDoc to delete the item from the "prohibited_items_id" collection
+	_, delErr := atdb.DeleteOneDoc(config.Mongoconn, "prohibited_items_id", bson.M{"id_itemind": requestBody.IDItemIND})
+	if delErr != nil {
+		log.Printf("Error deleting item: %v", delErr)
+		at.WriteJSON(w, http.StatusInternalServerError, "Error deleting item")
+		return
+	}
+
+	at.WriteJSON(w, http.StatusOK, "Item deleted successfully")
 }
+
