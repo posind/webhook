@@ -76,36 +76,46 @@ func HandlerIncomingMessage(msg itmodel.IteungMessage, profile itmodel.Profile, 
 		msg.Message = normalize.NormalizeHiddenChar(msg.Message)
 		module.NormalizeAndTypoCorrection(&msg.Message, db, "typo")
 		modname, group, personal := module.GetModuleName(profile.Phonenumber, msg, db, "module")
-		var msgstr string
+		var primaryMsg, secondaryMsg string
 		var isgrup bool
 		if msg.Chat_server != "g.us" { //chat personal
 			if personal && modname != "" {
-				msgstr = mod.Caller(profile, modname, msg, db)
+				primaryMsg = mod.Caller(profile, modname, msg, db)
 			} else {
-				msgstr = kimseok.GetMessage(profile, msg, profile.Botname, db)
+				primaryMsg, secondaryMsg = kimseok.GetMessage(profile, msg, profile.Botname, db)
 			}
-
-			//chat group
 		} else if strings.Contains(strings.ToLower(msg.Message), profile.Triggerword+" ") || strings.Contains(strings.ToLower(msg.Message), " "+profile.Triggerword) || strings.ToLower(msg.Message) == profile.Triggerword {
 			msg.Message = HapusNamaPanggilanBot(msg.Message, profile.Triggerword, profile.Botname)
 			//set grup true
 			isgrup = true
 			if group && modname != "" {
-				msgstr = mod.Caller(profile, modname, msg, db)
+				primaryMsg = mod.Caller(profile, modname, msg, db)
 			} else {
-				msgstr = kimseok.GetMessage(profile, msg, profile.Botname, db)
+				primaryMsg, secondaryMsg = kimseok.GetMessage(profile, msg, profile.Botname, db)
 			}
 		}
-		dt := &itmodel.TextMessage{
+		// Mengirim pesan utama
+		dtPrimary := &itmodel.TextMessage{
 			To:       msg.Chat_number,
 			IsGroup:  isgrup,
-			Messages: msgstr,
+			Messages: primaryMsg,
 		}
-		_, resp, err = atapi.PostStructWithToken[itmodel.Response]("Token", profile.Token, dt, profile.URLAPIText)
+		_, resp, err = atapi.PostStructWithToken[itmodel.Response]("Token", profile.Token, dtPrimary, profile.URLAPIText)
 		if err != nil {
 			return
 		}
-
+		// Mengirim pesan tambahan jika ada
+		if secondaryMsg != "" {
+			dtSecondary := &itmodel.TextMessage{
+				To:       msg.Chat_number,
+				IsGroup:  isgrup,
+				Messages: secondaryMsg,
+			}
+			_, resp, err = atapi.PostStructWithToken[itmodel.Response]("Token", profile.Token, dtSecondary, profile.URLAPIText)
+			if err != nil {
+				return
+			}
+		}
 	}
 	return
 }
