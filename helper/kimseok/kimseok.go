@@ -52,37 +52,42 @@ func GetQnAfromSliceWithJaro(q string, qnas []Datasets) (dt Datasets) {
 
 }
 
-// Balasan jika tidak ditemukan Key Word
-func GetMessage(Profile itmodel.Profile, msg itmodel.IteungMessage, botname string, db *mongo.Database) string {
+// Modifikasi GetMessage untuk mengembalikan dua chat bubble
+func GetMessage(Profile itmodel.Profile, msg itmodel.IteungMessage, botname string, db *mongo.Database) (string, string) {
     // Check apakah ada permintaan operator masuk
     reply, err := helpdesk.PenugasanOperator(Profile, msg, db)
     if err != nil {
-        return err.Error()
+        return "", err.Error()
     }
+
+    var primaryMsg, secondaryMsg string
 
     // Deteksi nama negara dan prohibited items
     if reply == "" {
         var negara, katakunci, coll string
         negara, katakunci, coll, err = GetCountryFromMessage(msg.Message, db)
         if err != nil {
-            return err.Error()
+            return "", err.Error()
         }
 
         // Deteksi prohibited items
-        foundProhibited, prohibitedMsg, err := GetProhibitedItemsFromMessage(negara, katakunci, db, coll)
+        foundProhibited, prohibitedMsg, additionalMsg, err := GetProhibitedItemsFromMessage(negara, katakunci, db, coll)
         if err != nil {
-            return err.Error()
+            return "", err.Error()
         }
-        
-        // Menambahkan pesan terkait prohibited items jika ditemukan
+
         if foundProhibited {
-            reply += prohibitedMsg
+            // Mengatur pesan utama sebagai chat bubble pertama
+            primaryMsg = prohibitedMsg
+
+            // Mengatur pesan tambahan sebagai chat bubble kedua
+            secondaryMsg = additionalMsg
         }
 
         // // Deteksi max weight
         // foundMaxWeight, maxWeightMsg, err := GetMaxWeight(negara, katakunci, db, coll)
         // if err != nil {
-        //     return err.Error()
+        //     return "", err.Error()
         // }
 
         // // Menambahkan pesan terkait max weight jika ditemukan
@@ -92,14 +97,15 @@ func GetMessage(Profile itmodel.Profile, msg itmodel.IteungMessage, botname stri
     }
 
     // Jika tidak ada data di db, komplain lanjut ke selanjutnya
-    if reply == "" {
+    if primaryMsg == "" && secondaryMsg == "" {
         dt, err := QueriesDataRegexpALL(db, msg.Message)
         if err != nil {
-            return err.Error()
+            return "", err.Error()
         }
-        reply = strings.TrimSpace(dt.Answer)
+        primaryMsg = strings.TrimSpace(dt.Answer)
     }
-    return reply
+
+    return primaryMsg, secondaryMsg
 }
 
 func QueriesDataRegexpALL(db *mongo.Database, queries string) (dest Datasets, err error) {
