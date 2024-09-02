@@ -45,8 +45,6 @@ func Caller(Profile itmodel.Profile, Modulename string, Pesan itmodel.IteungMess
 	case "listnegara":
 		reply = listnegara.ListNegara(Pesan)
 
-	// case "menubantuan":
-	// 	reply = menubantuan.SendWhatsAppMenu(Pesan.Message)
 	default:
 		reply = "Modul tidak ditemukan"
 	}
