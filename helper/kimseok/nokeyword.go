@@ -76,15 +76,15 @@ func GetProhibitedItemsFromMessage(negara, message string, db *mongo.Database, c
         }
 
         if collectionName == "prohibited_items_id" {
-            return processProhibitedItems(db, collectionName, filter, negara, message, msg, additionalMsg, true)
+            return processProhibitedItems(db, collectionName, filter, negara, message, msg, additionalMsg, additionalMsgHelp, true)
         }
-        return processProhibitedItems(db, collectionName, filter, negara, message, msg, additionalMsg, false)
+        return processProhibitedItems(db, collectionName, filter, negara, message, msg, additionalMsg, additionalMsgHelp, false)
     }
 
     return false, "", "", nil
 }
 
-func processProhibitedItems(db *mongo.Database, collectionName string, filter bson.M, negara, message, msg, additionalMsg string, isIndonesian bool) (bool, string, string, error) {
+func processProhibitedItems(db *mongo.Database, collectionName string, filter bson.M, negara, message, msg, additionalMsg, additionalMsgHelp string, isIndonesian bool) (bool, string, string, error) {
     if isIndonesian {
         prohitems, err := atdb.GetAllDoc[[]DestinasiTerlarang](db, collectionName, filter)
         if err != nil {
@@ -95,6 +95,7 @@ func processProhibitedItems(db *mongo.Database, collectionName string, filter bs
             for i, item := range prohitems {
                 msg += strconv.Itoa(i+1) + ". " + item.BarangTerlarang + "\n"
             }
+            additionalMsg += "\n" + additionalMsgHelp
             return true, msg, additionalMsg, nil
         }
 
@@ -109,6 +110,7 @@ func processProhibitedItems(db *mongo.Database, collectionName string, filter bs
             for i, item := range prohitems {
                 msg += strconv.Itoa(i+1) + ". " + item.ProhibitedItems + "\n"
             }
+            additionalMsg += "\n" + additionalMsgHelp
             return true, msg, additionalMsg, nil
         }
 
