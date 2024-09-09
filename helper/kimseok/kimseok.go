@@ -83,17 +83,6 @@ func GetMessage(Profile itmodel.Profile, msg itmodel.IteungMessage, botname stri
             // Mengatur pesan tambahan sebagai chat bubble kedua
             secondaryMsg = additionalMsg
         }
-
-        // // Deteksi max weight
-        // foundMaxWeight, maxWeightMsg, err := GetMaxWeight(negara, katakunci, db, coll)
-        // if err != nil {
-        //     return "", err.Error()
-        // }
-
-        // // Menambahkan pesan terkait max weight jika ditemukan
-        // if foundMaxWeight {
-        //     reply += "\n" + maxWeightMsg
-        // }
     }
 
     // Jika tidak ada data di db, komplain lanjut ke selanjutnya

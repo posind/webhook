@@ -43,95 +43,8 @@ func GetCountryFromMessage(message string, db *mongo.Database) (negara, msg, col
         }
 	}
 
-	// collection = "max_weight"
-    // maxweight, err := atdb.GetAllDistinctDoc(db, bson.M{}, "Destinasi Negara", collection)
-    // if err != nil {
-    //     log.Printf("Error fetching countries from DB: %v", err)
-    //     return
-    // }
-    // for _, country := range maxweight {
-    //     if strings.Contains(lowerMessage, strings.ToLower(country.(string))) {
-    //         msg = strings.ReplaceAll(lowerMessage, strings.ToLower(country.(string)), "")
-    //         msg = strings.TrimSpace(msg)
-    //         negara = country.(string)
-    //         return
-    //     }
-	// }
-
     return
 }
-
-// func GetMaxWeight(negara, message string, db *mongo.Database, collectionName string) (found bool, msg string, err error) {
-//     var fieldNegara, fieldKode, fieldWeight string
-//     if collectionName == "max_weight" {
-//         fieldNegara = "Destinasi Negara"
-//         fieldKode = "Kode Negara"
-//         fieldWeight = "Berat Per Koli"
-//     }
-//     if negara != "" {
-//         msg = "Daftar barang terlarang dari negara *" + negara + "*:\n"
-//         var filter bson.M
-//         if message == "" {
-//             filter = bson.M{
-//                 fieldNegara: bson.M{
-//                     "$regex":   negara,
-//                     "$options": "i",
-//                 },
-//             }
-//         } else {
-//             msg += "Dengan kata kunci _" + message + "_:\n"
-//             filter = bson.M{
-//                 fieldNegara: bson.M{
-//                     "$regex":   negara,
-//                     "$options": "i",
-//                 },
-//                 fieldKode: bson.M{
-//                     "$regex":   message,
-//                     "$options": "i",
-//                 },
-//                 fieldWeight: bson.M{
-//                     "$regex":   message,
-//                     "$options": "i",
-//                 },
-//             }
-//         }
-//         if collectionName == "max_weight" {
-//             maxitems, errr := atdb.GetAllDoc[[]MaxWeight](db, collectionName, filter)
-//             if errr != nil {
-//                 log.Printf("Error fetching max weight from DB: %v", errr)
-//                 err = fmt.Errorf("error fetching max weight from DB: %v", errr)
-//                 return
-//             }
-//             if len(maxitems) != 0 {
-//                 for i, item := range maxitems {
-//                     msg += strconv.Itoa(i+1) + ". " + item.BeratPerKoli + "\n"
-//                 }
-//                 found = true
-//             } else if message != "" {
-//                 msg += "_tidak ditemukan_\nBerikut berat maksimal per koli untuk negara " + negara + ":\n"
-//                 filter = bson.M{
-//                     fieldNegara: bson.M{
-//                         "$regex":   negara,
-//                         "$options": "i",
-//                     },
-//                 }
-//                 maxitems, err = atdb.GetAllDoc[[]MaxWeight](db, collectionName, filter)
-//                 if err != nil {
-//                     log.Printf("Error fetching max weight from DB: %v", err)
-//                     err = fmt.Errorf("error fetching max weight from DB: %v", err)
-//                     return
-//                 }
-//                 if len(maxitems) != 0 {
-//                     for i, item := range maxitems {
-//                         msg += strconv.Itoa(i+1) + ". " + item.BeratPerKoli + "\n"
-//                     }
-//                     found = true
-//                 }
-//             }
-//         }
-//     }
-//     return
-// }
 
 //Untuk Func Get Massage
 func GetProhibitedItemsFromMessage(negara, message string, db *mongo.Database, collectionName string) (bool, string, string, error) {
@@ -147,7 +60,7 @@ func GetProhibitedItemsFromMessage(negara, message string, db *mongo.Database, c
     }
 
     var msg string
-	var additionalMsg string = "☎ Ini Nih Call Centre Hallo Pos  📞1500161, bukan tempat buat curhat ya Kak! Atau kakak bisa mengirimkan keluh kesalnya ke email kami di\n✉ halopos@posindonesia.co.id"
+	var additionalMsg string = "☎ Ini dia nih Call Centre Hallo Pos  📞1500161, bukan tempat buat curhat ya Kak! Atau kakak bisa mengirimkan keluh kesalnya ke email kami di\n✉ halopos@posindonesia.co.id"
 
     if negara != "" {
         msg = "💡 Berikut ini adalah daftar barang yang dilarang dari negara *" + negara + "* Kak:\n"
