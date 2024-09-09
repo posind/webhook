@@ -9,39 +9,42 @@ import (
     "github.com/gocroot/helper/atdb"
     "go.mongodb.org/mongo-driver/bson"
     "go.mongodb.org/mongo-driver/mongo"
+    levenshtein "github.com/texttheater/golang-levenshtein/levenshtein"
 )
 
 func GetCountryFromMessage(message string, db *mongo.Database) (negara, msg, collection string, err error) {
     lowerMessage := strings.ToLower(message)
     collection = "prohibited_items_id"
+    
+    // Fetch Indonesian country names
     listnegara, err := atdb.GetAllDistinctDoc(db, bson.M{}, "Destinasi", collection)
     if err != nil {
         log.Printf("Error fetching countries from DB: %v", err)
         return
     }
-    for _, country := range listnegara {
-        if strings.Contains(lowerMessage, strings.ToLower(country.(string))) {
-            msg = strings.ReplaceAll(lowerMessage, strings.ToLower(country.(string)), "")
-            msg = strings.TrimSpace(msg)
-            negara = country.(string)
-            return
-        }
+    
+    // Find the closest match in the list of countries
+    negara, distance := GetClosestMatch(lowerMessage, listnegara)
+    if distance <= 3 { // Allow some flexibility for typos, adjust threshold as needed
+        msg = strings.ReplaceAll(lowerMessage, strings.ToLower(negara), "")
+        msg = strings.TrimSpace(msg)
+        return
     }
 
+    // If no match is found, try with English country names
     collection = "prohibited_items_en"
     countrylist, err := atdb.GetAllDistinctDoc(db, bson.M{}, "Destination", collection)
     if err != nil {
         log.Printf("Error fetching countries from DB: %v", err)
         return
     }
-    for _, country := range countrylist {
-        if strings.Contains(lowerMessage, strings.ToLower(country.(string))) {
-            msg = strings.ReplaceAll(lowerMessage, strings.ToLower(country.(string)), "")
-            msg = strings.TrimSpace(msg)
-            negara = country.(string)
-            return
-        }
-	}
+
+    negara, distance = GetClosestMatch(lowerMessage, countrylist)
+    if distance <= 3 { // Adjust threshold for English as well
+        msg = strings.ReplaceAll(lowerMessage, strings.ToLower(negara), "")
+        msg = strings.TrimSpace(msg)
+        return
+    }
 
     return
 }
@@ -110,4 +113,22 @@ func processProhibitedItems(db *mongo.Database, collectionName string, filter bs
 
         return true, "📚 *" + message + "* is allowed to be sent to *" + negara + "* Mastah!\n", additionalMsg, nil
     }
+}
+
+// Function to find the closest country with fuzzy matching
+func GetClosestMatch(input string, candidates []interface{}) (string, int) {
+    input = strings.ToLower(input)
+    minDistance := -1
+    closestMatch := ""
+
+    for _, candidate := range candidates {
+        country := strings.ToLower(candidate.(string))
+        distance := levenshtein.DistanceForStrings([]rune(input), []rune(country), levenshtein.DefaultOptions)
+        if minDistance == -1 || distance < minDistance {
+            minDistance = distance
+            closestMatch = candidate.(string)
+        }
+    }
+
+    return closestMatch, minDistance
 }
