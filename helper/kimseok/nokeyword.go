@@ -64,6 +64,7 @@ func GetProhibitedItemsFromMessage(negara, message string, db *mongo.Database, c
 
     var msg string
 	var additionalMsg string = "☎ Ini dia nih Call Centre Hallo Pos  📞1500161, bukan tempat buat curhat ya Kak! Atau kakak bisa mengirimkan keluh kesalnya ke email kami di\n✉ halopos@posindonesia.co.id"
+    var additionalMsgHelp string = "Apa ada lagi yang bisa aku bantu kak? (づ ◕‿◕ )づ"
 
     if negara != "" {
         msg = "💡 Berikut ini adalah daftar barang yang dilarang dari negara *" + negara + "* Kak:\n"
@@ -120,7 +121,6 @@ func GetClosestMatch(input string, candidates []interface{}) (string, int) {
     input = strings.ToLower(input)
     minDistance := -1
     closestMatch := ""
-
     for _, candidate := range candidates {
         country := strings.ToLower(candidate.(string))
         distance := levenshtein.DistanceForStrings([]rune(input), []rune(country), levenshtein.DefaultOptions)
