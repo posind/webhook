@@ -313,9 +313,9 @@ func UpdateitemIND(w http.ResponseWriter, r *http.Request) {
 
     // Gunakan $set untuk memperbarui field yang diperlukan
     update := bson.D{
-        {"$set", bson.D{
-            {"destinasi", item.Destinasi},
-            {"barang_terlarang", item.BarangTerlarang},
+        {Key: "$set", Value: bson.D{
+            {Key: "destinasi", Value: item.Destinasi},
+            {Key: "barang_terlarang", Value: item.BarangTerlarang},
         }},
     }
 
@@ -328,9 +328,6 @@ func UpdateitemIND(w http.ResponseWriter, r *http.Request) {
     // Berhasil mengupdate item
     at.WriteJSON(w, http.StatusOK, "Item berhasil diperbarui.")
 }
-
-
-
 
 func DeleteitemIND(w http.ResponseWriter, r *http.Request) {
     var respn model.Response
