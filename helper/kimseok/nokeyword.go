@@ -1,37 +1,38 @@
 package kimseok
 
 import (
-    "fmt"
-    "log"
-    "strconv"
-    "strings"
+	"fmt"
+	"log"
+	"strconv"
+	"strings"
 
-    "github.com/gocroot/helper/atdb"
-    "go.mongodb.org/mongo-driver/bson"
-    "go.mongodb.org/mongo-driver/mongo"
-    levenshtein "github.com/texttheater/golang-levenshtein/levenshtein"
+	"github.com/gocroot/helper/atdb"
+	levenshtein "github.com/texttheater/golang-levenshtein/levenshtein"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
+// Fungsi utama untuk mendapatkan nama negara dari pesan
 func GetCountryFromMessage(message string, db *mongo.Database) (negara, msg, collection string, err error) {
     lowerMessage := strings.ToLower(message)
     collection = "prohibited_items_id"
     
-    // Fetch Indonesian country names
+    // Mengambil daftar nama negara dalam bahasa Indonesia
     listnegara, err := atdb.GetAllDistinctDoc(db, bson.M{}, "Destinasi", collection)
     if err != nil {
         log.Printf("Error fetching countries from DB: %v", err)
         return
     }
     
-    // Find the closest match in the list of countries
+    // Mencari kecocokan terdekat dalam daftar negara
     negara, distance := GetClosestMatch(lowerMessage, listnegara)
-    if distance <= 3 { // Allow some flexibility for typos, adjust threshold as needed
+    if distance <= 3 { // Mengizinkan kesalahan ketik kecil (misalnya, hingga 3 karakter)
         msg = strings.ReplaceAll(lowerMessage, strings.ToLower(negara), "")
         msg = strings.TrimSpace(msg)
         return
     }
 
-    // If no match is found, try with English country names
+    // Jika tidak ada kecocokan, coba dengan daftar nama negara dalam bahasa Inggris
     collection = "prohibited_items_en"
     countrylist, err := atdb.GetAllDistinctDoc(db, bson.M{}, "Destination", collection)
     if err != nil {
@@ -40,7 +41,7 @@ func GetCountryFromMessage(message string, db *mongo.Database) (negara, msg, col
     }
 
     negara, distance = GetClosestMatch(lowerMessage, countrylist)
-    if distance <= 3 { // Adjust threshold for English as well
+    if distance <= 3 { // Mengizinkan kesalahan ketik kecil dalam bahasa Inggris juga
         msg = strings.ReplaceAll(lowerMessage, strings.ToLower(negara), "")
         msg = strings.TrimSpace(msg)
         return
@@ -49,7 +50,24 @@ func GetCountryFromMessage(message string, db *mongo.Database) (negara, msg, col
     return
 }
 
-//Untuk Func Get Massage
+// Fungsi untuk mencari kecocokan terdekat dengan pencocokan kabur
+func GetClosestMatch(input string, candidates []interface{}) (string, int) {
+    input = strings.ToLower(input)
+    minDistance := -1
+    closestMatch := ""
+    for _, candidate := range candidates {
+        country := strings.ToLower(candidate.(string))
+        distance := levenshtein.DistanceForStrings([]rune(input), []rune(country), levenshtein.DefaultOptions)
+        if minDistance == -1 || distance < minDistance {
+            minDistance = distance
+            closestMatch = candidate.(string)
+        }
+    }
+
+    return closestMatch, minDistance
+}
+
+// Fungsi untuk mendapatkan barang terlarang dari pesan
 func GetProhibitedItemsFromMessage(negara, message string, db *mongo.Database, collectionName string) (bool, string, string, error) {
     var fieldTujuan, fieldBarang string
 
@@ -63,7 +81,7 @@ func GetProhibitedItemsFromMessage(negara, message string, db *mongo.Database, c
     }
 
     var msg string
-	var additionalMsg string = "☎ Ini dia nih Call Centre Hallo Pos  📞1500161, bukan tempat buat curhat ya Kak! Atau kakak bisa mengirimkan keluh kesalnya ke email kami di\n✉ halopos@posindonesia.co.id"
+    var additionalMsg string = "☎ Ini dia nih Call Centre Hallo Pos 📞1500161, bukan tempat buat curhat ya Kak! Atau kakak bisa mengirimkan keluh kesalnya ke email kami di\n✉ halopos@posindonesia.co.id"
     var additionalMsgHelp string = "Apa ada lagi yang bisa aku bantu kak? (づ ◕‿◕ )づ"
 
     if negara != "" {
@@ -84,6 +102,7 @@ func GetProhibitedItemsFromMessage(negara, message string, db *mongo.Database, c
     return false, "", "", nil
 }
 
+// Fungsi untuk memproses barang terlarang
 func processProhibitedItems(db *mongo.Database, collectionName string, filter bson.M, negara, message, msg, additionalMsg, additionalMsgHelp string, isIndonesian bool) (bool, string, string, error) {
     if isIndonesian {
         prohitems, err := atdb.GetAllDoc[[]DestinasiTerlarang](db, collectionName, filter)
@@ -116,21 +135,4 @@ func processProhibitedItems(db *mongo.Database, collectionName string, filter bs
 
         return true, "📚 *" + message + "* is allowed to be sent to *" + negara + "* Mastah!\n", additionalMsg, nil
     }
-}
-
-// Function to find the closest country with fuzzy matching
-func GetClosestMatch(input string, candidates []interface{}) (string, int) {
-    input = strings.ToLower(input)
-    minDistance := -1
-    closestMatch := ""
-    for _, candidate := range candidates {
-        country := strings.ToLower(candidate.(string))
-        distance := levenshtein.DistanceForStrings([]rune(input), []rune(country), levenshtein.DefaultOptions)
-        if minDistance == -1 || distance < minDistance {
-            minDistance = distance
-            closestMatch = candidate.(string)
-        }
-    }
-
-    return closestMatch, minDistance
 }
