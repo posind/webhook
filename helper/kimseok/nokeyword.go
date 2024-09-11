@@ -50,23 +50,6 @@ func GetCountryFromMessage(message string, db *mongo.Database) (negara, msg, col
     return
 }
 
-// Fungsi untuk mencari kecocokan terdekat dengan pencocokan kabur
-func GetClosestMatch(input string, candidates []interface{}) (string, int) {
-    input = strings.ToLower(input)
-    minDistance := -1
-    closestMatch := ""
-    for _, candidate := range candidates {
-        country := strings.ToLower(candidate.(string))
-        distance := levenshtein.DistanceForStrings([]rune(input), []rune(country), levenshtein.DefaultOptions)
-        if minDistance == -1 || distance < minDistance {
-            minDistance = distance
-            closestMatch = candidate.(string)
-        }
-    }
-
-    return closestMatch, minDistance
-}
-
 // Fungsi untuk mendapatkan barang terlarang dari pesan
 func GetProhibitedItemsFromMessage(negara, message string, db *mongo.Database, collectionName string) (bool, string, string, error) {
     var fieldTujuan, fieldBarang string
@@ -135,4 +118,21 @@ func processProhibitedItems(db *mongo.Database, collectionName string, filter bs
 
         return true, "📚 *" + message + "* is allowed to be sent to *" + negara + "* Mastah!\n", additionalMsg, nil
     }
+}
+
+// Fungsi untuk mencari kecocokan terdekat dengan pencocokan kabur
+func GetClosestMatch(input string, candidates []interface{}) (string, int) {
+    input = strings.ToLower(input)
+    minDistance := -1
+    closestMatch := ""
+    for _, candidate := range candidates {
+        country := strings.ToLower(candidate.(string))
+        distance := levenshtein.DistanceForStrings([]rune(input), []rune(country), levenshtein.DefaultOptions)
+        if minDistance == -1 || distance < minDistance {
+            minDistance = distance
+            closestMatch = candidate.(string)
+        }
+    }
+
+    return closestMatch, minDistance
 }
