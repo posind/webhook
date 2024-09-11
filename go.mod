@@ -8,7 +8,6 @@ require (
 	github.com/RadhiFadlillah/go-sastrawi v0.0.0-20200621225627-3dd6e0e1ac00
 	github.com/aiteung/atdb v0.1.7
 	github.com/kimseokgis/backend-ai v0.0.0-20240731161356-5480aad28fd3
-	github.com/texttheater/golang-levenshtein/levenshtein v0.0.0-20200805054039-cae8b0eaed6c
 	github.com/whatsauth/itmodel v0.0.8
 	github.com/whatsauth/watoken v0.1.7
 	go.mongodb.org/mongo-driver v1.16.0
