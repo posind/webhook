@@ -96,6 +96,48 @@ func GetMessage(Profile itmodel.Profile, msg itmodel.IteungMessage, botname stri
 
     return primaryMsg, secondaryMsg
 }
+// Modifikasi GetMessage untuk Telegram
+func GetMessageTele(Profile itmodel.Profile, msg itmodel.IteungMessage, botname string, db *mongo.Database) (string) {
+    // Check apakah ada permintaan operator masuk
+    reply, err := helpdesk.PenugasanOperator(Profile, msg, db)
+    if err != nil {
+        return err.Error()
+    }
+
+    var primaryMsg string
+
+    // Deteksi nama negara dan prohibited items
+    if reply == "" {
+        var negara, katakunci, coll string
+        negara, katakunci, coll, err = GetCountryFromMessage(msg.Message, db)
+        if err != nil {
+            return err.Error()
+        }
+
+        // Deteksi prohibited items
+        foundProhibited, prohibitedMsg, err := GetProhibitedItemsFromMessageTele(negara, katakunci, db, coll)
+        if err != nil {
+            return err.Error()
+        }
+
+        if foundProhibited {
+            // Mengatur pesan utama sebagai chat bubble pertama
+            primaryMsg = prohibitedMsg
+
+        }
+    }
+
+    // Jika tidak ada data di db, komplain lanjut ke selanjutnya
+    if primaryMsg == "" {
+        dt, err := QueriesDataRegexpALL(db, msg.Message)
+        if err != nil {
+            return err.Error()
+        }
+        primaryMsg = strings.TrimSpace(dt.Answer)
+    }
+
+    return primaryMsg
+}
 
 func QueriesDataRegexpALL(db *mongo.Database, queries string) (dest Datasets, err error) {
 	//kata akhiran imbuhan
