@@ -66,7 +66,7 @@ func GetProhibitedItem(w http.ResponseWriter, r *http.Request) {
 	// Token is valid and matches an existing user, proceed with fetching the data
 	query := r.URL.Query()
 	destination := query.Get("destination")
-	prohibitedItems := query.Get("prohibited_items")
+	prohibitedItems := query.Get("prohibited_items_en")
 
 	filterItems := bson.M{}
 	if destination != "" {
