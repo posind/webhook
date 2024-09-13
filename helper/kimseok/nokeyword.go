@@ -64,7 +64,7 @@ func GetProhibitedItemsFromMessage(negara, message string, db *mongo.Database, c
 	// var additionalMsg string = "☎ Ini dia nih Call Centre Hallo Pos  📞1500161, bukan tempat buat curhat ya Kak! Atau kakak bisa mengirimkan keluh kesalnya ke email kami di\n✉ halopos@posindonesia.co.id"
     
     if negara != "" {
-        msg = "💡Ini dia nih kak, barang yang dilarang dari negara *" + negara + "*:\n"
+        msg = "💡Ini dia nih kak, barang yang *dilarang* dari negara *" + negara + "*:\n"
 
         filter := bson.M{fieldTujuan: bson.M{"$regex": negara, "$options": "i"}}
         if message != "" {
@@ -81,7 +81,7 @@ func GetProhibitedItemsFromMessage(negara, message string, db *mongo.Database, c
     return false, "", "", nil
 }
 
-//Untuk Func Get Massage Telegram
+// Untuk Func Get Massage Telegram
 func GetProhibitedItemsFromMessageTele(negara, message string, db *mongo.Database, collectionName string) (bool, string, error) {
     var fieldTujuan, fieldBarang string
 
@@ -95,9 +95,9 @@ func GetProhibitedItemsFromMessageTele(negara, message string, db *mongo.Databas
     }
 
     var msg string
-	// var additionalMsg string = "Ada yang bisa aku bantu lagi ga kak? \n (づ ◕‿◕ )づ"
-	// var additionalMsg string = "☎ Ini dia nih Call Centre Hallo Pos  📞1500161, bukan tempat buat curhat ya Kak! Atau kakak bisa mengirimkan keluh kesalnya ke email kami di\n✉ halopos@posindonesia.co.id"
-    
+    // var additionalMsg string = "Ada yang bisa aku bantu lagi ga kak? \n (づ ◕‿◕ )づ"
+    // var additionalMsg string = "☎ Ini dia nih Call Centre Hallo Pos  📞1500161, bukan tempat buat curhat ya Kak! Atau kakak bisa mengirimkan keluh kesalnya ke email kami di\n✉ halopos@posindonesia.co.id"
+
     if negara != "" {
         msg = "💡Ini dia nih kak, barang yang dilarang dari negara *" + negara + "*:\n"
 
