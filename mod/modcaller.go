@@ -1,6 +1,9 @@
 package mod
 
 import (
+	"strings"
+
+	"github.com/gocroot/helper/kimseok"
 	"github.com/gocroot/mod/daftar"
 	"github.com/gocroot/mod/idgrup"
 	"github.com/gocroot/mod/kyc"
@@ -46,7 +49,13 @@ func Caller(Profile itmodel.Profile, Modulename string, Pesan itmodel.IteungMess
 		reply = listnegara.ListNegara(Pesan)
 
 	default:
-		reply = "Modul tidak ditemukan"
+		// Fallback to QueriesDataRegexpALL if no case matches
+		dt, err := kimseok.QueriesDataRegexpALL(db, Pesan.Message)
+		if err != nil {
+			reply = "Maaf, terjadi kesalahan saat mencari data."
+		} else {
+			reply = strings.TrimSpace(dt.Answer) // Use the result from QueriesDataRegexpALL
+		}
 	}
 	return
 }

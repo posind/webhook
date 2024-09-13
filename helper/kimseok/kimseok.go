@@ -16,13 +16,13 @@ import (
 
 func GetCursorFromRegex(db *mongo.Database, patttern string) (cursor *mongo.Cursor, err error) {
 	filter := bson.M{"question": primitive.Regex{Pattern: patttern, Options: "i"}}
-	cursor, err = db.Collection("qna").Find(context.TODO(), filter)
+	cursor, err = db.Collection("ssd").Find(context.TODO(), filter)
 	return
 }
 
 func GetCursorFromString(db *mongo.Database, question string) (cursor *mongo.Cursor, err error) {
 	filter := bson.M{"question": question}
-	cursor, err = db.Collection("qna").Find(context.TODO(), filter)
+	cursor, err = db.Collection("ssd").Find(context.TODO(), filter)
 	return
 }
 
@@ -146,7 +146,7 @@ func QueriesDataRegexpALL(db *mongo.Database, queries string) (dest Datasets, er
 	//ubah ke kata dasar
 	queries = Stemmer(queries)
 	filter := bson.M{"question": queries}
-	qnas, err := atdb.GetAllDoc[[]Datasets](db, "qna", filter)
+	qnas, err := atdb.GetAllDoc[[]Datasets](db, "ssd", filter)
 	if err != nil {
 		return
 	}
@@ -161,7 +161,7 @@ func QueriesDataRegexpALL(db *mongo.Database, queries string) (dest Datasets, er
 	for len(wordsdepan) > 0 || len(wordsbelakang) > 0 {
 		// Join remaining elements back into a string for wordsdepan
 		filter := bson.M{"question": primitive.Regex{Pattern: strings.Join(wordsdepan, " "), Options: "i"}}
-		qnas, err = atdb.GetAllDoc[[]Datasets](db, "qna", filter)
+		qnas, err = atdb.GetAllDoc[[]Datasets](db, "ssd", filter)
 		if err != nil {
 			return
 		} else if len(qnas) > 0 {
@@ -170,7 +170,7 @@ func QueriesDataRegexpALL(db *mongo.Database, queries string) (dest Datasets, er
 		}
 		// Join remaining elements back into a string for wordsbelakang
 		filter = bson.M{"question": primitive.Regex{Pattern: strings.Join(wordsbelakang, " "), Options: "i"}}
-		qnas, err = atdb.GetAllDoc[[]Datasets](db, "qna", filter)
+		qnas, err = atdb.GetAllDoc[[]Datasets](db, "ssd", filter)
 		if err != nil {
 			return
 		} else if len(qnas) > 0 {

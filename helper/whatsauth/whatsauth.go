@@ -71,53 +71,61 @@ func HandlerQRLogin(msg itmodel.IteungMessage, profile itmodel.Profile, db *mong
 }
 
 func HandlerIncomingMessage(msg itmodel.IteungMessage, profile itmodel.Profile, db *mongo.Database) (resp itmodel.Response, err error) {
-	_, bukanbot := GetAppProfile(msg.Phone_number, db) //cek apakah nomor adalah bot
-	if bukanbot != nil {                               //jika tidak terdapat di profile
-		msg.Message = normalize.NormalizeHiddenChar(msg.Message)
-		module.NormalizeAndTypoCorrection(&msg.Message, db, "typo_correction_id")
-		modname, group, personal := module.GetModuleName(profile.Phonenumber, msg, db, "module")
-		var primaryMsg, secondaryMsg string
-		var isgrup bool
-		if msg.Chat_server != "g.us" { //chat personal
-			if personal && modname != "" {
-				primaryMsg = mod.Caller(profile, modname, msg, db)
-			} else {
-				primaryMsg, secondaryMsg = kimseok.GetMessage(profile, msg, profile.Botname, db)
-			}
-		} else if strings.Contains(strings.ToLower(msg.Message), profile.Triggerword+" ") || strings.Contains(strings.ToLower(msg.Message), " "+profile.Triggerword) || strings.ToLower(msg.Message) == profile.Triggerword {
-			msg.Message = HapusNamaPanggilanBot(msg.Message, profile.Triggerword, profile.Botname)
-			//set grup true
-			isgrup = true
-			if group && modname != "" {
-				primaryMsg = mod.Caller(profile, modname, msg, db)
-			} else {
-				primaryMsg, secondaryMsg = kimseok.GetMessage(profile, msg, profile.Botname, db)
-			}
-		}
-		// Mengirim pesan utama
-		dtPrimary := &itmodel.TextMessage{
-			To:       msg.Chat_number,
-			IsGroup:  isgrup,
-			Messages: primaryMsg,
-		}
-		_, resp, err = atapi.PostStructWithToken[itmodel.Response]("Token", profile.Token, dtPrimary, profile.URLAPIText)
-		if err != nil {
-			return
-		}
-		// Mengirim pesan tambahan jika ada
-		if secondaryMsg != "" {
-			dtSecondary := &itmodel.TextMessage{
-				To:       msg.Chat_number,
-				IsGroup:  isgrup,
-				Messages: secondaryMsg,
-			}
-			_, resp, err = atapi.PostStructWithToken[itmodel.Response]("Token", profile.Token, dtSecondary, profile.URLAPIText)
-			if err != nil {
-				return
-			}
-		}
-	}
-	return
+    _, bukanbot := GetAppProfile(msg.Phone_number, db) //cek apakah nomor adalah bot
+    if bukanbot != nil {							   //jika tidak terdapat di profile
+        msg.Message = normalize.NormalizeHiddenChar(msg.Message)
+        module.NormalizeAndTypoCorrection(&msg.Message, db, "typo_correction_id")
+        modname, group, personal := module.GetModuleName(profile.Phonenumber, msg, db, "module")
+        var primaryMsg, secondaryMsg string
+        var isgrup bool
+
+        if msg.Chat_server != "g.us" { //chat personal
+            if personal && modname != "" {
+                primaryMsg = mod.Caller(profile, modname, msg, db)
+            } else {
+                primaryMsg, secondaryMsg = kimseok.GetMessage(profile, msg, profile.Botname, db)
+            }
+        } else if strings.Contains(strings.ToLower(msg.Message), profile.Triggerword+" ") || strings.Contains(strings.ToLower(msg.Message), " "+profile.Triggerword) || strings.ToLower(msg.Message) == profile.Triggerword {
+            msg.Message = HapusNamaPanggilanBot(msg.Message, profile.Triggerword, profile.Botname)
+            //set grup true
+            isgrup = true
+            if group && modname != "" {
+                primaryMsg = mod.Caller(profile, modname, msg, db)
+            } else {
+                primaryMsg, secondaryMsg = kimseok.GetMessage(profile, msg, profile.Botname, db)
+            }
+        }
+
+        // Jika tidak ada pesan utama atau sekunder yang ditemukan, ambil balasan acak dari MongoDB
+        if primaryMsg == "" && secondaryMsg == "" {
+            primaryMsg = GetRandomReplyFromMongo(msg, profile.Botname, db)
+        }
+
+        // Mengirim pesan utama
+        dtPrimary := &itmodel.TextMessage{
+            To:       msg.Chat_number,
+            IsGroup:  isgrup,
+            Messages: primaryMsg,
+        }
+        _, resp, err = atapi.PostStructWithToken[itmodel.Response]("Token", profile.Token, dtPrimary, profile.URLAPIText)
+        if err != nil {
+            return
+        }
+
+        // Mengirim pesan tambahan jika ada
+        if secondaryMsg != "" {
+            dtSecondary := &itmodel.TextMessage{
+                To:       msg.Chat_number,
+                IsGroup:  isgrup,
+                Messages: secondaryMsg,
+            }
+            _, resp, err = atapi.PostStructWithToken[itmodel.Response]("Token", profile.Token, dtSecondary, profile.URLAPIText)
+            if err != nil {
+                return
+            }
+        }
+    }
+    return
 }
 
 // HapusNamaPanggilanBot menghapus semua kemunculan nama panggilan dan nama lengkap dari pesan
