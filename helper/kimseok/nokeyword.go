@@ -60,7 +60,7 @@ func GetProhibitedItemsFromMessage(negara, message string, db *mongo.Database, c
     }
 
     var msg string
-	var additionalMsg string = "Ada yang bisa aku bantu lagi ga kak? (づ ◕‿◕ )づ"
+	var additionalMsg string = "Ada yang bisa aku bantu lagi ga kak? \n (づ ◕‿◕ )づ"
 	// var additionalMsg string = "☎ Ini dia nih Call Centre Hallo Pos  📞1500161, bukan tempat buat curhat ya Kak! Atau kakak bisa mengirimkan keluh kesalnya ke email kami di\n✉ halopos@posindonesia.co.id"
     
     if negara != "" {

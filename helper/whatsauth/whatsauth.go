@@ -74,7 +74,7 @@ func HandlerIncomingMessage(msg itmodel.IteungMessage, profile itmodel.Profile, 
 	_, bukanbot := GetAppProfile(msg.Phone_number, db) //cek apakah nomor adalah bot
 	if bukanbot != nil {                               //jika tidak terdapat di profile
 		msg.Message = normalize.NormalizeHiddenChar(msg.Message)
-		module.NormalizeAndTypoCorrection(&msg.Message, db, "typo")
+		module.NormalizeAndTypoCorrection(&msg.Message, db, "typo_correction_id")
 		modname, group, personal := module.GetModuleName(profile.Phonenumber, msg, db, "module")
 		var primaryMsg, secondaryMsg string
 		var isgrup bool
