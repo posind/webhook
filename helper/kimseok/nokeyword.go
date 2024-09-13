@@ -150,7 +150,7 @@ func processProhibitedItems(db *mongo.Database, collectionName string, filter bs
 }
 
 //Untuk Telegram
-func processProhibitedItemsTele(db *mongo.Database, collectionName string, filter bson.M, negara, message, msg, string, isIndonesian bool) (bool, string, error) {
+func processProhibitedItemsTele(db *mongo.Database, collectionName string, filter bson.M, negara, message, msg string, isIndonesian bool) (bool, string, error) {
     if isIndonesian {
         prohitems, err := atdb.GetAllDoc[[]DestinasiTerlarang](db, collectionName, filter)
         if err != nil {
@@ -159,6 +159,7 @@ func processProhibitedItemsTele(db *mongo.Database, collectionName string, filte
 
         if len(prohitems) != 0 {
             for i, item := range prohitems {
+                // Penambahan ke string 'msg' tanpa masalah tipe
                 msg += strconv.Itoa(i+1) + ". " + item.BarangTerlarang + "\n"
             }
             return true, msg, nil
@@ -168,11 +169,12 @@ func processProhibitedItemsTele(db *mongo.Database, collectionName string, filte
     } else {
         prohitems, err := atdb.GetAllDoc[[]DestinationProhibit](db, collectionName, filter)
         if err != nil {
-            return false, "",fmt.Errorf("error fetching countries from DB ENG: %v", err)
+            return false, "", fmt.Errorf("error fetching countries from DB ENG: %v", err)
         }
 
         if len(prohitems) != 0 {
             for i, item := range prohitems {
+                // Penambahan ke string 'msg' tanpa masalah tipe
                 msg += strconv.Itoa(i+1) + ". " + item.ProhibitedItems + "\n"
             }
             return true, msg, nil
