@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -23,11 +24,12 @@ import (
 func GetProhibitedItem(w http.ResponseWriter, r *http.Request) {
 	var respn model.Response
 
-	// Extract token from Login header
-	tokenLogin := r.Header.Get("Login")
+	// Ambil token dari header Authorization
+	authHeader := r.Header.Get("Authorization")
+	tokenLogin := strings.TrimPrefix(authHeader, "Bearer ")
 	if tokenLogin == "" {
-		respn.Status = "Error: Missing Login header"
-		respn.Info = "Login header is missing."
+		respn.Status = "Error: Missing Authorization header"
+		respn.Info = "Authorization header is missing or invalid."
 		at.WriteJSON(w, http.StatusUnauthorized, respn)
 		return
 	}
@@ -108,78 +110,70 @@ func GetProhibitedItem(w http.ResponseWriter, r *http.Request) {
 func PostProhibitedItem(w http.ResponseWriter, r *http.Request) {
 	var respn model.Response
 
-	// Extract token from Login header
-	tokenLogin := r.Header.Get("Login")
+	// Ambil token dari header Authorization
+	authHeader := r.Header.Get("Authorization")
+	tokenLogin := strings.TrimPrefix(authHeader, "Bearer ")
 	if tokenLogin == "" {
-		respn.Status = "Error: Missing Login header"
-		respn.Info = "Login header is missing."
+		respn.Status = "Error: Missing Authorization header"
+		respn.Info = "Authorization header is missing or invalid."
 		at.WriteJSON(w, http.StatusUnauthorized, respn)
 		return
 	}
 
-	// Find user by token in the database
+	// Temukan user berdasarkan token di database
 	userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user", bson.M{"token": tokenLogin})
 	if err != nil || userData.PhoneNumber == "" {
 		respn.Status = "Error: Unauthorized"
-		respn.Info = "You do not have permission to access this data."
+		respn.Info = "Anda tidak memiliki izin untuk mengakses data ini."
 		at.WriteJSON(w, http.StatusForbidden, respn)
 		return
 	}
 
-	// Decode the token using the user's public key
-	decodedPhoneNumber, err := passwordhash.DecodeGetUser(userData.Public, tokenLogin)
-	if err != nil {
-		respn.Status = "Error: Invalid token"
-		respn.Info = "The provided token is not valid."
-		at.WriteJSON(w, http.StatusUnauthorized, respn)
-		return
-	}
-
-	// Check if the decoded phone number exists in the database
-	userByPhoneNumber, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user", bson.M{"phonenumber": decodedPhoneNumber})
-	if err != nil || userByPhoneNumber.PhoneNumber == "" {
-		respn.Status = "Error: User not found"
-		respn.Info = fmt.Sprintf("The phone number '%s' extracted from the token does not exist in the database.", decodedPhoneNumber)
-		at.WriteJSON(w, http.StatusForbidden, respn)
-		return
-	}
-
-	// Lanjutkan dengan logika asli
+	// Decode request body untuk item baru
 	var newItem model.ProhibitedItems
 	if err := json.NewDecoder(r.Body).Decode(&newItem); err != nil {
 		at.WriteJSON(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	if newItem.Destination == "" || newItem.ProhibitedItems == "" {
-		at.WriteJSON(w, http.StatusBadRequest, "Destination and Prohibited Items cannot be empty")
+	// Validasi input yang diperlukan
+	if newItem.Destination == "" {
+		at.WriteJSON(w, http.StatusBadRequest, "Destinasi tidak boleh kosong.")
+		return
+	}
+	if newItem.ProhibitedItems == "" {
+		at.WriteJSON(w, http.StatusBadRequest, "Barang Terlarang tidak boleh kosong.")
 		return
 	}
 
-	var destinationCode model.DestinationCode
+	// Buat tiga digit acak untuk ID Item
+	randomDigits := fmt.Sprintf("%03d", rand.Intn(1000))
 
+	// Cari kode destinasi di database
+	var destinationCode model.DestinationCode
 	destinationCode, err = atdb.GetOneDoc[model.DestinationCode](config.Mongoconn, "destination_code", bson.M{"destination": newItem.Destination})
 	if err != nil || destinationCode.DestinationID == "" {
-		respn.Status = "Error: Invalid destination"
-		respn.Info = "Could not find the country code for the given destination."
+		respn.Status = "Error: Invalid Destination"
+		respn.Info = "Kode negara untuk destinasi yang diberikan tidak ditemukan."
 		at.WriteJSON(w, http.StatusBadRequest, respn)
 		return
 	}
 
-	// Buat tiga digit acak
-	randomDigits := fmt.Sprintf("%03d", rand.Intn(1000))
-
-	// Buat id_item otomatis berdasarkan kode negara dan tiga digit acak
+	// Buat ID item otomatis berdasarkan kode negara dan tiga digit acak
 	newItem.IDItem = fmt.Sprintf("%s-%s", destinationCode.DestinationID, randomDigits)
 
-	// Masukkan data baru ke database
-	if _, err := atdb.InsertOneDoc(config.Mongoconn, "prohibited_items_en", newItem); err != nil {
+	// Masukkan data item ke database
+	collection := config.Mongoconn.Collection("prohibited_items_id")
+	_, err = collection.InsertOne(context.TODO(), newItem)
+	if err != nil {
 		at.WriteJSON(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
+	// Berhasil menambahkan item
 	at.WriteJSON(w, http.StatusOK, newItem)
 }
+
 
 func EnsureIDItemExists(w http.ResponseWriter, r *http.Request) {
 	// Temukan semua dokumen yang belum memiliki id_item atau yang memiliki id_item duplikat
@@ -268,11 +262,12 @@ func EnsureIDItemExists(w http.ResponseWriter, r *http.Request) {
 func UpdateProhibitedItem(w http.ResponseWriter, r *http.Request) {
 	var respn model.Response
 
-	// Extract token from Login header
-	tokenLogin := r.Header.Get("Login")
+	// Ambil token dari header Authorization
+	authHeader := r.Header.Get("Authorization")
+	tokenLogin := strings.TrimPrefix(authHeader, "Bearer ")
 	if tokenLogin == "" {
-		respn.Status = "Error: Missing Login header"
-		respn.Info = "Login header is missing."
+		respn.Status = "Error: Missing Authorization header"
+		respn.Info = "Authorization header is missing or invalid."
 		at.WriteJSON(w, http.StatusUnauthorized, respn)
 		return
 	}
@@ -330,11 +325,12 @@ func UpdateProhibitedItem(w http.ResponseWriter, r *http.Request) {
 func DeleteProhibitedItem(w http.ResponseWriter, r *http.Request) {
 	var respn model.Response
 
-	// Extract token from Login header
-	tokenLogin := r.Header.Get("Login")
+	// Ambil token dari header Authorization
+	authHeader := r.Header.Get("Authorization")
+	tokenLogin := strings.TrimPrefix(authHeader, "Bearer ")
 	if tokenLogin == "" {
-		respn.Status = "Error: Missing Login header"
-		respn.Info = "Login header is missing."
+		respn.Status = "Error: Missing Authorization header"
+		respn.Info = "Authorization header is missing or invalid."
 		at.WriteJSON(w, http.StatusUnauthorized, respn)
 		return
 	}

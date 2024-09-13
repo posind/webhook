@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -114,11 +115,12 @@ func EnsureIDitemExists(w http.ResponseWriter, r *http.Request) {
 func GetitemIND(w http.ResponseWriter, r *http.Request) {
 	var respn model.Response
 
-	// Ambil token dari header Login
-	tokenLogin := r.Header.Get("Login")
+	// Ambil token dari header Authorization
+	authHeader := r.Header.Get("Authorization")
+	tokenLogin := strings.TrimPrefix(authHeader, "Bearer ")
 	if tokenLogin == "" {
-		respn.Status = "Error: Header Login Hilang"
-		respn.Info = "Header Login tidak ditemukan."
+		respn.Status = "Error: Missing Authorization header"
+		respn.Info = "Authorization header is missing or invalid."
 		at.WriteJSON(w, http.StatusUnauthorized, respn)
 		return
 	}
@@ -199,14 +201,15 @@ func GetitemIND(w http.ResponseWriter, r *http.Request) {
 func PostitemIND(w http.ResponseWriter, r *http.Request) {
     var respn model.Response
 
-    // Ambil token dari header Login
-    tokenLogin := r.Header.Get("Login")
-    if tokenLogin == "" {
-        respn.Status = "Error: Header Login Hilang"
-        respn.Info = "Header Login tidak ditemukan."
-        at.WriteJSON(w, http.StatusUnauthorized, respn)
-        return
-    }
+    // Ambil token dari header Authorization
+	authHeader := r.Header.Get("Authorization")
+	tokenLogin := strings.TrimPrefix(authHeader, "Bearer ")
+	if tokenLogin == "" {
+		respn.Status = "Error: Missing Authorization header"
+		respn.Info = "Authorization header is missing or invalid."
+		at.WriteJSON(w, http.StatusUnauthorized, respn)
+		return
+	}
 
     // Temukan user berdasarkan token di database
     userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user", bson.M{"token": tokenLogin})
@@ -273,14 +276,15 @@ func PostitemIND(w http.ResponseWriter, r *http.Request) {
 func UpdateitemIND(w http.ResponseWriter, r *http.Request) {
     var respn model.Response
 
-    // Ambil token dari header Login
-    tokenLogin := r.Header.Get("Login")
-    if tokenLogin == "" {
-        respn.Status = "Error: Header Login Hilang"
-        respn.Info = "Header Login tidak ditemukan."
-        at.WriteJSON(w, http.StatusUnauthorized, respn)
-        return
-    }
+  // Ambil token dari header Authorization
+	authHeader := r.Header.Get("Authorization")
+	tokenLogin := strings.TrimPrefix(authHeader, "Bearer ")
+	if tokenLogin == "" {
+		respn.Status = "Error: Missing Authorization header"
+		respn.Info = "Authorization header is missing or invalid."
+		at.WriteJSON(w, http.StatusUnauthorized, respn)
+		return
+	}
 
     // Temukan user berdasarkan token di database
     userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user", bson.M{"token": tokenLogin})
@@ -332,14 +336,15 @@ func UpdateitemIND(w http.ResponseWriter, r *http.Request) {
 func DeleteitemIND(w http.ResponseWriter, r *http.Request) {
     var respn model.Response
 
-    // Ambil token dari header Login
-    tokenLogin := r.Header.Get("Login")
-    if tokenLogin == "" {
-        respn.Status = "Error: Header Login Hilang"
-        respn.Info = "Header Login tidak ditemukan."
-        at.WriteJSON(w, http.StatusUnauthorized, respn)
-        return
-    }
+    // Ambil token dari header Authorization
+	authHeader := r.Header.Get("Authorization")
+	tokenLogin := strings.TrimPrefix(authHeader, "Bearer ")
+	if tokenLogin == "" {
+		respn.Status = "Error: Missing Authorization header"
+		respn.Info = "Authorization header is missing or invalid."
+		at.WriteJSON(w, http.StatusUnauthorized, respn)
+		return
+	}
 
     // Temukan user berdasarkan token di database
     userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user", bson.M{"token": tokenLogin})
