@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 
@@ -128,24 +129,33 @@ func GetitemIND(w http.ResponseWriter, r *http.Request) {
 	// Temukan user berdasarkan token di database
 	userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user", bson.M{"token": tokenLogin})
 	if err != nil || userData.PhoneNumber == "" {
+		log.Printf("Error finding user by token: %v", err)
 		respn.Status = "Error: Tidak Diizinkan"
 		respn.Info = "Anda tidak memiliki izin untuk mengakses data ini."
 		at.WriteJSON(w, http.StatusForbidden, respn)
 		return
 	}
 
+	// Debugging log
+	log.Printf("User found: %s", userData.PhoneNumber)
+
 	// Dekode token menggunakan kunci publik user
 	decodedPhoneNumber, err := passwordhash.DecodeGetUser(userData.Public, tokenLogin)
 	if err != nil {
+		log.Printf("Error decoding token: %v", err)
 		respn.Status = "Error: Token Tidak Valid"
 		respn.Info = "Token yang diberikan tidak valid."
 		at.WriteJSON(w, http.StatusUnauthorized, respn)
 		return
 	}
 
+	// Debugging log
+	log.Printf("Token decoded, phone number: %s", decodedPhoneNumber)
+
 	// Periksa apakah nomor telepon yang terdekode ada di database
 	userByPhoneNumber, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user", bson.M{"phonenumber": decodedPhoneNumber})
 	if err != nil || userByPhoneNumber.PhoneNumber == "" {
+		log.Printf("User not found by phone number: %s", decodedPhoneNumber)
 		respn.Status = "Error: User Tidak Ditemukan"
 		respn.Info = fmt.Sprintf("Nomor telepon '%s' yang diambil dari token tidak ada di database.", decodedPhoneNumber)
 		at.WriteJSON(w, http.StatusForbidden, respn)
@@ -157,6 +167,10 @@ func GetitemIND(w http.ResponseWriter, r *http.Request) {
 	destination := query.Get("destination")
 	prohibitedItems := query.Get("prohibited_items_id")
 
+	// Debugging log for query parameters
+	log.Printf("Query parameters - destination: %s, prohibited_items: %s", destination, prohibitedItems)
+
+	// Build the filter for MongoDB query
 	filterItems := bson.M{}
 	if destination != "" {
 		filterItems["destination"] = destination
@@ -173,6 +187,7 @@ func GetitemIND(w http.ResponseWriter, r *http.Request) {
 
 	cursor, err := collection.Find(context.Background(), filterItems, findOptions)
 	if err != nil {
+		log.Printf("Error querying MongoDB: %v", err)
 		respn.Status = "Error: Kesalahan Server Internal"
 		respn.Info = "Kesalahan saat mengambil item dari database."
 		at.WriteJSON(w, http.StatusInternalServerError, respn)
@@ -180,14 +195,18 @@ func GetitemIND(w http.ResponseWriter, r *http.Request) {
 	}
 	defer cursor.Close(context.Background())
 
+	// Decode results from MongoDB cursor
 	if err = cursor.All(context.Background(), &items); err != nil {
+		log.Printf("Error decoding MongoDB result: %v", err)
 		respn.Status = "Error: Kesalahan Saat Mendekode Data"
 		respn.Info = "Kesalahan mendekode data item."
 		at.WriteJSON(w, http.StatusInternalServerError, respn)
 		return
 	}
 
+	// If no items are found
 	if len(items) == 0 {
+		log.Printf("No items found for the given filter")
 		respn.Status = "Error: Tidak Ada Item Ditemukan"
 		respn.Info = "Tidak ada item yang cocok dengan filter yang diberikan."
 		at.WriteJSON(w, http.StatusNotFound, respn)
@@ -197,6 +216,7 @@ func GetitemIND(w http.ResponseWriter, r *http.Request) {
 	// Balas dengan item dalam format JSON
 	at.WriteJSON(w, http.StatusOK, items)
 }
+
 
 func PostitemIND(w http.ResponseWriter, r *http.Request) {
     var respn model.Response
@@ -338,7 +358,7 @@ func DeleteitemIND(w http.ResponseWriter, r *http.Request) {
 
     // Ambil token dari header Authorization
 	authHeader := r.Header.Get("Authorization")
-	tokenLogin := strings.TrimPrefix(authHeader, "Bearer ")
+	tokenLogin := strings.TrimPrefix(authHeader, "Bearer")
 	if tokenLogin == "" {
 		respn.Status = "Error: Missing Authorization header"
 		respn.Info = "Authorization header is missing or invalid."
