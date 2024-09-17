@@ -96,6 +96,7 @@ func GetMessage(Profile itmodel.Profile, msg itmodel.IteungMessage, botname stri
 
     return primaryMsg, secondaryMsg
 }
+
 // Modifikasi GetMessage untuk Telegram
 func GetMessageTele(Profile itmodel.Profile, msg itmodel.IteungMessage, botname string, db *mongo.Database) (string) {
     // Check apakah ada permintaan operator masuk
@@ -109,7 +110,7 @@ func GetMessageTele(Profile itmodel.Profile, msg itmodel.IteungMessage, botname 
     // Deteksi nama negara dan prohibited items
     if reply == "" {
         var negara, katakunci, coll string
-        negara, katakunci, coll, err = GetCountryFromMessage(msg.Message, db)
+        negara, katakunci, coll, err = GetCountryFromMessageTele(msg.Message, db)
         if err != nil {
             return err.Error()
         }
