@@ -56,13 +56,13 @@ func URL(w http.ResponseWriter, r *http.Request) {
 
 	// ProhibitedItem Routes (Indonesian)
 	case method == "GET" && path == "/get/item":
-		controller.GetitemIND(w, r)
+		controller.GetItemLarangan(w, r)
 	case method == "POST" && path == "/post/item":
-		controller.PostitemIND(w, r)
+		controller.PostItemLarangan(w, r)
 	case method == "PUT" && path == "/put/item":
-		controller.UpdateitemIND(w, r)
+		controller.UpdateItemLarangan(w, r)
 	case method == "DELETE" && path == "/delete/item":
-		controller.DeleteitemIND(w, r)
+		controller.DeleteItemLarangan(w, r)
 	default:
 		controller.NotFound(w, r)
 	}
