@@ -56,15 +56,13 @@ func Register(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(resp)
 }
 
-
-
 func QRLogin(w http.ResponseWriter, r *http.Request) {
 	var resp model.Credential
 	var loginReq struct {
-		PhoneNumber string `json:"phoneNumber"`
+		PrivateKey string `json:"privateKey"`
 	}
 
-	// Parsing JSON request dari body (mengambil phoneNumber dari QR code)
+	// Parsing JSON request dari body (mengambil privateKey dari QR code)
 	err := json.NewDecoder(r.Body).Decode(&loginReq)
 	if err != nil {
 		resp.Message = "Error parsing application/json: " + err.Error()
@@ -74,8 +72,8 @@ func QRLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Mendapatkan data user berdasarkan phoneNumber dari QR code
-	userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user", bson.M{"phoneNumber": loginReq.PhoneNumber})
+	// Mendapatkan data user berdasarkan privateKey dari QR code
+	userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user", bson.M{"private": loginReq.PrivateKey})
 	if err != nil || userData.PhoneNumber == "" {
 		resp.Message = "User not found"
 		w.Header().Set("Content-Type", "application/json")
@@ -84,7 +82,7 @@ func QRLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Membuat token menggunakan phoneNumber dan kunci private user yang ditemukan
+	// Membuat token menggunakan kunci private user yang ditemukan
 	tokenString, err := watoken.Encode(userData.PhoneNumber, userData.Private)
 	if err != nil {
 		resp.Message = "Failed to encode token: " + err.Error()
@@ -98,7 +96,7 @@ func QRLogin(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("Updating token for phone number:", userData.PhoneNumber)
 	fmt.Println("Generated token:", tokenString)
 
-	// Update token in the database using phoneNumber
+	// Update token in the database using privateKey (karena login via QR code)
 	update := bson.M{
 		"$set": bson.M{
 			"token": tokenString,
@@ -107,7 +105,7 @@ func QRLogin(w http.ResponseWriter, r *http.Request) {
 
 	_, err = config.Mongoconn.Collection("user").UpdateOne(
 		context.Background(),
-		bson.M{"phoneNumber": userData.PhoneNumber},
+		bson.M{"private": userData.Private},
 		update,
 	)
 	if err != nil {
@@ -125,10 +123,14 @@ func QRLogin(w http.ResponseWriter, r *http.Request) {
 	// Berikan respon yang sesuai setelah token berhasil diperbarui
 	resp.Status = true
 	resp.Token = tokenString
-	resp.Message = "Login successful via phone number"
+	resp.Message = "Login successful via QR code"
 
 	json.NewEncoder(w).Encode(resp)
 }
+
+
+
+
 
 
 

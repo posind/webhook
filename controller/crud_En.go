@@ -6,92 +6,114 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/gocroot/config"
 	"github.com/gocroot/helper/at"
 	"github.com/gocroot/helper/atdb"
 	"github.com/gocroot/helper/passwordhash"
+	"github.com/gocroot/helper/watoken"
 	"github.com/gocroot/model"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-// ProhibitedItem (English) Handlers
+// GetProhibitedItem retrieves prohibited items based on the token and query parameters.
 func GetProhibitedItem(w http.ResponseWriter, r *http.Request) {
-	var respn model.Response
+    var respn model.Response
 
-	// Extract token from Login header
-	tokenLogin := r.Header.Get("Login")
-	if tokenLogin == "" {
-		respn.Status = "Error: Missing Login header"
-		respn.Info = "Login header is missing."
-		at.WriteJSON(w, http.StatusUnauthorized, respn)
-		return
-	}
+    // Extract token from Authorization header (assuming it's a Bearer token)
+    authHeader := r.Header.Get("Authorization")
+    tokenLogin := strings.TrimPrefix(authHeader, "Bearer ")
+    log.Println("Received Token:", tokenLogin) // Log the token
 
-	// Find user by token in the database
-	userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user", bson.M{"token": tokenLogin})
-	if err != nil || userData.PhoneNumber == "" {
-		respn.Status = "Error: Unauthorized"
-		respn.Info = "You do not have permission to access this data."
-		at.WriteJSON(w, http.StatusForbidden, respn)
-		return
-	}
-	// Decode the token using the user's public key
-	decodedPhoneNumber, err := passwordhash.DecodeGetUser(userData.Public, tokenLogin)
-	if err != nil {
-		respn.Status = "Error: Invalid token"
-		respn.Info = "The provided token is not valid."
-		at.WriteJSON(w, http.StatusUnauthorized, respn)
-		return
-	}
-	// Check if the decoded phone number exists in the database
-	userByPhoneNumber, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user", bson.M{"phonenumber": decodedPhoneNumber})
-	if err != nil || userByPhoneNumber.PhoneNumber == "" {
-		respn.Status = "Error: User not found"
-		respn.Info = fmt.Sprintf("The phone number '%s' extracted from the token does not exist in the database.", decodedPhoneNumber)
-		at.WriteJSON(w, http.StatusForbidden, respn)
-		return
-	}
-	// Token is valid and matches an existing user, proceed with fetching the data
-	query := r.URL.Query()
-	destination := query.Get("destination")
-	prohibitedItems := query.Get("prohibited_items")
-	filterItems := bson.M{}
-	if destination != "" {
-		filterItems["destination"] = destination
-	}
-	if prohibitedItems != "" {
-		filterItems["Prohibited Items"] = prohibitedItems
-	}
-	findOptions := options.Find().SetLimit(20)
-	// Query MongoDB
-	var items []model.ProhibitedItems
-	collection := config.Mongoconn.Collection("prohibited_items_en")
-	cursor, err := collection.Find(context.Background(), filterItems, findOptions)
-	if err != nil {
-		respn.Status = "Error: Internal Server Error"
-		respn.Info = "Error fetching items from the database."
-		at.WriteJSON(w, http.StatusInternalServerError, respn)
-		return
-	}
-	defer cursor.Close(context.Background())
-	if err = cursor.All(context.Background(), &items); err != nil {
-		respn.Status = "Error: Internal Server Error"
-		respn.Info = "Error decoding items."
-		at.WriteJSON(w, http.StatusInternalServerError, respn)
-		return
-	}
-	if len(items) == 0 {
-		respn.Status = "Error: No items found"
-		respn.Info = "No items match the provided filters."
-		at.WriteJSON(w, http.StatusNotFound, respn)
-		return
-	}
-	// Respond with the items as JSON
-	at.WriteJSON(w, http.StatusOK, items)
+    if tokenLogin == "" {
+        respn.Status = "Error: Missing Authorization header"
+        respn.Info = "Authorization header is missing or invalid."
+        at.WriteJSON(w, http.StatusUnauthorized, respn)
+        return
+    }
+
+    // Decode the token using the watoken Decode function (assuming you're using your custom package)
+    var payload watoken.Payload[any]
+    publicKey := config.PublicKey // This should be the public key corresponding to your system
+    payload, err := watoken.DecodeWithStruct[any](publicKey, tokenLogin)
+    if err != nil {
+        respn.Status = "Error: Invalid token"
+        respn.Info = "The provided token is not valid."
+        at.WriteJSON(w, http.StatusUnauthorized, respn)
+        return
+    }
+
+    // Extract the phone number from the decoded payload (or another ID)
+    phoneNumber := payload.Data.(map[string]interface{})["phonenumber"].(string)
+    if phoneNumber == "" {
+        respn.Status = "Error: Unauthorized"
+        respn.Info = "Token verification failed or phone number missing."
+        at.WriteJSON(w, http.StatusUnauthorized, respn)
+        return
+    }
+
+    // Find user by phone number in the database using the new model
+    userFilter := bson.M{"phonenumber": phoneNumber}
+    var existingUser model.User  // Declare the `existingUser` variable
+
+    // Fetch the user from the database, and check for errors
+    err = atdb.GetOneDoc(config.Mongoconn, "user", userFilter, &existingUser) // Pass `existingUser` by reference
+    if err != nil {
+        respn.Status = "Error: Unauthorized"
+        respn.Info = "User not found or unauthorized."
+        at.WriteJSON(w, http.StatusUnauthorized, respn)
+        return
+    }
+
+    // Proceed with fetching prohibited items
+    query := r.URL.Query()
+    destination := query.Get("destination")
+    prohibitedItems := query.Get("prohibited_items")
+    filterItems := bson.M{}
+    if destination != "" {
+        filterItems["Destination"] = destination
+    }
+    if prohibitedItems != "" {
+        filterItems["Prohibited Items"] = prohibitedItems
+    }
+
+    findOptions := options.Find().SetLimit(20)
+    // Query MongoDB for prohibited items (ProhibitedItems model)
+    var items []model.ProhibitedItems
+    collection := config.Mongoconn.Collection("prohibited_items_en")
+    cursor, err := collection.Find(context.Background(), filterItems, findOptions)
+    if err != nil {
+        respn.Status = "Error: Internal Server Error"
+        respn.Info = "Error fetching items from the database."
+        at.WriteJSON(w, http.StatusInternalServerError, respn)
+        return
+    }
+    defer cursor.Close(context.Background())
+
+    if err = cursor.All(context.Background(), &items); err != nil {
+        respn.Status = "Error: Internal Server Error"
+        respn.Info = "Error decoding items."
+        at.WriteJSON(w, http.StatusInternalServerError, respn)
+        return
+    }
+
+    if len(items) == 0 {
+        respn.Status = "Error: No items found"
+        respn.Info = "No items match the provided filters."
+        at.WriteJSON(w, http.StatusNotFound, respn)
+        return
+    }
+
+    // Respond with the items as JSON
+    at.WriteJSON(w, http.StatusOK, items)
 }
+
+
+
+
 
 func PostProhibitedItem(w http.ResponseWriter, r *http.Request) {
 	var respn model.Response
