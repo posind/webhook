@@ -92,6 +92,8 @@ func GetMessage(Profile itmodel.Profile, msg itmodel.IteungMessage, botname stri
             return "", err.Error()
         }
         primaryMsg = strings.TrimSpace(dt.Answer)
+		
+        secondaryMsg = "Ada yang bisa aku bantu lagi ga kak? \n (づ ◕‿◕ )づ"
     }
 
     return primaryMsg, secondaryMsg
