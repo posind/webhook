@@ -129,16 +129,6 @@ func QRLogin(w http.ResponseWriter, r *http.Request) {
 }
 
 
-
-
-
-
-
-
-
-
-
-
 // punya teh fahira
 
 // func Login(w http.ResponseWriter, r *http.Request) {
