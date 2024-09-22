@@ -5,7 +5,7 @@ import (
     "log"
     "strconv"
     "strings"
-
+    "sort" // Import the sort package
     "github.com/gocroot/helper/atdb"
     "go.mongodb.org/mongo-driver/bson"
     "go.mongodb.org/mongo-driver/mongo"
@@ -15,27 +15,35 @@ func GetCountryFromMessage(message string, db *mongo.Database) (negara, msg, col
     lowerMessage := strings.ToLower(message)
     collection = "prohibited_items_id"
 
-    // Tokenize the message into words to prevent partial matches
-    messageWords := strings.Fields(lowerMessage)
-
+    // Fetch list of countries as []string instead of []interface{}
     listnegara, err := atdb.GetAllDistinctDoc(db, bson.M{}, "Destinasi", collection)
     if err != nil {
         log.Printf("Error fetching countries from DB: %v", err)
         return
     }
 
-    for _, country := range listnegara {
-        lowerCountry := strings.ToLower(country.(string))
+    // Convert to []string for proper processing
+    countries := make([]string, len(listnegara))
+    for i, country := range listnegara {
+        countries[i] = country.(string)
+    }
 
-        // Check if the exact country is one of the words in the message
-        if containsExactWord(messageWords, lowerCountry) {
+    // Sort countries by length (longest first) to prioritize multi-word countries
+    sortedCountries := sortCountriesByLength(countries)
+
+    for _, country := range sortedCountries {
+        lowerCountry := strings.ToLower(country)
+
+        // Check if the exact multi-word country is in the message
+        if strings.Contains(lowerMessage, lowerCountry) {
             msg = strings.ReplaceAll(lowerMessage, lowerCountry, "")
             msg = strings.TrimSpace(msg)
-            negara = country.(string)
+            negara = country
             return
         }
     }
 
+    // Repeat the process for the English collection
     collection = "prohibited_items_en"
     countrylist, err := atdb.GetAllDistinctDoc(db, bson.M{}, "Destination", collection)
     if err != nil {
@@ -43,14 +51,22 @@ func GetCountryFromMessage(message string, db *mongo.Database) (negara, msg, col
         return
     }
 
-    for _, country := range countrylist {
-        lowerCountry := strings.ToLower(country.(string))
+    // Convert to []string
+    countries = make([]string, len(countrylist))
+    for i, country := range countrylist {
+        countries[i] = country.(string)
+    }
 
-        // Check for exact country matches in English collection
-        if containsExactWord(messageWords, lowerCountry) {
+    // Sort countries by length again for English names
+    sortedCountries = sortCountriesByLength(countries)
+
+    for _, country := range sortedCountries {
+        lowerCountry := strings.ToLower(country)
+
+        if strings.Contains(lowerMessage, lowerCountry) {
             msg = strings.ReplaceAll(lowerMessage, lowerCountry, "")
             msg = strings.TrimSpace(msg)
-            negara = country.(string)
+            negara = country
             return
         }
     }
@@ -58,14 +74,13 @@ func GetCountryFromMessage(message string, db *mongo.Database) (negara, msg, col
     return
 }
 
-// Helper function to check for exact word matches
-func containsExactWord(words []string, target string) bool {
-    for _, word := range words {
-        if word == target {
-            return true
-        }
-    }
-    return false
+// Helper function to sort countries by length (longest first)
+func sortCountriesByLength(countries []string) []string {
+    // Sort countries by descending length to match multi-word countries first
+    sort.Slice(countries, func(i, j int) bool {
+        return len(countries[i]) > len(countries[j])
+    })
+    return countries
 }
 
 //Untuk Func Get Massage WA
