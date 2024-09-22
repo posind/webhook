@@ -60,13 +60,13 @@ func GetProhibitedItemsFromMessage(negara, message string, db *mongo.Database, c
     }
 
     var msg string
-	var additionalMsg string = "Ada yang bisa aku bantu lagi ga kak? \n (づ ◕‿◕ )づ"
-	// var additionalMsg string = "☎ Ini dia nih Call Centre Hallo Pos  📞1500161, bukan tempat buat curhat ya Kak! Atau kakak bisa mengirimkan keluh kesalnya ke email kami di\n✉ halopos@posindonesia.co.id"
-    
+    var additionalMsg string = "Ada yang bisa aku bantu lagi ga kak? \n (づ ◕‿◕ )づ"
+
     if negara != "" {
         msg = "💡Ini dia nih kak, barang yang *dilarang* dari negara *" + negara + "*:\n"
 
-        filter := bson.M{fieldTujuan: bson.M{"$regex": negara, "$options": "i"}}
+        // Adjust regex to enforce exact or close matching for the country name
+        filter := bson.M{fieldTujuan: bson.M{"$regex": "^" + negara + "$", "$options": "i"}}
         if message != "" {
             msg += "dengan kategori *" + message + "*:\n"
             filter[fieldBarang] = bson.M{"$regex": message, "$options": "i"}
