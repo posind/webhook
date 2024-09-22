@@ -14,14 +14,22 @@ import (
 func GetCountryFromMessage(message string, db *mongo.Database) (negara, msg, collection string, err error) {
     lowerMessage := strings.ToLower(message)
     collection = "prohibited_items_id"
+
+    // Tokenize the message into words to prevent partial matches
+    messageWords := strings.Fields(lowerMessage)
+
     listnegara, err := atdb.GetAllDistinctDoc(db, bson.M{}, "Destinasi", collection)
     if err != nil {
         log.Printf("Error fetching countries from DB: %v", err)
         return
     }
+
     for _, country := range listnegara {
-        if strings.Contains(lowerMessage, strings.ToLower(country.(string))) {
-            msg = strings.ReplaceAll(lowerMessage, strings.ToLower(country.(string)), "")
+        lowerCountry := strings.ToLower(country.(string))
+
+        // Check if the exact country is one of the words in the message
+        if containsExactWord(messageWords, lowerCountry) {
+            msg = strings.ReplaceAll(lowerMessage, lowerCountry, "")
             msg = strings.TrimSpace(msg)
             negara = country.(string)
             return
@@ -34,16 +42,30 @@ func GetCountryFromMessage(message string, db *mongo.Database) (negara, msg, col
         log.Printf("Error fetching countries from DB: %v", err)
         return
     }
+
     for _, country := range countrylist {
-        if strings.Contains(lowerMessage, strings.ToLower(country.(string))) {
-            msg = strings.ReplaceAll(lowerMessage, strings.ToLower(country.(string)), "")
+        lowerCountry := strings.ToLower(country.(string))
+
+        // Check for exact country matches in English collection
+        if containsExactWord(messageWords, lowerCountry) {
+            msg = strings.ReplaceAll(lowerMessage, lowerCountry, "")
             msg = strings.TrimSpace(msg)
             negara = country.(string)
             return
         }
-	}
+    }
 
     return
+}
+
+// Helper function to check for exact word matches
+func containsExactWord(words []string, target string) bool {
+    for _, word := range words {
+        if word == target {
+            return true
+        }
+    }
+    return false
 }
 
 //Untuk Func Get Massage WA
