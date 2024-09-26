@@ -21,7 +21,7 @@ import (
 func GetProhibitedItem(w http.ResponseWriter, r *http.Request) {
 	var respn model.Response
 
-	// Extract token from Login header using GetLoginFromHeader function
+	// Extract login token from the header using GetLoginFromHeader function
 	tokenLogin := at.GetLoginFromHeader(r)
 	if tokenLogin == "" {
 		respn.Status = "Error: Missing Login header"
@@ -89,6 +89,7 @@ func GetProhibitedItem(w http.ResponseWriter, r *http.Request) {
 	at.WriteJSON(w, http.StatusOK, items)
 }
 
+
 func PostProhibitedItem(w http.ResponseWriter, r *http.Request) {
 	var respn model.Response
 
@@ -151,9 +152,6 @@ func PostProhibitedItem(w http.ResponseWriter, r *http.Request) {
 		"prohibited_items": newItem.ProhibitedItems,
 	})
 }
-
-
-
 
 func EnsureIDItemExists(w http.ResponseWriter, r *http.Request) {
 	// Temukan semua dokumen yang belum memiliki id_item atau yang memiliki id_item duplikat
@@ -306,9 +304,6 @@ func UpdateProhibitedItem(w http.ResponseWriter, r *http.Request) {
 		"prohibited_items": item.ProhibitedItems,
 	})
 }
-
-
-
 
 func DeleteProhibitedItem(w http.ResponseWriter, r *http.Request) {
 	var respn model.Response
