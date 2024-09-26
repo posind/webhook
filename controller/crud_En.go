@@ -11,7 +11,6 @@ import (
 	"github.com/gocroot/helper/at"
 	"github.com/gocroot/helper/atdb"
 	"github.com/gocroot/helper/watoken"
-	pyy "github.com/gocroot/helper/watoken"
 	"github.com/gocroot/model"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -105,7 +104,7 @@ func PostProhibitedItem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Decode the token to get the user ID
-	userID, err := pyy.DecodeGetId(config.PublicKey, tokenLogin)
+	userID, err := watoken.DecodeGetId(config.PublicKey, tokenLogin)
 	if err != nil {
 		respn.Status = "Error: Invalid token"
 		respn.Info = "The provided token is not valid: " + err.Error()
@@ -114,7 +113,7 @@ func PostProhibitedItem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Find user data using userID
-	userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user", bson.M{"id": userID})
+	userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user", bson.M{"private": userID})
 	if err != nil || userData.PhoneNumber == "" {
 		respn.Status = "Error: Unauthorized"
 		respn.Info = "You do not have permission to access this data."
@@ -136,7 +135,7 @@ func PostProhibitedItem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Insert item into database
-	collection := config.Mongoconn.Collection("prohibited_items_id")
+	collection := config.Mongoconn.Collection("prohibited_items_en")
 	_, err = collection.InsertOne(context.TODO(), bson.M{
 		"id_item":         newItem.IDItem,
 		"destination":     newItem.Destination,
@@ -253,7 +252,7 @@ func UpdateProhibitedItem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Find user data using userID
-	userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user", bson.M{"id": userID})
+	userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user", bson.M{"private": userID})
 	if err != nil || userData.PhoneNumber == "" {
 		respn.Status = "Error: Unauthorized"
 		respn.Info = "You do not have permission to access this data."
@@ -270,7 +269,7 @@ func UpdateProhibitedItem(w http.ResponseWriter, r *http.Request) {
 
 	// Validate that id_item is present
 	if item.IDItem == "" {
-		at.WriteJSON(w, http.StatusBadRequest, "ID Item tidak boleh kosong.")
+		at.WriteJSON(w, http.StatusBadRequest, "ID Item cannot be empty.")
 		return
 	}
 
@@ -307,6 +306,7 @@ func UpdateProhibitedItem(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+
 func DeleteProhibitedItem(w http.ResponseWriter, r *http.Request) {
 	var respn model.Response
 
@@ -329,7 +329,7 @@ func DeleteProhibitedItem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Find user data using userID
-	userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user", bson.M{"id": userID})
+	userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user", bson.M{"private": userID})
 	if err != nil || userData.PhoneNumber == "" {
 		respn.Status = "Error: Unauthorized"
 		respn.Info = "You do not have permission to access this data."
@@ -362,3 +362,4 @@ func DeleteProhibitedItem(w http.ResponseWriter, r *http.Request) {
 
 	at.WriteJSON(w, http.StatusOK, "Item deleted successfully")
 }
+
