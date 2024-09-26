@@ -30,17 +30,17 @@ func GetProhibitedItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Decode the token using DecodeGetId function
-	userID, err := pyy.DecodeGetId(config.PublicKey, tokenLogin)
+	// Decode the token using DecodeGetId to extract the ID (private key in this case)
+	privateKey, err := watoken.DecodeGetId(config.PublicKey, tokenLogin)
 	if err != nil {
 		respn.Status = "Error: Invalid token"
-		respn.Info = "The provided token is not valid: " + err.Error() // Include error detail for debugging
+		respn.Info = "The provided token is not valid: " + err.Error()
 		at.WriteJSON(w, http.StatusUnauthorized, respn)
 		return
 	}
 
-	// Find user data using userID
-	userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user", bson.M{"id": userID})
+	// Find user data using the private key (id) extracted from the token
+	userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user", bson.M{"private": privateKey})
 	if err != nil || userData.PhoneNumber == "" {
 		respn.Status = "Error: Unauthorized"
 		respn.Info = "You do not have permission to access this data."
@@ -48,10 +48,12 @@ func GetProhibitedItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Proceed with fetching prohibited items
+	// Proceed with fetching prohibited items (your logic for querying items)
 	query := r.URL.Query()
 	destination := query.Get("destination")
 	prohibitedItems := query.Get("prohibited_items")
+
+	// Build filter based on query parameters
 	filterItems := bson.M{}
 	if destination != "" {
 		filterItems["destination"] = destination
@@ -60,6 +62,7 @@ func GetProhibitedItem(w http.ResponseWriter, r *http.Request) {
 		filterItems["prohibited_items"] = prohibitedItems
 	}
 
+	// Set limit for results
 	findOptions := options.Find().SetLimit(20)
 	var items []model.ProhibitedItems
 	collection := config.Mongoconn.Collection("prohibited_items_en")
@@ -88,7 +91,6 @@ func GetProhibitedItem(w http.ResponseWriter, r *http.Request) {
 	// Respond with the items as JSON
 	at.WriteJSON(w, http.StatusOK, items)
 }
-
 
 func PostProhibitedItem(w http.ResponseWriter, r *http.Request) {
 	var respn model.Response

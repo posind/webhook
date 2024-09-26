@@ -3,7 +3,6 @@ package controller
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"github.com/gocroot/config"
@@ -69,10 +68,9 @@ func QRLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Getting user data based on phoneNumber from QR code
-	userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user", bson.M{"phonenumber": loginReq.PhoneNumber}) // phonenumber must match the JSON field
+	// Get user data based on phoneNumber from the QR code
+	userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user", bson.M{"phonenumber": loginReq.PhoneNumber})
 	if err != nil {
-		// Handle MongoDB errors
 		sendErrorResponse(w, "Database error: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -83,18 +81,14 @@ func QRLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Create token using the found phone number
-	tokenString, err := watoken.Encode(userData.PhoneNumber, userData.Private)
+	// Generate the token using the provided Encode function
+	tokenString, err := watoken.Encode(userData.Private, config.PrivateKey)
 	if err != nil {
-		sendErrorResponse(w, "Failed to encode token: "+err.Error(), http.StatusInternalServerError)
+		sendErrorResponse(w, "Failed to generate token: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// Debug: Check if token and phone number are correct
-	fmt.Println("Updating token for phone number:", userData.PhoneNumber)
-	fmt.Println("Generated token:", tokenString)
-
-	// Update token in the database using phoneNumber
+	// Update token in the database
 	update := bson.M{
 		"$set": bson.M{
 			"token": tokenString,
@@ -107,38 +101,30 @@ func QRLogin(w http.ResponseWriter, r *http.Request) {
 		update,
 	)
 	if err != nil {
-		fmt.Println("Error updating token in MongoDB:", err) // Debug log
-		sendErrorResponse(w, "Failed to update token: "+err.Error(), http.StatusInternalServerError)
+		sendErrorResponse(w, "Failed to update token in MongoDB: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// Add token to Header
-	w.Header().Set("Authorization", "Bearer "+tokenString)
+	// Add token to the response header
+	w.Header().Set("Login", tokenString) // Set the token in the custom header 'Login'
 	w.Header().Set("Content-Type", "application/json")
 
 	// Provide a response after the token has been successfully updated
 	resp.Status = true
 	resp.Token = tokenString
-	resp.Message = "Login successful via phone number"
+	resp.Message = "Login successful via QR code"
 
 	json.NewEncoder(w).Encode(resp)
 }
 
-
-
-
-// Helper function to handle error responses
+// sendErrorResponse is a helper function to handle error responses
 func sendErrorResponse(w http.ResponseWriter, message string, statusCode int) {
-	resp := model.Credential{
-		Message: message,
-		Status:  false,
-	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
-	json.NewEncoder(w).Encode(resp)
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": message,
+	})
 }
-
-
 
 // punya teh fahira
 
