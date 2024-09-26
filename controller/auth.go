@@ -59,35 +59,38 @@ func Register(w http.ResponseWriter, r *http.Request) {
 func QRLogin(w http.ResponseWriter, r *http.Request) {
 	var resp model.Credential
 	var loginReq struct {
-		PhoneNumber string `json:"phoneNumber"` // Expecting phoneNumber instead of privateKey
+		PhoneNumber string `json:"phoneNumber"` // Expecting phoneNumber from QR code
 	}
 
-	// Parsing JSON request dari body (mengambil phoneNumber dari QR code)
+	// Parsing JSON request from body (extracting phoneNumber from QR code)
 	err := json.NewDecoder(r.Body).Decode(&loginReq)
 	if err != nil {
 		sendErrorResponse(w, "Error parsing application/json: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	// Mendapatkan data user berdasarkan phoneNumber dari QR code
-	userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user", bson.M{"phoneNumber": loginReq.PhoneNumber})
+	// Getting user data based on phoneNumber from QR code
+	userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user", bson.M{"phonenumber": loginReq.PhoneNumber}) // phonenumber must match the JSON field
 	if err != nil {
+		// Handle MongoDB errors
 		sendErrorResponse(w, "Database error: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	// Check if user data was found
 	if userData.PhoneNumber == "" {
 		sendErrorResponse(w, "User not found", http.StatusNotFound)
 		return
 	}
 
-	// Membuat token menggunakan phone number yang ditemukan
+	// Create token using the found phone number
 	tokenString, err := watoken.Encode(userData.PhoneNumber, userData.Private)
 	if err != nil {
 		sendErrorResponse(w, "Failed to encode token: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// Debug: Cek apakah token dan nomor telepon benar
+	// Debug: Check if token and phone number are correct
 	fmt.Println("Updating token for phone number:", userData.PhoneNumber)
 	fmt.Println("Generated token:", tokenString)
 
@@ -100,7 +103,7 @@ func QRLogin(w http.ResponseWriter, r *http.Request) {
 
 	_, err = config.Mongoconn.Collection("user").UpdateOne(
 		context.Background(),
-		bson.M{"phoneNumber": userData.PhoneNumber},
+		bson.M{"phonenumber": userData.PhoneNumber}, // Match the field correctly
 		update,
 	)
 	if err != nil {
@@ -109,17 +112,20 @@ func QRLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Menambahkan token ke Header
+	// Add token to Header
 	w.Header().Set("Authorization", "Bearer "+tokenString)
 	w.Header().Set("Content-Type", "application/json")
 
-	// Berikan respon yang sesuai setelah token berhasil diperbarui
+	// Provide a response after the token has been successfully updated
 	resp.Status = true
 	resp.Token = tokenString
 	resp.Message = "Login successful via phone number"
 
 	json.NewEncoder(w).Encode(resp)
 }
+
+
+
 
 // Helper function to handle error responses
 func sendErrorResponse(w http.ResponseWriter, message string, statusCode int) {
