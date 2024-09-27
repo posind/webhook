@@ -36,10 +36,6 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		userdata.Private = privateKey
 		userdata.Public = publicKey
 
-		// Menghapus field email dan username jika kosong
-		userdata.Email = ""      // Hapus email
-		userdata.Username = ""   // Hapus username
-
 		// Insert new user data without email and username
 		_, err = atdb.InsertOneDoc(config.Mongoconn, "user", userdata)
 		if err != nil {
@@ -68,6 +64,12 @@ func QRLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validate phoneNumber input
+	if loginReq.PhoneNumber == "" {
+		sendErrorResponse(w, "Phone number is required", http.StatusBadRequest)
+		return
+	}
+
 	// Get user data based on phoneNumber from the QR code
 	userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user", bson.M{"phonenumber": loginReq.PhoneNumber})
 	if err != nil {
@@ -82,6 +84,12 @@ func QRLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Generate the token using the provided Encode function
+	// Ensure that userData.Private and config.PrivateKey are correctly passed
+	if userData.Private == "" || config.PrivateKey == "" {
+		sendErrorResponse(w, "Invalid data for token generation", http.StatusInternalServerError)
+		return
+	}
+
 	tokenString, err := watoken.Encode(userData.Private, config.PrivateKey)
 	if err != nil {
 		sendErrorResponse(w, "Failed to generate token: "+err.Error(), http.StatusInternalServerError)
@@ -106,7 +114,7 @@ func QRLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Add token to the response header
-	w.Header().Set("Login", tokenString) // Set the token in the custom header 'Login'
+	w.Header().Set("login", tokenString) // Set the token in the custom header 'Login'
 	w.Header().Set("Content-Type", "application/json")
 
 	// Provide a response after the token has been successfully updated
@@ -114,8 +122,11 @@ func QRLogin(w http.ResponseWriter, r *http.Request) {
 	resp.Token = tokenString
 	resp.Message = "Login successful via QR code"
 
+	// Sending the response
 	json.NewEncoder(w).Encode(resp)
 }
+
+
 
 // sendErrorResponse is a helper function to handle error responses
 func sendErrorResponse(w http.ResponseWriter, message string, statusCode int) {
