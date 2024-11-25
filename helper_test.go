@@ -1,4 +1,4 @@
-package gocroot
+package main
 
 import (
 	"fmt"
