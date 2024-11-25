@@ -5,10 +5,11 @@ import (
 
 	"github.com/gocroot/helper/kimseok"
 	"github.com/gocroot/mod/daftar"
+	// "github.com/gocroot/mod/helpdesk"
 	"github.com/gocroot/mod/idgrup"
 	"github.com/gocroot/mod/kyc"
-	"github.com/gocroot/mod/listcountry"
-	"github.com/gocroot/mod/listnegara"
+	// "github.com/gocroot/mod/listcountry"
+	// "github.com/gocroot/mod/listnegara"
 	"github.com/gocroot/mod/lmsdesa"
 	"github.com/gocroot/mod/maxweight"
 	"github.com/gocroot/mod/posint"
@@ -43,10 +44,21 @@ func Caller(Profile itmodel.Profile, Modulename string, Pesan itmodel.IteungMess
 	case "max-weight":
 		reply = maxweight.GetMaxWeight(Pesan, db)
 
-	case "listcountry":
-		reply = listcountry.ListCountry(Pesan)
-	case "listnegara":
-		reply = listnegara.ListNegara(Pesan)
+	// case "listcountry":
+	// 	reply = listcountry.ListCountry(Pesan)
+	// case "listnegara":
+	// 	reply = listnegara.ListNegara(Pesan)
+
+	// case "feedbackhelpdesk":
+	// 	reply = helpdesk.FeedbackHelpdesk(Profile, Pesan, db)
+	// case "endhelpdesk":
+	// 	reply = helpdesk.EndHelpdesk(Profile, Pesan, db)
+	// case "helpdesk":
+	// 	reply = helpdesk.HelpdeskPDLMS(Profile, Pesan, db)
+	// case "helpdeskpusat":
+	// 	reply = helpdesk.HelpdeskPusat(Profile, Pesan, db)
+	// case "adminopenusertiket":
+	// 	reply = helpdesk.AdminOpenSessionCurrentUserTiket(Profile, Pesan, db)
 
 	default:
 		// Fallback to QueriesDataRegexpALL if no case matches

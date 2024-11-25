@@ -14,6 +14,7 @@ import (
 	"github.com/gocroot/config"
 	"github.com/gocroot/helper/at"
 	"github.com/gocroot/helper/atdb"
+	"github.com/gocroot/helper/watoken"
 	"github.com/gocroot/model"
 )
 
@@ -114,25 +115,36 @@ func GetItemLarangan(w http.ResponseWriter, r *http.Request) {
 	// Extract token from Login header
 	tokenLogin := r.Header.Get("login")
 	if tokenLogin == "" {
-		respn.Status = "Error: Missing Login header"
-		respn.Info = "Login header is missing."
+		respn.Status = "Error: Header Login Hilang"
+		respn.Info = "Header login tidak ditemukan."
 		at.WriteJSON(w, http.StatusUnauthorized, respn)
 		return
 	}
 
-	// Find user by token in the database
-	userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user", bson.M{"token": tokenLogin})
+	// Decode token menggunakan DecodeGetId untuk mendapatkan private key
+	privateKey, err := watoken.DecodeGetId(config.PublicKey, tokenLogin)
+	if err != nil {
+		respn.Status = "Error: Token Tidak Valid"
+		respn.Info = "Token yang diberikan tidak valid: " + err.Error()
+		at.WriteJSON(w, http.StatusUnauthorized, respn)
+		return
+	}
+
+	// Cari data pengguna menggunakan private key dari token
+	userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user", bson.M{"private": privateKey})
 	if err != nil || userData.PhoneNumber == "" {
-		respn.Status = "Error: Unauthorized"
+		respn.Status = "Error: Tidak Berizin"
 		respn.Info = "Anda tidak memiliki izin untuk mengakses data ini."
 		at.WriteJSON(w, http.StatusForbidden, respn)
 		return
 	}
 
-	// Token is valid, proceed with fetching the data
+	// Ambil parameter query
 	query := r.URL.Query()
 	destinasi := query.Get("destinasi")
 	barangTerlarang := query.Get("barang_terlarang")
+
+	// Buat filter berdasarkan query parameter
 	filterItems := bson.M{}
 	if destinasi != "" {
 		filterItems["destinasi"] = destinasi
@@ -140,36 +152,36 @@ func GetItemLarangan(w http.ResponseWriter, r *http.Request) {
 	if barangTerlarang != "" {
 		filterItems["barang_terlarang"] = barangTerlarang
 	}
-	findOptions := options.Find().SetLimit(20)
 
-	// Query MongoDB
+	// Set limit untuk hasil
+	findOptions := options.Find().SetLimit(20)
 	var items []model.Itemlarangan
 	collection := config.Mongoconn.Collection("prohibited_items_id")
 	cursor, err := collection.Find(context.Background(), filterItems, findOptions)
 	if err != nil {
 		respn.Status = "Error: Internal Server Error"
-		respn.Info = "Error fetching items from the database."
+		respn.Info = "Terjadi kesalahan saat mengambil data dari database."
 		at.WriteJSON(w, http.StatusInternalServerError, respn)
 		return
 	}
 	defer cursor.Close(context.Background())
+
 	if err = cursor.All(context.Background(), &items); err != nil {
 		respn.Status = "Error: Internal Server Error"
-		respn.Info = "Error decoding items."
+		respn.Info = "Terjadi kesalahan saat memproses data."
 		at.WriteJSON(w, http.StatusInternalServerError, respn)
 		return
 	}
 	if len(items) == 0 {
-		respn.Status = "Error: No items found"
-		respn.Info = "No items match the provided filters."
+		respn.Status = "Error: Tidak Ada Data"
+		respn.Info = "Tidak ada barang terlarang yang sesuai dengan filter."
 		at.WriteJSON(w, http.StatusNotFound, respn)
 		return
 	}
 
-	// Respond with the items as JSON
+	// Berikan respons dalam bentuk JSON
 	at.WriteJSON(w, http.StatusOK, items)
 }
-
 
 func PostItemLarangan(w http.ResponseWriter, r *http.Request) {
 	var respn model.Response
@@ -177,43 +189,44 @@ func PostItemLarangan(w http.ResponseWriter, r *http.Request) {
 	// Extract token from Login header
 	tokenLogin := r.Header.Get("login")
 	if tokenLogin == "" {
-		respn.Status = "Error: Missing Login header"
-		respn.Info = "Login header is missing."
+		respn.Status = "Error: Header Login Hilang"
+		respn.Info = "Header login tidak ditemukan."
 		at.WriteJSON(w, http.StatusUnauthorized, respn)
 		return
 	}
 
-	// Find user by token in the database
-	userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user", bson.M{"token": tokenLogin})
+	// Decode token untuk mendapatkan user ID
+	userID, err := watoken.DecodeGetId(config.PublicKey, tokenLogin)
+	if err != nil {
+		respn.Status = "Error: Token Tidak Valid"
+		respn.Info = "Token yang diberikan tidak valid: " + err.Error()
+		at.WriteJSON(w, http.StatusUnauthorized, respn)
+		return
+	}
+
+	// Cari data pengguna menggunakan userID
+	userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user", bson.M{"private": userID})
 	if err != nil || userData.PhoneNumber == "" {
-		respn.Status = "Error: Unauthorized"
+		respn.Status = "Error: Tidak Berizin"
 		respn.Info = "Anda tidak memiliki izin untuk mengakses data ini."
 		at.WriteJSON(w, http.StatusForbidden, respn)
 		return
 	}
 
-	// Decode request body for a new item
+	// Decode body permintaan untuk item baru
 	var newItem model.Itemlarangan
 	if err := json.NewDecoder(r.Body).Decode(&newItem); err != nil {
 		at.WriteJSON(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	// Validate required fields
-	if newItem.Destinasi == "" {
-		at.WriteJSON(w, http.StatusBadRequest, "Destinasi tidak boleh kosong.")
-		return
-	}
-	if newItem.BarangTerlarang == "" {
-		at.WriteJSON(w, http.StatusBadRequest, "Barang Terlarang tidak boleh kosong.")
-		return
-	}
-	if newItem.IDItemIND == "" {
-		at.WriteJSON(w, http.StatusBadRequest, "ID Item tidak boleh kosong.")
+	// Validasi input yang diperlukan
+	if newItem.Destinasi == "" || newItem.BarangTerlarang == "" || newItem.IDItemIND == "" {
+		at.WriteJSON(w, http.StatusBadRequest, "Semua bidang (Destinasi, Barang Terlarang, ID Item) harus diisi.")
 		return
 	}
 
-	// Insert the item into the database
+	// Masukkan item ke dalam database
 	collection := config.Mongoconn.Collection("prohibited_items_id")
 	_, err = collection.InsertOne(context.TODO(), bson.M{
 		"id_itemind":       newItem.IDItemIND,
@@ -225,7 +238,7 @@ func PostItemLarangan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Successfully added the item, return the item with custom id_itemind
+	// Berikan respons dengan item yang baru ditambahkan
 	at.WriteJSON(w, http.StatusOK, bson.M{
 		"id_itemind":       newItem.IDItemIND,
 		"destinasi":        newItem.Destinasi,
@@ -239,58 +252,69 @@ func UpdateItemLarangan(w http.ResponseWriter, r *http.Request) {
 	// Extract token from Login header
 	tokenLogin := r.Header.Get("login")
 	if tokenLogin == "" {
-		respn.Status = "Error: Missing Login header"
-		respn.Info = "Login header is missing."
+		respn.Status = "Error: Header Login Hilang"
+		respn.Info = "Header login tidak ditemukan."
 		at.WriteJSON(w, http.StatusUnauthorized, respn)
 		return
 	}
 
-	// Find user by token in the database
-	userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user", bson.M{"token": tokenLogin})
+	// Decode token untuk mendapatkan user ID
+	userID, err := watoken.DecodeGetId(config.PublicKey, tokenLogin)
+	if err != nil {
+		respn.Status = "Error: Token Tidak Valid"
+		respn.Info = "Token yang diberikan tidak valid."
+		at.WriteJSON(w, http.StatusUnauthorized, respn)
+		return
+	}
+
+	// Cari data pengguna menggunakan userID
+	userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user", bson.M{"private": userID})
 	if err != nil || userData.PhoneNumber == "" {
-		respn.Status = "Error: Unauthorized"
+		respn.Status = "Error: Tidak Berizin"
 		respn.Info = "Anda tidak memiliki izin untuk mengakses data ini."
 		at.WriteJSON(w, http.StatusForbidden, respn)
 		return
 	}
 
-	// Decode the request body to update the item
+	// Decode body permintaan untuk item yang akan diperbarui
 	var item model.Itemlarangan
 	if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
-		at.WriteJSON(w, http.StatusBadRequest, "Format JSON tidak valid")
+		at.WriteJSON(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	// Validate that id_itemind is present in the request
+	// Validasi bahwa id_itemind ada
 	if item.IDItemIND == "" {
-		at.WriteJSON(w, http.StatusBadRequest, "ID Item tidak boleh kosong")
+		at.WriteJSON(w, http.StatusBadRequest, "ID Item tidak boleh kosong.")
 		return
 	}
 
-	// Log the item data to be updated
-	log.Printf("Item to be updated: %+v", item)
-
-	// Define the filter to find the document by "id_itemind"
+	// Definisikan filter untuk menemukan dokumen berdasarkan "id_itemind"
 	filter := bson.M{"id_itemind": item.IDItemIND}
 
-	// Define the fields to update: destinasi and barang_terlarang
+	// Definisikan bidang-bidang yang akan diperbarui
 	updateFields := bson.M{
 		"barang_terlarang": item.BarangTerlarang,
 		"destinasi":        item.Destinasi,
 	}
 
-	// Perform the update operation using the UpdateOneDoc helper function
+	// Lakukan operasi update
 	result, err := atdb.UpdateOneDoc(config.Mongoconn, "prohibited_items_id", filter, updateFields)
 	if err != nil {
-		log.Printf("MongoDB Update error: %v", err)
-		at.WriteJSON(w, http.StatusInternalServerError, "Gagal memperbarui item")
+		log.Printf("Kesalahan update MongoDB: %v", err)
+		at.WriteJSON(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	// Log the update result
-	log.Printf("MongoDB update result: %+v", result)
+	// Periksa apakah ada dokumen yang diperbarui
+	if result.ModifiedCount == 0 {
+		respn.Status = "Error: Tidak Ada Dokumen yang Diperbarui"
+		respn.Info = "Tidak ada dokumen yang diperbarui, silakan periksa id_itemind yang diberikan."
+		at.WriteJSON(w, http.StatusNotFound, respn)
+		return
+	}
 
-	// Respond with the updated item
+	// Berikan respons dengan item yang diperbarui
 	at.WriteJSON(w, http.StatusOK, bson.M{
 		"id_itemind":       item.IDItemIND,
 		"destinasi":        item.Destinasi,
@@ -298,56 +322,61 @@ func UpdateItemLarangan(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-
 func DeleteItemLarangan(w http.ResponseWriter, r *http.Request) {
 	var respn model.Response
 
 	// Extract token from Login header
 	tokenLogin := r.Header.Get("login")
 	if tokenLogin == "" {
-		respn.Status = "Error: Missing Login header"
-		respn.Info = "Login header is missing."
+		respn.Status = "Error: Header Login Hilang"
+		respn.Info = "Header login tidak ditemukan."
 		at.WriteJSON(w, http.StatusUnauthorized, respn)
 		return
 	}
 
-	// Find user by token in the database
-	userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user", bson.M{"token": tokenLogin})
+	// Decode token untuk mendapatkan user ID
+	userID, err := watoken.DecodeGetId(config.PublicKey, tokenLogin)
+	if err != nil {
+		respn.Status = "Error: Token Tidak Valid"
+		respn.Info = "Token yang diberikan tidak valid."
+		at.WriteJSON(w, http.StatusUnauthorized, respn)
+		return
+	}
+
+	// Cari data pengguna menggunakan userID
+	userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user", bson.M{"private": userID})
 	if err != nil || userData.PhoneNumber == "" {
-		respn.Status = "Error: Unauthorized"
+		respn.Status = "Error: Tidak Berizin"
 		respn.Info = "Anda tidak memiliki izin untuk mengakses data ini."
 		at.WriteJSON(w, http.StatusForbidden, respn)
 		return
 	}
 
-	// Continue with the logic to delete an item
+	// Decode body permintaan
 	var requestBody struct {
 		IDItemIND string `json:"id_itemind"`
 	}
-	// Decode request body
 	if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
-		at.WriteJSON(w, http.StatusBadRequest, "Invalid JSON format")
+		at.WriteJSON(w, http.StatusBadRequest, "Format JSON tidak valid")
 		return
 	}
 
-	// Validate if id_itemind is present in the body
+	// Validasi jika id_itemind ada
 	if requestBody.IDItemIND == "" {
-		at.WriteJSON(w, http.StatusBadRequest, "id_itemind is required")
+		at.WriteJSON(w, http.StatusBadRequest, "id_itemind diperlukan")
 		return
 	}
 
-	
-	// Use atdb.DeleteOneDoc to delete the item from the "itemlarangan" collection
+	// Hapus item dari database
 	_, delErr := atdb.DeleteOneDoc(config.Mongoconn, "prohibited_items_id", bson.M{"id_itemind": requestBody.IDItemIND})
 	if delErr != nil {
-		log.Printf("Error deleting item: %v", delErr)
-		at.WriteJSON(w, http.StatusInternalServerError, "Gagal menghapus item")
+		log.Printf("Kesalahan saat menghapus item: %v", delErr)
+		at.WriteJSON(w, http.StatusInternalServerError, "Kesalahan saat menghapus item")
 		return
 	}
 
 	at.WriteJSON(w, http.StatusOK, "Item berhasil dihapus")
 }
-
 
 
 

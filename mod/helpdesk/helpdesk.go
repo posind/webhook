@@ -1,270 +1,305 @@
 package helpdesk
 
-import (
-	"errors"
-	"strconv"
-	"strings"
+// import (
+// 	"fmt"
+// 	"strings"
 
-	"github.com/gocroot/helper/atapi"
-	"github.com/gocroot/helper/atdb"
-	"github.com/whatsauth/itmodel"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
-)
+// 	"github.com/gocroot/config"
+// 	"github.com/gocroot/helper/atapi"
+// 	"github.com/gocroot/helper/atdb"
+// 	"github.com/gocroot/helper/hub"
+// 	"github.com/gocroot/helper/lms"
+// 	"github.com/gocroot/helper/menu"
+// 	"github.com/gocroot/helper/phone"
+// 	"github.com/gocroot/helper/tiket"
+// 	"github.com/gocroot/helper/waktu"
+// 	"github.com/whatsauth/itmodel"
+// 	"go.mongodb.org/mongo-driver/bson"
+// 	"go.mongodb.org/mongo-driver/bson/primitive"
+// 	"go.mongodb.org/mongo-driver/mongo"
+// )
 
-// mendapatkan nama team helpdesk dari pesan
-func GetNamaTeamFromPesan(Pesan itmodel.IteungMessage, db *mongo.Database) (team string, helpdeskslist []string, err error) {
-	msg := strings.ReplaceAll(Pesan.Message, "bantuan", "")
-	msg = strings.ReplaceAll(msg, "operator", "")
-	msg = strings.TrimSpace(msg)
-	helpdesks, err := atdb.GetAllDistinctDoc(db, bson.M{}, "team", "helpdesk")
-	if err != nil {
-		return
-	}
-	//mendapatkan keyword masuk ke team yang mana
-	for _, helpdesk := range helpdesks {
-		tim := helpdesk.(string)
-		if strings.Contains(msg, tim) {
-			team = tim
-			return
-		}
-		helpdeskslist = append(helpdeskslist, tim)
-	}
-	return
-}
+// // helpdesk sudah terintegrasi dengan lms pamong desa backend
+// func HelpdeskPDLMS(Profile itmodel.Profile, Pesan itmodel.IteungMessage, db *mongo.Database) (reply string) {
+// 	//check apakah tiketnya udah tutup atau belum
+// 	isclosed, stiket, err := tiket.IsTicketClosed("userphone", Pesan.Phone_number, db)
+// 	if err != nil {
+// 		return "IsTicketClosed: " + err.Error()
+// 	}
+// 	if !isclosed { //ada yang belum closed, lanjutkan sesi hub
+// 		//pesan ke user
+// 		reply = GetPrefillMessage("userbantuanadmin", db) //pesan ke user
+// 		reply = fmt.Sprintf(reply, stiket.AdminName)
+// 		hub.CheckHubSession(stiket.UserPhone, stiket.UserName, stiket.AdminPhone, stiket.AdminName, db)
+// 		//inject menu session untuk menutup tiket
+// 		mn := menu.MenuList{
+// 			No:      0,
+// 			Keyword: stiket.ID.Hex() + "|tutuph3lpdeskt1kcet",
+// 			Konten:  "Akhiri percakapan dan tutup sesi bantuan saat ini",
+// 		}
+// 		err = menu.InjectSessionMenu([]menu.MenuList{mn}, stiket.UserPhone, db)
+// 		if err != nil {
+// 			return err.Error()
+// 		}
+// 		err = menu.InjectSessionMenu([]menu.MenuList{mn}, stiket.AdminPhone, db)
+// 		if err != nil {
+// 			return err.Error()
+// 		}
+// 		return
+// 	}
+// 	//jika tiket sudah clear
+// 	statuscode, res, err := atapi.GetStructWithToken[lms.ResponseAPIPD]("token", config.APITOKENPD, config.APIGETPDLMS+Pesan.Phone_number)
+// 	if statuscode != 200 { //404 jika user not found
+// 		msg := "Mohon maaf Bapak/Ibu, nomor anda *belum terdaftar* pada sistem kami.\n" + UserNotFound(Profile, Pesan, db)
+// 		return msg
+// 	}
+// 	if err != nil {
+// 		return err.Error()
+// 	}
+// 	if len(res.Data.ContactAdminProvince) == 0 { //kalo kosong data kontak admin provinsinya maka arahkan ke tim 16 tapi sesuikan dengan provinsinya
+// 		msg := "Mohon maaf Bapak/Ibu " + res.Data.Fullname + " dari desa " + res.Data.Village + ", helpdesk pamongdesa anda.\n" + AdminNotFoundWithProvinsi(Profile, Pesan, res.Data.Province, db)
+// 		return msg
+// 	}
+// 	//jika arraynya ada adminnya maka lanjut ke start session hub
+// 	helpdeskno := res.Data.ContactAdminProvince[0].Phone
+// 	helpdeskname := res.Data.ContactAdminProvince[0].Fullname
+// 	if helpdeskname == "" || helpdeskno == "" {
+// 		return "Nama atau nomor helpdesk tidak ditemukan"
+// 	}
+// 	//pesan ke admin
+// 	msgstr := GetPrefillMessage("adminbantuanadmin", db) //pesan ke admin
+// 	msgstr = fmt.Sprintf(msgstr, res.Data.Fullname, res.Data.Village, res.Data.District, res.Data.Regency)
+// 	dt := &itmodel.TextMessage{
+// 		To:       helpdeskno,
+// 		IsGroup:  false,
+// 		Messages: msgstr,
+// 	}
+// 	go atapi.PostStructWithToken[itmodel.Response]("Token", Profile.Token, dt, Profile.URLAPIText)
+// 	//pesan ke user
+// 	reply = GetPrefillMessage("userbantuanadmin", db) //pesan ke user
+// 	reply = fmt.Sprintf(reply, helpdeskname)
+// 	//insert ke database dan set hub session
+// 	idtiket, err := tiket.InserNewTicket(Pesan.Phone_number, helpdeskname, helpdeskno, db)
+// 	if err != nil {
+// 		return err.Error()
+// 	}
+// 	hub.CheckHubSession(Pesan.Phone_number, res.Data.Fullname, helpdeskno, helpdeskname, db)
+// 	//inject menu session untuk menutup tiket
+// 	mn := menu.MenuList{
+// 		No:      0,
+// 		Keyword: idtiket.Hex() + "|tutuph3lpdeskt1kcet",
+// 		Konten:  "Akhiri percakapan dan tutup sesi bantuan saat ini",
+// 	}
+// 	err = menu.InjectSessionMenu([]menu.MenuList{mn}, Pesan.Phone_number, db)
+// 	if err != nil {
+// 		return err.Error()
+// 	}
+// 	err = menu.InjectSessionMenu([]menu.MenuList{mn}, helpdeskno, db)
+// 	if err != nil {
+// 		return err.Error()
+// 	}
+// 	return
 
-// mendapatkan scope helpdesk dari pesan
-func GetScopeFromTeam(Pesan itmodel.IteungMessage, team string, db *mongo.Database) (scope string, scopeslist []string, err error) {
-	filter := bson.M{
-		"team": team,
-	}
-	scopes, err := atdb.GetAllDistinctDoc(db, filter, "scope", "helpdesk")
-	if err != nil {
-		return
-	}
-	//mendapatkan keyword masuk ke team yang mana
-	for _, scp := range scopes {
-		scpe := scp.(string)
-		if strings.Contains(Pesan.Message, scpe) {
-			scope = scpe
-			return
-		}
-		scopeslist = append(scopeslist, scpe)
-	}
-	return
-}
+// }
 
-// mendapatkan scope helpdesk dari pesan
-func GetOperatorFromScopeandTeam(scope, team string, db *mongo.Database) (operator Helpdesk, err error) {
-	filter := bson.M{
-		"scope": scope,
-		"team":  team,
-	}
-	operator, err = atdb.GetOneLowestDoc[Helpdesk](db, "helpdesk", filter, "jumlahantrian")
-	if err != nil {
-		return
-	}
-	operator.JumlahAntrian += 1
-	filter = bson.M{
-		"scope":        scope,
-		"team":         team,
-		"phonenumbers": operator.Phonenumbers,
-	}
-	_, err = atdb.ReplaceOneDoc(db, "helpdesk", filter, operator)
-	if err != nil {
-		return
-	}
-	return
-}
+// // Jika user tidak terdaftar maka akan mengeluarkan list operator pusat
+// func UserNotFound(Profile itmodel.Profile, Pesan itmodel.IteungMessage, db *mongo.Database) (reply string) {
+// 	//check apakah ada session, klo ga ada kasih reply menu
+// 	Sesdoc, _, err := menu.CheckSession(Pesan.Phone_number, db)
+// 	if err != nil {
+// 		return err.Error()
+// 	}
 
-// handling key word
-func StartHelpdesk(Pesan itmodel.IteungMessage, db *mongo.Database) (reply string) {
-	namateam, helpdeskslist, err := GetNamaTeamFromPesan(Pesan, db)
-	if err != nil {
-		return err.Error()
-	}
-	//suruh pilih nama team kalo tidak ada
-	if namateam == "" {
-		reply = "Silakan memilih helpdesk yang anda tuju:\n"
-		for i, helpdesk := range helpdeskslist {
-			no := strconv.Itoa(i + 1)
-			reply += no + ". " + helpdesk + "\n" + "wa.me/62895601060000?text=bantuan+operator+" + helpdesk + "\n"
-		}
-		return
-	}
-	//suruh pilih scope dari bantuan team
-	scope, scopelist, err := GetScopeFromTeam(Pesan, namateam, db)
-	if err != nil {
-		return err.Error()
-	}
-	//pilih scope jika belum
-	if scope == "" {
-		reply = "Silakan memilih jenis bantuan yang anda butuhkan dari operator " + namateam + ":\n"
-		for i, scope := range scopelist {
-			no := strconv.Itoa(i + 1)
-			reply += no + ". " + scope + "\n" + "wa.me/62895601060000?text=bantuan+operator+" + namateam + "+" + scope + "\n"
-		}
-		return
-	}
-	//menuliskan pertanyaan bantuan
-	user := User{
-		Scope:        scope,
-		Team:         namateam,
-		Name:         Pesan.Alias_name,
-		Phonenumbers: Pesan.Phone_number,
-	}
-	_, err = atdb.InsertOneDoc(db, "helpdeskuser", user)
-	if err != nil {
-		return err.Error()
-	}
-	reply = "Silahkan kak " + Pesan.Alias_name + " mengetik pertanyaan atau bantuan yang ingin dijawab oleh operator: "
+// 	msg, err := menu.GetMenuFromKeywordAndSetSession("adminpusat", Sesdoc, db)
+// 	if err != nil {
+// 		return err.Error()
+// 	}
+// 	return msg
+// }
 
-	return
-}
+// // penugasan helpdeskpusat jika user belum terdaftar, ini limpahan dari pilihan func UserNotFound
+// func HelpdeskPusat(Profile itmodel.Profile, Pesan itmodel.IteungMessage, db *mongo.Database) (reply string) {
+// 	Pesan.Message = strings.ReplaceAll(Pesan.Message, "adminpusat", "")
+// 	Pesan.Message = strings.TrimSpace(Pesan.Message)
+// 	op, err := GetOperatorFromSection(Pesan.Message, db)
+// 	if err != nil {
+// 		return err.Error()
+// 	}
+// 	res := lms.GetDataFromAPI(Pesan.Phone_number)
+// 	//pesan untuk admin
+// 	msgstr := GetPrefillMessage("adminbantuanadmin", db)
+// 	if res.Data.Fullname != "" {
+// 		msgstr = fmt.Sprintf(msgstr, res.Data.Fullname, res.Data.Village, res.Data.District, res.Data.Regency)
+// 	} else {
+// 		msgstr = fmt.Sprintf(msgstr, phone.MaskPhoneNumber(Pesan.Phone_number)+" ~ "+Pesan.Alias_name, "belum", "terdaftar", "sistem")
+// 	}
+// 	dt := &itmodel.TextMessage{
+// 		To:       op.PhoneNumber,
+// 		IsGroup:  false,
+// 		Messages: msgstr,
+// 	}
+// 	go atapi.PostStructWithToken[itmodel.Response]("Token", Profile.Token, dt, Profile.URLAPIText)
+// 	//pesan untuk user
+// 	reply = GetPrefillMessage("userbantuanadmin", db)
+// 	reply = fmt.Sprintf(reply, op.Name)
+// 	//insert ke database dan set hub session
+// 	idtiket, err := tiket.InserNewTicket(Pesan.Phone_number, op.Name, op.PhoneNumber, db)
+// 	if err != nil {
+// 		return err.Error()
+// 	}
+// 	hub.CheckHubSession(Pesan.Phone_number, phone.MaskPhoneNumber(Pesan.Phone_number)+" ~ "+Pesan.Alias_name, op.PhoneNumber, op.Name, db)
+// 	//inject menu session untuk menutup tiket
+// 	mn := menu.MenuList{
+// 		No:      0,
+// 		Keyword: idtiket.Hex() + "|tutuph3lpdeskt1kcet",
+// 		Konten:  "Akhiri percakapan dan tutup sesi bantuan saat ini",
+// 	}
+// 	err = menu.InjectSessionMenu([]menu.MenuList{mn}, Pesan.Phone_number, db)
+// 	if err != nil {
+// 		return err.Error()
+// 	}
+// 	err = menu.InjectSessionMenu([]menu.MenuList{mn}, op.PhoneNumber, db)
+// 	if err != nil {
+// 		return err.Error()
+// 	}
+// 	return
 
-// handling key word
-func EndHelpdesk(Profile itmodel.Profile, Pesan itmodel.IteungMessage, db *mongo.Database) (reply string) {
-	msgs := strings.Split(Pesan.Message, "|")
-	id := msgs[0]
-	// Mengonversi id string ke primitive.ObjectID
-	objectID, err := primitive.ObjectIDFromHex(id)
-	if err != nil {
-		reply = "Invalid ID format: " + err.Error()
-		return
-	}
-	helpdeskuser, err := atdb.GetOneLatestDoc[User](db, "helpdeskuser", bson.M{"_id": objectID, "operator.phonenumbers": Pesan.Phone_number})
-	if err != nil {
-		reply = err.Error()
-		return
-	}
-	helpdeskuser.Solusi = strings.Split(msgs[1], ":")[1]
-	helpdeskuser.Terlayani = true
-	_, err = atdb.ReplaceOneDoc(db, "helpdeskuser", bson.M{"_id": objectID}, helpdeskuser)
-	if err != nil {
-		reply = err.Error()
-		return
-	}
-	op := helpdeskuser.Operator
-	op.JumlahAntrian -= 1
-	filter := bson.M{
-		"scope":        op.Scope,
-		"team":         op.Team,
-		"phonenumbers": op.Phonenumbers,
-	}
-	_, err = atdb.ReplaceOneDoc(db, "helpdesk", filter, op)
-	if err != nil {
-		reply = err.Error()
-		return
-	}
-	reply = "*Penutupan Tiket Helpdesk*\nUser : " + helpdeskuser.Name + "\nMasalah:\n" + helpdeskuser.Masalah
+// }
 
-	msgstr := "*Permintaan Feedback Helpdesk*\nOperator " + helpdeskuser.Operator.Name + " (" + helpdeskuser.Operator.Phonenumbers + ")\nMeminta tolong kakak " + helpdeskuser.Name + " untuk memberikan rating layanan (bintang 1-5) di link berikut:\n"
-	msgstr += "wa.me/62895601060000?text=" + helpdeskuser.ID.Hex() + "|+rating+bintang+layanan+helpdesk+:+5"
-	dt := &itmodel.TextMessage{
-		To:       helpdeskuser.Phonenumbers,
-		IsGroup:  false,
-		Messages: msgstr,
-	}
-	go atapi.PostStructWithToken[itmodel.Response]("Token", Profile.Token, dt, Profile.URLAPIText)
+// // Jika user terdaftar tapi belum ada operator provinsi maka akan mengeluarkan list operator pusat
+// func AdminNotFoundWithProvinsi(Profile itmodel.Profile, Pesan itmodel.IteungMessage, provinsi string, db *mongo.Database) (reply string) {
+// 	//tambah lojik query ke provinsi
+// 	sec, err := GetSectionFromProvinsiRegex(db, provinsi)
+// 	if err != nil {
+// 		return err.Error()
+// 	}
+// 	op, err := GetOperatorFromSection(sec, db)
+// 	if err != nil {
+// 		return err.Error()
+// 	}
+// 	res := lms.GetDataFromAPI(Pesan.Phone_number)
+// 	msgstr := GetPrefillMessage("adminbantuanadmin", db) //pesan untuk admin
+// 	msgstr = fmt.Sprintf(msgstr, res.Data.Fullname, res.Data.Village, res.Data.District, res.Data.Regency)
+// 	dt := &itmodel.TextMessage{
+// 		To:       op.PhoneNumber,
+// 		IsGroup:  false,
+// 		Messages: msgstr,
+// 	}
+// 	go atapi.PostStructWithToken[itmodel.Response]("Token", Profile.Token, dt, Profile.URLAPIText)
+// 	reply = GetPrefillMessage("userbantuanadmin", db) //pesan untuk user
+// 	reply = fmt.Sprintf(reply, op.Name)
+// 	//insert ke database dan set hub session
+// 	idtiket, err := tiket.InserNewTicket(Pesan.Phone_number, op.Name, op.PhoneNumber, db)
+// 	if err != nil {
+// 		return err.Error()
+// 	}
+// 	hub.CheckHubSession(Pesan.Phone_number, res.Data.Fullname, op.PhoneNumber, op.Name, db)
+// 	//inject menu session untuk menutup tiket
+// 	mn := menu.MenuList{
+// 		No:      0,
+// 		Keyword: idtiket.Hex() + "|tutuph3lpdeskt1kcet",
+// 		Konten:  "Akhiri percakapan dan tutup sesi bantuan saat ini",
+// 	}
+// 	err = menu.InjectSessionMenu([]menu.MenuList{mn}, Pesan.Phone_number, db)
+// 	if err != nil {
+// 		return err.Error()
+// 	}
+// 	err = menu.InjectSessionMenu([]menu.MenuList{mn}, op.PhoneNumber, db)
+// 	if err != nil {
+// 		return err.Error()
+// 	}
+// 	return
+// }
 
-	return
-}
+// // penutupan helpdesk dari pilihan menu objectid|tutuph3lpdeskt1kcet
+// func EndHelpdesk(Profile itmodel.Profile, Pesan itmodel.IteungMessage, db *mongo.Database) (reply string) {
+// 	msgs := strings.Split(Pesan.Message, "|")
+// 	id := msgs[0]
+// 	// Mengonversi id string ke primitive.ObjectID
+// 	objectID, err := primitive.ObjectIDFromHex(id)
+// 	if err != nil {
+// 		reply = "Invalid ID format: " + err.Error()
+// 		return
+// 	}
+// 	helpdeskuser, err := atdb.GetOneLatestDoc[tiket.Bantuan](db, "tiket", bson.M{"_id": objectID})
+// 	if err != nil {
+// 		reply = err.Error()
+// 		return
+// 	}
+// 	//helpdeskuser.Solusi = strings.Split(msgs[1], ":")[1]
+// 	helpdeskuser.Terlayani = true
+// 	helpdeskuser.CloseAt = waktu.Sekarang()
+// 	_, err = atdb.ReplaceOneDoc(db, "tiket", bson.M{"_id": objectID}, helpdeskuser)
+// 	if err != nil {
+// 		reply = err.Error()
+// 		return
+// 	}
+// 	//hapus hub
+// 	atdb.DeleteOneDoc(db, "hub", bson.M{"userphone": helpdeskuser.UserPhone, "adminphone": helpdeskuser.AdminPhone})
+// 	//hapus session menu
+// 	atdb.DeleteOneDoc(db, "session", bson.M{"phonenumber": helpdeskuser.UserPhone})
+// 	atdb.DeleteOneDoc(db, "session", bson.M{"phonenumber": helpdeskuser.AdminPhone})
+// 	//prefill message admin dan user
+// 	msgstradmin := GetPrefillMessage("admintutuphelpdesk", db) //pesan untuk admin
+// 	if helpdeskuser.UserName != "" {
+// 		msgstradmin = fmt.Sprintf(msgstradmin, helpdeskuser.UserName, helpdeskuser.Desa)
+// 	} else {
+// 		msgstradmin = fmt.Sprintf(msgstradmin, phone.MaskPhoneNumber(helpdeskuser.UserPhone), "Belum Terdaftar Sistem")
+// 	}
 
-// handling key word
-func FeedbackHelpdesk(Profile itmodel.Profile, Pesan itmodel.IteungMessage, db *mongo.Database) (reply string) {
-	msgs := strings.Split(Pesan.Message, "|")
-	id := msgs[0]
-	// Mengonversi id string ke primitive.ObjectID
-	objectID, err := primitive.ObjectIDFromHex(id)
-	if err != nil {
-		reply = "Invalid ID format: " + err.Error()
-		return
-	}
-	helpdeskuser, err := atdb.GetOneLatestDoc[User](db, "helpdeskuser", bson.M{"_id": objectID, "phonenumbers": Pesan.Phone_number})
-	if err != nil {
-		reply = err.Error()
-		return
-	}
-	strrate := strings.Split(msgs[1], ":")[1]
-	rate := strings.TrimSpace(strrate)
-	rt, err := strconv.Atoi(rate)
-	if err != nil {
-		reply = err.Error()
-		return
-	}
-	helpdeskuser.RateLayanan = rt
-	_, err = atdb.ReplaceOneDoc(db, "helpdeskuser", bson.M{"_id": objectID}, helpdeskuser)
-	if err != nil {
-		reply = err.Error()
-		return
-	}
+// 	msgstruser := GetPrefillMessage("usertutuphelpdesk", db) //pesan untuk user
+// 	msgstruser = fmt.Sprintf(msgstruser, helpdeskuser.AdminName, helpdeskuser.UserName, helpdeskuser.ID.Hex())
+// 	//pembagian yg dikirim dan reply
+// 	var sendmsg, to string
+// 	if Pesan.Phone_number == helpdeskuser.UserPhone {
+// 		reply = msgstruser
+// 		sendmsg = msgstradmin
+// 		to = helpdeskuser.AdminPhone
+// 	} else {
+// 		reply = msgstradmin
+// 		sendmsg = msgstruser
+// 		to = helpdeskuser.UserPhone
+// 	}
+// 	dt := &itmodel.TextMessage{
+// 		To:       to,
+// 		IsGroup:  false,
+// 		Messages: sendmsg,
+// 	}
+// 	go atapi.PostStructWithToken[itmodel.Response]("Token", Profile.Token, dt, Profile.URLAPIText)
 
-	reply = "Terima kasih atas pemberian feedback ke operator " + helpdeskuser.Operator.Name + "\nSemoga kami selalu bisa melayani lebih baik lagi."
+// 	return
+// }
 
-	msgstr := "*Feedback Diterima*\nUser " + helpdeskuser.Name + " (" + helpdeskuser.Phonenumbers + ")\nMemberikan rating " + rate + " bintang"
-	dt := &itmodel.TextMessage{
-		To:       helpdeskuser.Operator.Phonenumbers,
-		IsGroup:  false,
-		Messages: msgstr,
-	}
-	go atapi.PostStructWithToken[itmodel.Response]("Token", Profile.Token, dt, Profile.URLAPIText)
-
-	return
-}
-
-// handling non key word
-func PenugasanOperator(Profile itmodel.Profile, Pesan itmodel.IteungMessage, db *mongo.Database) (reply string, err error) {
-	//check apakah tiket dari user sudah di tutup atau belum
-	user, err := atdb.GetOneLatestDoc[User](db, "helpdeskuser", bson.M{"phonenumbers": Pesan.Phone_number})
-	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			//check apakah dia operator yang belum tutup tiketnya
-			user, err = atdb.GetOneLatestDoc[User](db, "helpdeskuser", bson.M{"terlayani": bson.M{"$exists": false}, "operator.phonenumbers": Pesan.Phone_number})
-			if err != nil {
-				if err == mongo.ErrNoDocuments {
-					err = nil
-					reply = ""
-					return
-				}
-				err = errors.New("galat di collection helpdeskuser operator: " + err.Error())
-				return
-			}
-			//jika ada tiket yang statusnya belum closed
-			reply = "User " + user.Name + " (" + user.Phonenumbers + ")\nMeminta tolong kakak " + user.Operator.Name + " untuk mencarikan solusi dari masalahnya:\n" + user.Masalah + "\nSilahkan langsung kontak di nomor wa.me/" + user.Phonenumbers
-			reply += "\n\nJika sudah teratasi mohon inputkan solusi yang sudah di berikan ke user melalui link berikut:\nwa.me/62895601060000?text=" + user.ID.Hex() + "|+solusi+dari+operator+helpdesk+:+"
-			return
-
-		}
-		err = errors.New("galat di collection helpdeskuser user: " + err.Error())
-		return
-	}
-	if !user.Terlayani {
-		user.Masalah += "\n" + Pesan.Message
-		if user.Operator.Name == "" || user.Operator.Phonenumbers == "" {
-			var op Helpdesk
-			op, err = GetOperatorFromScopeandTeam(user.Scope, user.Team, db)
-			if err != nil {
-				return
-			}
-			user.Operator = op
-		}
-		_, err = atdb.ReplaceOneDoc(db, "helpdeskuser", bson.M{"_id": user.ID}, user)
-		if err != nil {
-			return
-		}
-
-		msgstr := "User " + user.Name + " (" + user.Phonenumbers + ")\nMeminta tolong kakak " + user.Operator.Name + " untuk mencarikan solusi dari masalahnya:\n" + user.Masalah + "\nSilahkan langsung kontak di nomor wa.me/" + user.Phonenumbers
-		msgstr += "\n\nJika sudah teratasi mohon inputkan solusi yang sudah di berikan ke user melalui link berikut:\nwa.me/62895601060000?text=" + user.ID.Hex() + "|+solusi+dari+operator+helpdesk+:+"
-		dt := &itmodel.TextMessage{
-			To:       user.Operator.Phonenumbers,
-			IsGroup:  false,
-			Messages: msgstr,
-		}
-		go atapi.PostStructWithToken[itmodel.Response]("Token", Profile.Token, dt, Profile.URLAPIText)
-		reply = "Kakak kami hubungkan dengan operator kami yang bernama *" + user.Operator.Name + "* di nomor wa.me/" + user.Operator.Phonenumbers + "\nMohon tunggu sebentar kami akan kontak kakak melalui nomor tersebut.\n_Terima kasih_"
-
-	}
-	return
-
-}
+// // admin terkoneksi dengan user tiket terakhir yang belum terlayani
+// func AdminOpenSessionCurrentUserTiket(Profile itmodel.Profile, Pesan itmodel.IteungMessage, db *mongo.Database) (reply string) {
+// 	//check apakah tiketnya udah tutup atau belum
+// 	isclosed, stiket, err := tiket.IsTicketClosed("adminphone", Pesan.Phone_number, db)
+// 	if err != nil {
+// 		return "IsTicketClosed: " + err.Error()
+// 	}
+// 	if !isclosed { //ada yang belum closed, lanjutkan sesi hub
+// 		//pesan ke admin
+// 		reply = GetPrefillMessage("adminadasesitiket", db)
+// 		reply = fmt.Sprintf(reply, stiket.UserName, stiket.Desa, stiket.Kec, stiket.KabKot)
+// 		hub.CheckHubSession(stiket.UserPhone, stiket.UserName, stiket.AdminPhone, stiket.AdminName, db)
+// 		//inject menu session untuk menutup tiket
+// 		mn := menu.MenuList{
+// 			No:      0,
+// 			Keyword: stiket.ID.Hex() + "|tutuph3lpdeskt1kcet",
+// 			Konten:  "Akhiri percakapan dan tutup sesi bantuan saat ini",
+// 		}
+// 		err = menu.InjectSessionMenu([]menu.MenuList{mn}, stiket.AdminPhone, db)
+// 		if err != nil {
+// 			return err.Error()
+// 		}
+// 		err = menu.InjectSessionMenu([]menu.MenuList{mn}, stiket.UserPhone, db)
+// 		if err != nil {
+// 			return err.Error()
+// 		}
+// 		return
+// 	}
+// 	//pesan ke admin
+// 	reply = GetPrefillMessage("adminkosongsesitiket", db)
+// 	reply = fmt.Sprintf(reply, stiket.AdminName)
+// 	return
+// }

@@ -1,9 +1,7 @@
 package controller
 
 import (
-	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"github.com/gocroot/config"
@@ -24,7 +22,7 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		resp.Message = "Error parsing application/json: " + err.Error()
 	} else {
 		// Check if the phone number is already in use
-		existingUser, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user", bson.M{"phonenumber": userdata.PhoneNumber})
+		existingUser, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user_email", bson.M{"phonenumber": userdata.PhoneNumber})
 		if err == nil && existingUser.PhoneNumber != "" {
 			resp.Message = "Phone number already registered"
 			w.Header().Set("Content-Type", "application/json")
@@ -37,12 +35,8 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		userdata.Private = privateKey
 		userdata.Public = publicKey
 
-		// Menghapus field email dan username jika kosong
-		userdata.Email = ""      // Hapus email
-		userdata.Username = ""   // Hapus username
-
 		// Insert new user data without email and username
-		_, err = atdb.InsertOneDoc(config.Mongoconn, "user", userdata)
+		_, err = atdb.InsertOneDoc(config.Mongoconn, "user_email", userdata)
 		if err != nil {
 			resp.Message = "Failed to save user data: " + err.Error()
 		} else {
@@ -56,130 +50,54 @@ func Register(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(resp)
 }
 
-func QRLogin(w http.ResponseWriter, r *http.Request) {
+func Login(w http.ResponseWriter, r *http.Request) {
 	var resp model.Credential
-	var loginReq struct {
-		PrivateKey string `json:"privateKey"`
-	}
+	var loginReq model.LoginRequest
 
-	// Parsing JSON request dari body (mengambil privateKey dari QR code)
 	err := json.NewDecoder(r.Body).Decode(&loginReq)
 	if err != nil {
 		resp.Message = "Error parsing application/json: " + err.Error()
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
+		w.Header().Set("Content type", "application/json")
 		json.NewEncoder(w).Encode(resp)
 		return
 	}
 
-	// Mendapatkan data user berdasarkan privateKey dari QR code
-	userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user", bson.M{"private": loginReq.PrivateKey})
+	//mendapatkan user data
+	userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user_email", bson.M{"phonenumber": loginReq.PhoneNumber})
 	if err != nil || userData.PhoneNumber == "" {
-		resp.Message = "User not found"
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusNotFound)
+		resp.Message = "User not found in database!"
+		w.Header().Set("Content type", "application/json")
 		json.NewEncoder(w).Encode(resp)
 		return
 	}
 
-	// Membuat token menggunakan kunci private user yang ditemukan
+	// generate token menggunakan private key dari user
 	tokenString, err := watoken.Encode(userData.PhoneNumber, userData.Private)
 	if err != nil {
 		resp.Message = "Failed to encode token: " + err.Error()
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
+		w.Header().Set("Content type", "application/json")
 		json.NewEncoder(w).Encode(resp)
 		return
 	}
 
-	// Debug: Cek apakah token dan nomor telepon benar
-	fmt.Println("Updating token for phone number:", userData.PhoneNumber)
-	fmt.Println("Generated token:", tokenString)
-
-	// Update token in the database using privateKey (karena login via QR code)
 	update := bson.M{
 		"$set": bson.M{
 			"token": tokenString,
 		},
 	}
 
-	_, err = config.Mongoconn.Collection("user").UpdateOne(
-		context.Background(),
-		bson.M{"private": userData.Private},
-		update,
-	)
+	_, err = atdb.UpdateOneDoc(config.Mongoconn, "user_email", bson.M{"phonenumber": userData.PhoneNumber}, update)
 	if err != nil {
-		fmt.Println("Error updating token in MongoDB:", err) // Debug log
-		resp.Message = "Failed to update token: " + err.Error()
-		w.Header().Set("Content-Type", "application/json")
+		resp.Message = "Failed to update token user in database!"
+		w.Header().Set("Content type", "application/json")
 		json.NewEncoder(w).Encode(resp)
 		return
 	}
 
-	// Menambahkan token ke Header
-	w.Header().Set("Authorization", "Bearer "+tokenString)
-	w.Header().Set("Content-Type", "application/json")
-
-	// Berikan respon yang sesuai setelah token berhasil diperbarui
 	resp.Status = true
 	resp.Token = tokenString
-	resp.Message = "Login successful via QR code"
+	resp.Message = "Login was succeesful"
 
+	w.Header().Set("Content type", "application/json")
 	json.NewEncoder(w).Encode(resp)
 }
-
-
-// punya teh fahira
-
-// func Login(w http.ResponseWriter, r *http.Request) {
-// 	var resp model.Credential
-// 	var loginReq model.LoginRequest
-
-// 	err := json.NewDecoder(r.Body).Decode(&loginReq)
-// 	if err != nil {
-// 		resp.Message = "Error parsing application/json: " + err.Error()
-// 		w.Header().Set("Content-Type", "application/json")
-// 		json.NewEncoder(w).Encode(resp)
-// 		return
-// 	}
-
-// 	// Get user data based on phone number
-// 	userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user", bson.M{"phonenumber": loginReq.PhoneNumber})
-// 	if err != nil || userData.PhoneNumber == "" {
-// 		resp.Message = "User not found"
-// 		w.Header().Set("Content-Type", "application/json")
-// 		json.NewEncoder(w).Encode(resp)
-// 		return
-// 	}
-
-// 	// Generate token using user's private key
-// 	tokenString, err := watoken.Encode(userData.PhoneNumber, userData.Private)
-// 	if err != nil {
-// 		resp.Message = "Failed to encode token: " + err.Error()
-// 		w.Header().Set("Content-Type", "application/json")
-// 		json.NewEncoder(w).Encode(resp)
-// 		return
-// 	}
-
-// 	// Update token in the database using phone number
-// 	update := bson.M{
-// 		"$set": bson.M{
-// 			"token": tokenString,
-// 		},
-// 	}
-
-// 	_, err = atdb.UpdateOneDoc(config.Mongoconn, "user", bson.M{"phonenumber": userData.PhoneNumber}, update)
-// 	if err != nil {
-// 		resp.Message = "Failed to update token: " + err.Error()
-// 		w.Header().Set("Content-Type", "application/json")
-// 		json.NewEncoder(w).Encode(resp)
-// 		return
-// 	}
-
-// 	resp.Status = true
-// 	resp.Token = tokenString
-// 	resp.Message = "Login successful"
-
-// 	w.Header().Set("Content-Type", "application/json")
-// 	json.NewEncoder(w).Encode(resp)
-// }

@@ -169,12 +169,20 @@ func GetOneLowestDoc[T any](db *mongo.Database, collection string, filter bson.M
 	return
 }
 
-func InsertOneDoc(db *mongo.Database, collection string, doc interface{}) (insertedID interface{}, err error) {
+// func InsertOneDoc(db *mongo.Database, collection string, doc interface{}) (insertedID interface{}, err error) {
+// 	insertResult, err := db.Collection(collection).InsertOne(context.TODO(), doc)
+// 	if err != nil {
+// 		return
+// 	}
+// 	return insertResult.InsertedID, nil
+// }
+
+func InsertOneDoc(db *mongo.Database, collection string, doc interface{}) (insertedID primitive.ObjectID, err error) {
 	insertResult, err := db.Collection(collection).InsertOne(context.TODO(), doc)
 	if err != nil {
 		return
 	}
-	return insertResult.InsertedID, nil
+	return insertResult.InsertedID.(primitive.ObjectID), nil
 }
 
 func InsertOneDocPrimitive(db *mongo.Database, collection string, doc interface{}) (insertedID primitive.ObjectID, err error) {

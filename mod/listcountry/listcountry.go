@@ -3,7 +3,7 @@ package listcountry
 import "github.com/whatsauth/itmodel"
 
 func ListCountry(Pesan itmodel.IteungMessage) (reply string) {
-	return ` 📚 The following is a list of available countries:
+	return ` 📚 The following is a list of available countries mastah:
 
 Afghanistan
 Albania

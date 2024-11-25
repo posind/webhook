@@ -5,7 +5,7 @@ import (
     "log"
     "strconv"
     "strings"
-
+    "sort" // Import the sort package
     "github.com/gocroot/helper/atdb"
     "go.mongodb.org/mongo-driver/bson"
     "go.mongodb.org/mongo-driver/mongo"
@@ -14,36 +14,73 @@ import (
 func GetCountryFromMessage(message string, db *mongo.Database) (negara, msg, collection string, err error) {
     lowerMessage := strings.ToLower(message)
     collection = "prohibited_items_id"
+
+    // Fetch list of countries as []string instead of []interface{}
     listnegara, err := atdb.GetAllDistinctDoc(db, bson.M{}, "Destinasi", collection)
     if err != nil {
         log.Printf("Error fetching countries from DB: %v", err)
         return
     }
-    for _, country := range listnegara {
-        if strings.Contains(lowerMessage, strings.ToLower(country.(string))) {
-            msg = strings.ReplaceAll(lowerMessage, strings.ToLower(country.(string)), "")
+
+    // Convert to []string for proper processing
+    countries := make([]string, len(listnegara))
+    for i, country := range listnegara {
+        countries[i] = country.(string)
+    }
+
+    // Sort countries by length (longest first) to prioritize multi-word countries
+    sortedCountries := sortCountriesByLength(countries)
+
+    for _, country := range sortedCountries {
+        lowerCountry := strings.ToLower(country)
+
+        // Check if the exact multi-word country is in the message
+        if strings.Contains(lowerMessage, lowerCountry) {
+            msg = strings.ReplaceAll(lowerMessage, lowerCountry, "")
             msg = strings.TrimSpace(msg)
-            negara = country.(string)
+            negara = country
             return
         }
     }
 
+    // Repeat the process for the English collection
     collection = "prohibited_items_en"
     countrylist, err := atdb.GetAllDistinctDoc(db, bson.M{}, "Destination", collection)
     if err != nil {
         log.Printf("Error fetching countries from DB: %v", err)
         return
     }
-    for _, country := range countrylist {
-        if strings.Contains(lowerMessage, strings.ToLower(country.(string))) {
-            msg = strings.ReplaceAll(lowerMessage, strings.ToLower(country.(string)), "")
+
+    // Convert to []string
+    countries = make([]string, len(countrylist))
+    for i, country := range countrylist {
+        countries[i] = country.(string)
+    }
+
+    // Sort countries by length again for English names
+    sortedCountries = sortCountriesByLength(countries)
+
+    for _, country := range sortedCountries {
+        lowerCountry := strings.ToLower(country)
+
+        if strings.Contains(lowerMessage, lowerCountry) {
+            msg = strings.ReplaceAll(lowerMessage, lowerCountry, "")
             msg = strings.TrimSpace(msg)
-            negara = country.(string)
+            negara = country
             return
         }
-	}
+    }
 
     return
+}
+
+// Helper function to sort countries by length (longest first)
+func sortCountriesByLength(countries []string) []string {
+    // Sort countries by descending length to match multi-word countries first
+    sort.Slice(countries, func(i, j int) bool {
+        return len(countries[i]) > len(countries[j])
+    })
+    return countries
 }
 
 //Untuk Func Get Massage WA
@@ -60,13 +97,13 @@ func GetProhibitedItemsFromMessage(negara, message string, db *mongo.Database, c
     }
 
     var msg string
-	var additionalMsg string = "Ada yang bisa aku bantu lagi ga kak? \n (づ ◕‿◕ )づ"
-	// var additionalMsg string = "☎ Ini dia nih Call Centre Hallo Pos  📞1500161, bukan tempat buat curhat ya Kak! Atau kakak bisa mengirimkan keluh kesalnya ke email kami di\n✉ halopos@posindonesia.co.id"
-    
+    var additionalMsg string = "Ada yang bisa aku bantu lagi ga kak? \n (づ ◕‿◕ )づ"
+
     if negara != "" {
         msg = "💡Ini dia nih kak, barang yang *dilarang* dari negara *" + negara + "*:\n"
 
-        filter := bson.M{fieldTujuan: bson.M{"$regex": negara, "$options": "i"}}
+        // Adjust regex to enforce exact or close matching for the country name
+        filter := bson.M{fieldTujuan: bson.M{"$regex": "^" + negara + "$", "$options": "i"}}
         if message != "" {
             msg += "dengan kategori *" + message + "*:\n"
             filter[fieldBarang] = bson.M{"$regex": message, "$options": "i"}

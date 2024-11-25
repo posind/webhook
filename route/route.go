@@ -23,7 +23,7 @@ func URL(w http.ResponseWriter, r *http.Request) {
 	case method == "POST" && path == "/register":
 		controller.Register(w, r)
 	case method == "POST" && path == "/login":
-		controller.QRLogin(w, r)
+		controller.Login(w, r)
 
 	//user data
 	// case method == "GET" && path == "get/data/user":
