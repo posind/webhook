@@ -112,7 +112,7 @@ func GetItemLarangan(w http.ResponseWriter, r *http.Request) {
 	var respn model.Response
 
 	// Extract token from Login header
-	tokenLogin := r.Header.Get("Login")
+	tokenLogin := r.Header.Get("login")
 	if tokenLogin == "" {
 		respn.Status = "Error: Missing Login header"
 		respn.Info = "Login header is missing."
@@ -175,7 +175,7 @@ func PostItemLarangan(w http.ResponseWriter, r *http.Request) {
 	var respn model.Response
 
 	// Extract token from Login header
-	tokenLogin := r.Header.Get("Login")
+	tokenLogin := r.Header.Get("login")
 	if tokenLogin == "" {
 		respn.Status = "Error: Missing Login header"
 		respn.Info = "Login header is missing."
@@ -237,7 +237,7 @@ func UpdateItemLarangan(w http.ResponseWriter, r *http.Request) {
 	var respn model.Response
 
 	// Extract token from Login header
-	tokenLogin := r.Header.Get("Login")
+	tokenLogin := r.Header.Get("login")
 	if tokenLogin == "" {
 		respn.Status = "Error: Missing Login header"
 		respn.Info = "Login header is missing."
@@ -303,7 +303,7 @@ func DeleteItemLarangan(w http.ResponseWriter, r *http.Request) {
 	var respn model.Response
 
 	// Extract token from Login header
-	tokenLogin := r.Header.Get("Login")
+	tokenLogin := r.Header.Get("login")
 	if tokenLogin == "" {
 		respn.Status = "Error: Missing Login header"
 		respn.Info = "Login header is missing."

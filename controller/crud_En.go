@@ -11,6 +11,7 @@ import (
 	"github.com/gocroot/helper/at"
 	"github.com/gocroot/helper/atdb"
 	"github.com/gocroot/helper/passwordhash"
+	"github.com/gocroot/helper/watoken"
 	"github.com/gocroot/model"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -22,7 +23,7 @@ func GetProhibitedItem(w http.ResponseWriter, r *http.Request) {
 	var respn model.Response
 
 	// Extract token from Login header
-	tokenLogin := r.Header.Get("Login")
+	tokenLogin := r.Header.Get("login")
 	if tokenLogin == "" {
 		respn.Status = "Error: Missing Login header"
 		respn.Info = "Login header is missing."
@@ -97,7 +98,7 @@ func PostProhibitedItem(w http.ResponseWriter, r *http.Request) {
 	var respn model.Response
 
 	// Extract token from Login header
-	tokenLogin := r.Header.Get("Login")
+	tokenLogin := r.Header.Get("login")
 	if tokenLogin == "" {
 		respn.Status = "Error: Missing Login header"
 		respn.Info = "Login header is missing."
@@ -247,7 +248,7 @@ func UpdateProhibitedItem(w http.ResponseWriter, r *http.Request) {
 	var respn model.Response
 
 	// Extract token from Login header
-	tokenLogin := r.Header.Get("Login")
+	tokenLogin := r.Header.Get("login")
 	if tokenLogin == "" {
 		respn.Status = "Error: Missing Login header"
 		respn.Info = "Login header is missing."
@@ -315,7 +316,7 @@ func DeleteProhibitedItem(w http.ResponseWriter, r *http.Request) {
 	var respn model.Response
 
 	// Extract token from Login header
-	tokenLogin := r.Header.Get("Login")
+	tokenLogin := r.Header.Get("login")
 	if tokenLogin == "" {
 		respn.Status = "Error: Missing Login header"
 		respn.Info = "Login header is missing."
