@@ -11,6 +11,7 @@ type Response struct {
 	Info     string `json:"info,omitempty"`
 	Status   string `json:"status,omitempty"`
 	Location string `json:"location,omitempty"`
+	Data   interface{} `json:"data"`
 }
 
 type Profile struct {

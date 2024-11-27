@@ -7,6 +7,9 @@ import (
 	"net/http"
 
 	"github.com/gocroot/config"
+	"github.com/gocroot/helper/at"
+	"github.com/gocroot/helper/atdb"
+	"github.com/gocroot/helper/watoken"
 	"github.com/gocroot/model"
 	"github.com/kimseokgis/backend-ai/helper"
 	"go.mongodb.org/mongo-driver/bson"
@@ -15,12 +18,58 @@ import (
 )
 
 func GetProhibitedItem(w http.ResponseWriter, r *http.Request) {
+	var respn model.Response
+
+	// Ambil token login dari header menggunakan at.GetLoginFromHeader
+	tokenLogin := at.GetLoginFromHeader(r)
+	if tokenLogin == "" {
+		respn.Status = "Error: Header Login Hilang"
+		respn.Info = "Header login tidak ditemukan."
+		respn.Data = nil
+		at.WriteJSON(w, http.StatusUnauthorized, respn)
+		log.Println("Header login tidak ditemukan")
+		return
+	}
+
+	// Log token untuk debugging
+	log.Printf("Token yang diterima: %s", tokenLogin)
+
+	// Decode token menggunakan public key dari config
+	privateKey, err := watoken.DecodeGetId(config.PublicKey, tokenLogin)
+	if err != nil {
+		// Log kunci publik untuk memastikan kunci yang digunakan benar
+		log.Printf("Kunci Publik yang digunakan: %s", config.PublicKey)
+		log.Printf("Error saat validasi token: %v", err)
+
+		respn.Status = "Error: Token Tidak Valid"
+		respn.Info = "Token yang diberikan tidak valid: " + err.Error()
+		respn.Data = nil
+		at.WriteJSON(w, http.StatusUnauthorized, respn)
+		return
+	}
+
+	// Log private key yang berhasil didapatkan
+	log.Printf("Private Key dari token: %s", privateKey)
+
+	// Cari data pengguna menggunakan private key dari token
+	userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user", bson.M{"private": privateKey})
+	if err != nil || userData.PhoneNumber == "" {
+		respn.Status = "Error: Tidak Berizin"
+		respn.Info = "Anda tidak memiliki izin untuk mengakses data ini."
+		respn.Data = nil
+		at.WriteJSON(w, http.StatusForbidden, respn)
+		log.Printf("Pengguna tidak memiliki izin. Private key: %s\n", privateKey)
+		return
+	}
+
+	// Ambil query parameters
 	query := r.URL.Query()
 	destination := query.Get("destination")
 	prohibitedItems := query.Get("prohibited_items")
 
 	log.Printf("Received query parameters - destination: %s, prohibited_items: %s", destination, prohibitedItems)
 
+	// Buat filter berdasarkan query parameters
 	filter := bson.M{}
 	if destination != "" {
 		filter["destination"] = destination
@@ -31,34 +80,60 @@ func GetProhibitedItem(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("Filter created: %+v", filter)
 
-	var items []model.ProhibitedItems
+	// Inisialisasi koleksi MongoDB
 	collection := config.Mongoconn.Collection("prohibited_items_en")
-	findOptions := options.Find()
-	findOptions.SetLimit(20) // Limit hasil ke 20 dokumen
 
+	// Konfigurasi opsi pencarian
+	findOptions := options.Find()
+	findOptions.SetLimit(20) // Batasi hasil pencarian ke 20 dokumen
+
+	// Eksekusi pencarian
 	cursor, err := collection.Find(context.Background(), filter, findOptions)
 	if err != nil {
-		helper.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "Error fetching items", "details": err.Error()})
-		log.Printf("Error fetching items: %v", err)
+		respn.Status = "Error: Database Query"
+		respn.Info = "Terjadi kesalahan saat mengambil data: " + err.Error()
+		respn.Data = nil
+		at.WriteJSON(w, http.StatusInternalServerError, respn)
+		log.Printf("Error fetching items: %v\n", err)
 		return
 	}
 	defer cursor.Close(context.Background())
 
+	// Decode hasil pencarian
+	var items []model.ProhibitedItems
 	if err = cursor.All(context.Background(), &items); err != nil {
-		helper.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "Error decoding items", "details": err.Error()})
-		log.Printf("Error decoding items: %v", err)
+		respn.Status = "Error: Database Decoding"
+		respn.Info = "Terjadi kesalahan saat mendecode data: " + err.Error()
+		respn.Data = nil
+		at.WriteJSON(w, http.StatusInternalServerError, respn)
+		log.Printf("Error decoding items: %v\n", err)
 		return
 	}
 
+	// Jika tidak ada data ditemukan
 	if len(items) == 0 {
-		helper.WriteJSON(w, http.StatusNotFound, "No items found")
+		respn.Status = "Not Found"
+		respn.Info = "Tidak ada data yang cocok dengan filter."
+		respn.Data = nil
+		at.WriteJSON(w, http.StatusNotFound, respn)
 		log.Println("No items found for the given filter")
 		return
 	}
 
-	helper.WriteJSON(w, http.StatusOK, items)
-	log.Printf("Successfully retrieved items: %+v", items)
+	// Berikan respons sukses dengan data
+	respn.Status = "Success"
+	respn.Info = "Data berhasil diambil."
+	respn.Data = items
+	at.WriteJSON(w, http.StatusOK, respn)
+	log.Printf("Successfully retrieved items: %+v\n", items)
 }
+
+
+
+
+
+
+
 
 
 func PostProhibitedItem(w http.ResponseWriter, r *http.Request) {
