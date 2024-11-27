@@ -112,8 +112,8 @@ func EnsureIDitemExists(w http.ResponseWriter, r *http.Request) {
 func GetItemLarangan(w http.ResponseWriter, r *http.Request) {
 	var respn model.Response
 
-	// Ambil token login dari header menggunakan GetLoginFromHeader
-	tokenLogin := at.GetLoginFromHeader(r)
+	// Extract token from Login header
+	tokenLogin := r.Header.Get("login")
 	if tokenLogin == "" {
 		respn.Status = "Error: Header Login Hilang"
 		respn.Info = "Header login tidak ditemukan."
@@ -186,8 +186,8 @@ func GetItemLarangan(w http.ResponseWriter, r *http.Request) {
 func PostItemLarangan(w http.ResponseWriter, r *http.Request) {
 	var respn model.Response
 
-	// Ambil token login dari header
-	tokenLogin := at.GetLoginFromHeader(r)
+	// Extract token from Login header
+	tokenLogin := r.Header.Get("login")
 	if tokenLogin == "" {
 		respn.Status = "Error: Header Login Hilang"
 		respn.Info = "Header login tidak ditemukan."
@@ -249,8 +249,8 @@ func PostItemLarangan(w http.ResponseWriter, r *http.Request) {
 func UpdateItemLarangan(w http.ResponseWriter, r *http.Request) {
 	var respn model.Response
 
-	// Ambil token login dari header menggunakan GetLoginFromHeader
-	tokenLogin := at.GetLoginFromHeader(r)
+	// Extract token from Login header
+	tokenLogin := r.Header.Get("login")
 	if tokenLogin == "" {
 		respn.Status = "Error: Header Login Hilang"
 		respn.Info = "Header login tidak ditemukan."
@@ -325,8 +325,8 @@ func UpdateItemLarangan(w http.ResponseWriter, r *http.Request) {
 func DeleteItemLarangan(w http.ResponseWriter, r *http.Request) {
 	var respn model.Response
 
-	// Ambil token login dari header
-	tokenLogin := at.GetLoginFromHeader(r)
+	// Extract token from Login header
+	tokenLogin := r.Header.Get("login")
 	if tokenLogin == "" {
 		respn.Status = "Error: Header Login Hilang"
 		respn.Info = "Header login tidak ditemukan."

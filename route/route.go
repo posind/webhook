@@ -43,23 +43,25 @@ func URL(w http.ResponseWriter, r *http.Request) {
 		controller.GetNewToken(w, r)
 
 	// ProhibitedItem Routes (English)
-	case method == "GET" && path == "/get/prohibited-items/en":
+	case method == "GET" && path == "/data/item":
 		controller.GetProhibitedItem(w, r)
+	case method == "PUT" && path == "/itemid":
+		controller.EnsureIDItemExists(w, r)
 	case method == "POST" && path == "/post/prohibited-items/en":
 		controller.PostProhibitedItem(w, r)
-	case method == "PUT" && path == "/put/prohibited-items/en":
+	case method == "PUT" && path == "/data/item":
 		controller.UpdateProhibitedItem(w, r)
-	case method == "DELETE" && path == "/delete/prohibited-items/en":
+	case method == "DELETE" && path == "/data/item":
 		controller.DeleteProhibitedItem(w, r)
 
 	// ProhibitedItem Routes (Indonesian)
-	case method == "GET" && path == "/get/item":
+	case method == "GET" && path == "/data/barang":
 		controller.GetItemLarangan(w, r)
-	case method == "POST" && path == "/post/item":
+	case method == "POST" && path == "/data/barang":
 		controller.PostItemLarangan(w, r)
-	case method == "PUT" && path == "/put/item":
+	case method == "PUT" && path == "/data/barang":
 		controller.UpdateItemLarangan(w, r)
-	case method == "DELETE" && path == "/delete/item":
+	case method == "DELETE" && path == "/data/barang":
 		controller.DeleteItemLarangan(w, r)
 	default:
 		controller.NotFound(w, r)
