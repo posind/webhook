@@ -45,7 +45,7 @@ func URL(w http.ResponseWriter, r *http.Request) {
 	// ProhibitedItem Routes (English)
 	case method == "GET" && path == "/data/item":
 		controller.GetProhibitedItem(w, r)
-	case method == "PUT" && path == "/itemid":
+	case method == "PUT" && path == "/data/itemid":
 		controller.EnsureIDItemExists(w, r)
 	case method == "POST" && path == "/data/item":
 		controller.PostProhibitedItem(w, r)
