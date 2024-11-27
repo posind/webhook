@@ -1,4 +1,4 @@
-package main
+package gocroot
 
 import (
 	"github.com/gocroot/route"
