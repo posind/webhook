@@ -20,7 +20,7 @@ var mongoinfo = atdb.DBInfo{
 // 	fmt.Println(err)
 // 	//fmt.Println(md)
 
-}
+
 
 /* func TestGenerateReportLayanan(t *testing.T) {
 	gid := "6281313112053-1492882006"
