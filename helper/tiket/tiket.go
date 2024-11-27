@@ -2,10 +2,8 @@ package tiket
 
 import (
 	"github.com/gocroot/helper/atdb"
-	"github.com/gocroot/helper/lms"
 	"github.com/gocroot/helper/waktu"
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -26,25 +24,25 @@ func IsTicketClosed(phonefield string, phonenumber string, db *mongo.Database) (
 	return
 }
 
-func InserNewTicket(userphone string, adminname string, adminphone string, db *mongo.Database) (IDTiket primitive.ObjectID, err error) {
-	dataapi := lms.GetDataFromAPI(userphone)
-	tiketbaru := Bantuan{
-		UserName:   dataapi.Data.Fullname,
-		UserPhone:  userphone,
-		AdminPhone: adminphone,
-		AdminName:  adminname,
-		Prov:       dataapi.Data.Province,
-		KabKot:     dataapi.Data.Regency,
-		Kec:        dataapi.Data.District,
-		Desa:       dataapi.Data.Village,
-		StartAt:    waktu.Sekarang(),
-	}
-	IDTiket, err = atdb.InsertOneDoc(db, "tiket", tiketbaru)
-	if err != nil {
-		return
-	}
-	return
-}
+// func InserNewTicket(userphone string, adminname string, adminphone string, db *mongo.Database) (IDTiket primitive.ObjectID, err error) {
+// 	dataapi := lms.GetDataFromAPI(userphone)
+// 	tiketbaru := Bantuan{
+// 		UserName:   dataapi.Data.Fullname,
+// 		UserPhone:  userphone,
+// 		AdminPhone: adminphone,
+// 		AdminName:  adminname,
+// 		Prov:       dataapi.Data.Province,
+// 		KabKot:     dataapi.Data.Regency,
+// 		Kec:        dataapi.Data.District,
+// 		Desa:       dataapi.Data.Village,
+// 		StartAt:    waktu.Sekarang(),
+// 	}
+// 	IDTiket, err = atdb.InsertOneDoc(db, "tiket", tiketbaru)
+// 	if err != nil {
+// 		return
+// 	}
+// 	return
+// }
 
 func UpdateUserMsgInTiket(userphone string, usermsg string, db *mongo.Database) (err error) {
 	tiket, err := atdb.GetOneLatestDoc[Bantuan](db, "tiket", bson.M{"terlayani": bson.M{"$exists": false}, "userphone": userphone})

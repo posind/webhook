@@ -14,442 +14,238 @@ package controller
 // 	"go.mongodb.org/mongo-driver/bson"
 // )
 
+// // GetDataUserFromApi retrieves user data from an external API based on token
+// func GetDataUserFromApi(respw http.ResponseWriter, req *http.Request) {
+// 	payload, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
+// 	if err != nil {
+// 		sendErrorResponse(respw, "Error: Invalid Token", http.StatusForbidden, err, at.GetLoginFromHeader(req))
+// 		return
+// 	}
+
+// 	// Fetch user data from external API
+// 	userdt := lms.GetDataFromAPI(payload.Id)
+// 	if userdt.Data.Fullname == "" {
+// 		at.WriteJSON(respw, http.StatusNotFound, userdt)
+// 		return
+// 	}
+
+// 	at.WriteJSON(respw, http.StatusOK, userdt)
+// }
+
+// // GetDataUser retrieves user data from MongoDB based on token
 // func GetDataUser(respw http.ResponseWriter, req *http.Request) {
-//     // Decode the token from the request using watoken and the public key
-//     payload, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
-//     if err != nil {
-//         var respn model.Response
-//         respn.Status = "Error: Token Tidak Valid"
-//         respn.Info = at.GetLoginFromHeader(req)
-//         respn.Location = "Decode Token Error: " + at.GetLoginFromHeader(req)
-//         respn.Response = err.Error()
-//         at.WriteJSON(respw, http.StatusForbidden, respn)
-//         return
-//     }
+// 	payload, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
+// 	if err != nil {
+// 		sendErrorResponse(respw, "Error: Invalid Token", http.StatusForbidden, err, at.GetLoginFromHeader(req))
+// 		return
+// 	}
 
-//     // Fetch the user data from the "user" collection
-//     var docuser model.User
-//     err = atdb.GetOneDoc(config.Mongoconn, "user", bson.M{"phonenumber": payload.Id}, &docuser)
-//     if err != nil {
-//         var respn model.Response
-//         respn.Status = "User not found"
-//         respn.Info = err.Error()
-//         at.WriteJSON(respw, http.StatusNotFound, respn)
-//         return
-//     }
+// 	// Retrieve user data from MongoDB
+// 	var docuser model.Userdomyikado
+// 	err = atdb.GetOneDoc(config.Mongoconn, "user", bson.M{"phonenumber": payload.Id}, &docuser)
+// 	if err != nil {
+// 		docuser.PhoneNumber = payload.Id
+// 		docuser.Name = payload.Alias
+// 		at.WriteJSON(respw, http.StatusNotFound, docuser)
+// 		return
+// 	}
 
-//     // Respond with the user data
-//     at.WriteJSON(respw, http.StatusOK, docuser)
+// 	docuser.Name = payload.Alias
+// 	at.WriteJSON(respw, http.StatusOK, docuser)
 // }
 
+// // PutTokenDataUser checks device linking status and generates a 5-year token if linked
 // func PutTokenDataUser(respw http.ResponseWriter, req *http.Request) {
-//     // Decode the token from the request using watoken and the public key
-//     payload, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
-//     if err != nil {
-//         var respn model.Response
-//         respn.Status = "Error: Token Tidak Valid"
-//         respn.Info = at.GetLoginFromHeader(req)
-//         respn.Location = "Decode Token Error: " + at.GetLoginFromHeader(req)
-//         respn.Response = err.Error()
-//         at.WriteJSON(respw, http.StatusForbidden, respn)
-//         return
-//     }
+// 	payload, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
+// 	if err != nil {
+// 		sendErrorResponse(respw, "Error: Invalid Token", http.StatusForbidden, err, at.GetLoginFromHeader(req))
+// 		return
+// 	}
 
-//     // Fetch the user data from the "user" collection
-//     var docuser model.User
-//     err = atdb.GetOneDoc(config.Mongoconn, "user", bson.M{"phonenumber": payload.Id}, &docuser)
-//     if err != nil {
-//         docuser.PhoneNumber = payload.Id
-//         docuser.Name = payload.Alias
-//         at.WriteJSON(respw, http.StatusNotFound, docuser)
-//         return
-//     }
+// 	// Retrieve user data
+// 	var docuser model.Userdomyikado
+// 	err = atdb.GetOneDoc(config.Mongoconn, "user", bson.M{"phonenumber": payload.Id}, &docuser)
+// 	if err != nil {
+// 		docuser.PhoneNumber = payload.Id
+// 		docuser.Name = payload.Alias
+// 		at.WriteJSON(respw, http.StatusNotFound, docuser)
+// 		return
+// 	}
 
-//     // Update the user's name/alias
-//     docuser.Name = payload.Alias
+// 	// Check QRIS device linking status
+// 	hcode, qrstat, err := atapi.Get[model.QRStatus](config.WAAPIGetDevice + at.GetLoginFromHeader(req))
+// 	if err != nil {
+// 		at.WriteJSON(respw, http.StatusMisdirectedRequest, docuser)
+// 		return
+// 	}
 
-//     // Fetch the QRIS status from the WAAPI
-//     hcode, qrstat, err := atapi.Get[model.QRStatus](config.WAAPIGetToken + at.GetLoginFromHeader(req))
-//     if err != nil {
-//         at.WriteJSON(respw, http.StatusMisdirectedRequest, docuser)
-//         return
-//     }
+// 	// Generate 5-year token if not linked
+// 	if hcode == http.StatusOK && !qrstat.Status {
+// 		docuser.LinkedDevice, err = watoken.EncodeforHours(docuser.PhoneNumber, docuser.Name, config.PrivateKey, 43830)
+// 		if err != nil {
+// 			at.WriteJSON(respw, http.StatusFailedDependency, docuser)
+// 			return
+// 		}
+// 	} else {
+// 		docuser.LinkedDevice = ""
+// 	}
 
-//     // Generate a new token if QRIS status is not active
-//     if hcode == http.StatusOK && !qrstat.Status {
-//         docuser.Token, err = watoken.EncodeforHours(docuser.PhoneNumber, docuser.Name, config.PrivateKey, 43830) // 5 years
-//         if err != nil {
-//             at.WriteJSON(respw, http.StatusFailedDependency, docuser)
-//             return
-//         }
-//     } else {
-//         docuser.LinkedDevice = ""
-//     }
+// 	// Update user data
+// 	_, err = atdb.ReplaceOneDoc(config.Mongoconn, "user", bson.M{"phonenumber": payload.Id}, docuser)
+// 	if err != nil {
+// 		at.WriteJSON(respw, http.StatusExpectationFailed, docuser)
+// 		return
+// 	}
 
-//     // Update or replace the user's data in the "user" collection
-//     _, err = atdb.ReplaceOneDoc(config.Mongoconn, "user", bson.M{"phonenumber": payload.Id}, docuser)
-//     if err != nil {
-//         at.WriteJSON(respw, http.StatusExpectationFailed, docuser)
-//         return
-//     }
-
-//     // Respond with the updated user data
-//     at.WriteJSON(respw, http.StatusOK, docuser)
+// 	at.WriteJSON(respw, http.StatusOK, docuser)
 // }
 
+// // PostDataUser inserts or updates user data in MongoDB
 // func PostDataUser(respw http.ResponseWriter, req *http.Request) {
-//     // Decode the token from the request using watoken and the public key
-//     payload, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
-//     if err != nil {
-//         var respn model.Response
-//         respn.Status = "Error: Token Tidak Valid"
-//         respn.Info = at.GetSecretFromHeader(req)
-//         respn.Location = "Decode Token Error"
-//         respn.Response = err.Error()
-//         at.WriteJSON(respw, http.StatusForbidden, respn)
-//         return
-//     }
+// 	payload, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
+// 	if err != nil {
+// 		sendErrorResponse(respw, "Error: Invalid Token", http.StatusForbidden, err, at.GetSecretFromHeader(req))
+// 		return
+// 	}
 
-//     // Parse the user data from the request body
-//     var usr model.User
-//     err = json.NewDecoder(req.Body).Decode(&usr)
-//     if err != nil {
-//         var respn model.Response
-//         respn.Status = "Error: Body tidak valid"
-//         respn.Response = err.Error()
-//         at.WriteJSON(respw, http.StatusBadRequest, respn)
-//         return
-//     }
+// 	var usr model.Userdomyikado
+// 	err = json.NewDecoder(req.Body).Decode(&usr)
+// 	if err != nil {
+// 		sendErrorResponse(respw, "Error: Invalid Request Body", http.StatusBadRequest, err, "")
+// 		return
+// 	}
 
-//     // Check if the user exists in the "user" collection
-//     var docuser model.User
-//     err = atdb.GetOneDoc(config.Mongoconn, "user", bson.M{"phonenumber": payload.Id}, &docuser)
-//     if err != nil {
-//         // Insert new user
-//         usr.PhoneNumber = payload.Id
-//         usr.Name = payload.Alias
-//         idusr, err := atdb.InsertOneDoc(config.Mongoconn, "user", usr)
-//         if err != nil {
-//             var respn model.Response
-//             respn.Status = "Gagal Insert Database"
-//             respn.Response = err.Error()
-//             at.WriteJSON(respw, http.StatusNotModified, respn)
-//             return
-//         }
-//         user.ID = idusr
-//         at.WriteJSON(respw, http.StatusOK, usr)
-//         return
-//     }
+// 	// Retrieve user data from MongoDB
+// 	var docuser model.Userdomyikado
+// 	err = atdb.GetOneDoc(config.Mongoconn, "user", bson.M{"phonenumber": payload.Id}, &docuser)
+// 	if err != nil {
+// 		usr.PhoneNumber = payload.Id
+// 		usr.Name = payload.Alias
+// 		idusr, err := atdb.InsertOneDoc(config.Mongoconn, "user", usr)
+// 		if err != nil {
+// 			sendErrorResponse(respw, "Error: Failed to Insert into Database", http.StatusNotModified, err, "")
+// 			return
+// 		}
+// 		usr.ID = idusr
+// 		at.WriteJSON(respw, http.StatusOK, usr)
+// 		return
+// 	}
 
-//     // Update the user's details
-//     docuser.Name = payload.Alias
-//     docuser.Email = usr.Email
+// 	// Update existing user data
+// 	docuser.Name = payload.Alias
+// 	docuser.Email = usr.Email
+// 	docuser.GitHostUsername = usr.GitHostUsername
+// 	docuser.GitlabUsername = usr.GitlabUsername
+// 	docuser.GithubUsername = usr.GithubUsername
 
-//     _, err = atdb.ReplaceOneDoc(config.Mongoconn, "user", bson.M{"phonenumber": payload.Id}, docuser)
-//     if err != nil {
-//         var respn model.Response
-//         respn.Status = "Gagal replaceonedoc"
-//         respn.Response = err.Error()
-//         at.WriteJSON(respw, http.StatusConflict, respn)
-//         return
-//     }
+// 	_, err = atdb.ReplaceOneDoc(config.Mongoconn, "user", bson.M{"phonenumber": payload.Id}, docuser)
+// 	if err != nil {
+// 		sendErrorResponse(respw, "Error: Failed to Replace User Document", http.StatusConflict, err, "")
+// 		return
+// 	}
 
-//     at.WriteJSON(respw, http.StatusOK, docuser)
+// 	// Update membership in projects
+// 	updateProjectsMembership(respw, docuser)
 // }
 
+// // PostDataUserFromWA processes WhatsApp user data and updates MongoDB
 // func PostDataUserFromWA(respw http.ResponseWriter, req *http.Request) {
-//     var resp model.Response
+// 	var resp model.Response
+// 	prof, err := whatsauth.GetAppProfile(at.GetParam(req), config.Mongoconn)
+// 	if err != nil {
+// 		sendErrorResponse(respw, "Error: Failed to Get App Profile", http.StatusBadRequest, err, "")
+// 		return
+// 	}
 
-//     // Fetch the application profile for WhatsApp
-//     prof, err := whatsauth.GetAppProfile(at.GetParam(req), config.Mongoconn)
-//     if err != nil {
-//         resp.Response = err.Error()
-//         at.WriteJSON(respw, http.StatusBadRequest, resp)
-//         return
-//     }
+// 	// Validate secret from the request header
+// 	if at.GetSecretFromHeader(req) != prof.Secret {
+// 		sendErrorResponse(respw, "Error: Invalid Secret", http.StatusUnauthorized, nil, "")
+// 		return
+// 	}
 
-//     // Validate the secret from the request
-//     if at.GetSecretFromHeader(req) != prof.Secret {
-//         resp.Response = "Salah secret: " + at.GetSecretFromHeader(req)
-//         at.WriteJSON(respw, http.StatusUnauthorized, resp)
-//         return
-//     }
+// 	// Decode incoming request body
+// 	var usr model.Userdomyikado
+// 	err = json.NewDecoder(req.Body).Decode(&usr)
+// 	if err != nil {
+// 		sendErrorResponse(respw, "Error: Invalid Request Body", http.StatusBadRequest, err, "")
+// 		return
+// 	}
 
-//     // Parse the user data from the request body
-//     var usr model.User
-//     err = json.NewDecoder(req.Body).Decode(&usr)
-//     if err != nil {
-//         resp.Response = "Error: Body tidak valid"
-//         resp.Info = err.Error()
-//         at.WriteJSON(respw, http.StatusBadRequest, resp)
-//         return
-//     }
-
-//     // Check if the user exists in the "user" collection
-//     var docuser model.User
-//     err = atdb.GetOneDoc(config.Mongoconn, "user", bson.M{"phonenumber": usr.PhoneNumber}, &docuser)
-//     if err != nil {
-//         // Insert the new user into the database
-//         idusr, err := atdb.InsertOneDoc(config.Mongoconn, "user", usr)
-//         if err != nil {
-//             resp.Response = "Gagal Insert Database"
-//             resp.Info = err.Error()
-//             at.WriteJSON(respw, http.StatusNotModified, resp)
-//             return
-//         }
-//         resp.Info = idusr.Hex()
-//         at.WriteJSON(respw, http.StatusOK, resp)
-//         return
-//     }
-
-//     // Update the user's data
-//     docuser.Name = usr.Name
-//     docuser.Email = usr.Email
-
-//     _, err = atdb.ReplaceOneDoc(config.Mongoconn, "user", bson.M{"phonenumber": usr.PhoneNumber}, docuser)
-//     if err != nil {
-//         resp.Response = "Gagal replaceonedoc"
-//         resp.Info = err.Error()
-//         at.WriteJSON(respw, http.StatusConflict, resp)
-//         return
-//     }
-
-//     resp.Info = docuser.ID.Hex()
-//     resp.Info = docuser.Email
-//     at.WriteJSON(respw, http.StatusOK, resp)
+// 	// Insert or update user data in MongoDB
+// 	processUserData(respw, usr)
 // }
 
-// // // HandleQRCodeScan handles the QR code scan request and interacts with whatsauth for token verification
-// // func PutTokenDataUser(respw http.ResponseWriter, req *http.Request) {
-// //     // Decode the token from the request using watoken and the public key
-// //     payload, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
-// //     if err != nil {
-// //         var respn model.Response
-// //         respn.Status = "Error: Token Tidak Valid"
-// //         respn.Info = at.GetLoginFromHeader(req)
-// //         respn.Location = "Decode Token Error: " + at.GetLoginFromHeader(req)
-// //         respn.Response = err.Error()
-// //         at.WriteJSON(respw, http.StatusForbidden, respn)
-// //         return
-// //     }
+// // Helper function to process user data insertion and updating in MongoDB
+// func processUserData(respw http.ResponseWriter, usr model.Userdomyikado) {
+// 	var resp model.Response
+// 	var docuser model.Userdomyikado
 
-// // Fetch the user data from the database based on the phone number
-// // docuser, err := atdb.GetOneDoc[model.Profile_user](config.Mongoconn, "user_login_token", primitive.M{"phonenumber": payload.Id})
-// // if err != nil {
-// //     // If the user is not found, create a new user with the payload data
-// //     docuser.PhoneNumber = payload.Id
-// //     docuser.Email = payload.Alias
-// //     at.WriteJSON(respw, http.StatusNotFound, docuser)
-// //     return
-// // }
+// 	err := atdb.GetOneDoc(config.Mongoconn, "user", bson.M{"phonenumber": usr.PhoneNumber}, &docuser)
+// 	if err != nil {
+// 		// Insert new user
+// 		idusr, err := atdb.InsertOneDoc(config.Mongoconn, "user", usr)
+// 		if err != nil {
+// 			resp.Response = "Error: Failed to Insert into Database"
+// 			resp.Info = err.Error()
+// 			at.WriteJSON(respw, http.StatusNotModified, resp)
+// 			return
+// 		}
+// 		resp.Info = idusr.Hex()
+// 		at.WriteJSON(respw, http.StatusOK, resp)
+// 		return
+// 	}
 
-// // Update the user's name/alias
-// // docuser.Email = payload.Alias
+// 	// Update user details
+// 	docuser.Name = usr.Name
+// 	docuser.Email = usr.Email
+// 	_, err = atdb.ReplaceOneDoc(config.Mongoconn, "user", bson.M{"phonenumber": usr.PhoneNumber}, docuser)
+// 	if err != nil {
+// 		resp.Response = "Error: Failed to Replace User Document"
+// 		resp.Info = err.Error()
+// 		at.WriteJSON(respw, http.StatusConflict, resp)
+// 		return
+// 	}
 
-// //     // Get QRIS status from the WAAPI using the phone number from the payload
-// //     hcode, qrstat, err := atapi.Get[model.QRStatus](config.WAAPIGetToken + at.GetLoginFromHeader(req))
-// //     if err != nil {
-// //         at.WriteJSON(respw, http.StatusMisdirectedRequest, docuser)
-// //         return
-// //     }
+// 	// Update project memberships
+// 	updateProjectsMembership(respw, docuser)
+// }
 
-// //     // If the QRIS status is OK and the QR status is not active, generate a new token
-// //     if hcode == http.StatusOK && !qrstat.Status {
-// //         docuser.Token, err = watoken.EncodeforHours(docuser.PhoneNumber, docuser.Email, config.PrivateKey, 43830)
-// //         if err != nil {
-// //             at.WriteJSON(respw, http.StatusFailedDependency, docuser)
-// //             return
-// //         }
-// //     } else {
-// //         // If the QR status is active, reset the LinkedDevice
-// //         docuser.Token = ""
-// //     }
+// // Helper function to update project memberships for the user
+// func updateProjectsMembership(respw http.ResponseWriter, docuser model.Userdomyikado) {
+// 	existingprjs, err := atdb.GetAllDoc[[]model.Project](config.Mongoconn, "project", bson.M{"members._id": docuser.ID})
+// 	if err != nil || len(existingprjs) == 0 {
+// 		at.WriteJSON(respw, http.StatusOK, docuser)
+// 		return
+// 	}
 
-// //     // Replace or update the user's data in the "user" collection
-// //     _, err = atdb.ReplaceOneDoc(config.Mongoconn, "user", primitive.M{"phonenumber": payload.Id}, docuser)
-// //     if err != nil {
-// //         at.WriteJSON(respw, http.StatusExpectationFailed, docuser)
-// //         return
-// //     }
+// 	for _, prj := range existingprjs {
+// 		// Remove old member data and add updated data
+// 		memberToDelete := model.Userdomyikado{PhoneNumber: docuser.PhoneNumber}
+// 		_, err := atdb.DeleteDocFromArray[model.Userdomyikado](config.Mongoconn, "project", prj.ID, "members", memberToDelete)
+// 		if err != nil {
+// 			sendErrorResponse(respw, "Error: Failed to Update Project Membership", http.StatusNotFound, err, "")
+// 			return
+// 		}
 
-// //     // Respond with the updated user data
-// //     at.WriteJSON(respw, http.StatusOK, docuser)
-// // }
+// 		_, err = atdb.AddDocToArray[model.Userdomyikado](config.Mongoconn, "project", prj.ID, "members", docuser)
+// 		if err != nil {
+// 			sendErrorResponse(respw, "Error: Failed to Add Member to Project", http.StatusExpectationFailed, err, "")
+// 			return
+// 		}
+// 	}
 
-// // // PostDataUser handles the POST request to update user data
-// // func PostDataUser(respw http.ResponseWriter, req *http.Request) {
-// // 	// Decode the token using QRLogin logic
-// // 	payload, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
-// // 	if err != nil {
-// // 		var respn model.Response
-// // 		respn.Status = "Error : Token Tidak Valid"
-// // 		respn.Info = at.GetSecretFromHeader(req)
-// // 		respn.Location = "Decode Token Error"
-// // 		respn.Response = err.Error()
-// // 		at.WriteJSON(respw, http.StatusForbidden, respn)
-// // 		return
-// // 	}
+// 	at.WriteJSON(respw, http.StatusOK, docuser)
+// }
 
-// // 	// Parse the user data from the request body
-// // 	var usr model.User
-// // 	err = json.NewDecoder(req.Body).Decode(&usr)
-// // 	if err != nil {
-// // 		var respn model.Response
-// // 		respn.Status = "Error : Body tidak valid"
-// // 		respn.Response = err.Error()
-// // 		at.WriteJSON(respw, http.StatusBadRequest, respn)
-// // 		return
-// // 	}
-
-// // 	// Check if the user already exists in the database
-// // 	docuser, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user", bson.M{"phonenumber": payload.Id})
-// // 	if err != nil {
-// // 		usr.PhoneNumber = payload.Id
-// // 		usr.Name = payload.Alias
-// // 		idusr, err := atdb.InsertOneDoc(config.Mongoconn, "user", usr)
-// // 		if err != nil {
-// // 			var respn model.Response
-// // 			respn.Status = "Gagal Insert Database"
-// // 			respn.Response = err.Error()
-// // 			at.WriteJSON(respw, http.StatusNotModified, respn)
-// // 			return
-// // 		}
-// // 		usr.ID = idusr
-// // 		at.WriteJSON(respw, http.StatusOK, usr)
-// // 		return
-// // 	}
-
-// // 	// Update the user's details
-// // 	docuser.Name = payload.Alias
-// // 	docuser.Email = usr.Email
-// // 	docuser.GitHostUsername = usr.GitHostUsername
-// // 	docuser.GitlabUsername = usr.GitlabUsername
-// // 	docuser.GithubUsername = usr.GithubUsername
-
-// // 	_, err = atdb.ReplaceOneDoc(config.Mongoconn, "user", bson.M{"phonenumber": payload.Id}, docuser)
-// // 	if err != nil {
-// // 		var respn model.Response
-// // 		respn.Status = "Gagal replaceonedoc"
-// // 		respn.Response = err.Error()
-// // 		at.WriteJSON(respw, http.StatusConflict, respn)
-// // 		return
-// // 	}
-
-// // 	// Update projects where the user is a member
-// // 	existingprjs, err := atdb.GetAllDoc[[]model.Project](config.Mongoconn, "project", bson.M{"members._id": docuser.ID})
-// // 	if err != nil || len(existingprjs) == 0 {
-// // 		at.WriteJSON(respw, http.StatusOK, docuser)
-// // 		return
-// // 	}
-
-// // 	// Loop through each project and update the user
-// // 	for _, prj := range existingprjs {
-// // 		memberToDelete := model.User{PhoneNumber: docuser.PhoneNumber}
-// // 		_, err := atdb.DeleteDocFromArray[model.User](config.Mongoconn, "project", prj.ID, "members", memberToDelete)
-// // 		if err != nil {
-// // 			var respn model.Response
-// // 			respn.Status = "Error : Data project tidak di temukan"
-// // 			respn.Response = err.Error()
-// // 			at.WriteJSON(respw, http.StatusNotFound, respn)
-// // 			return
-// // 		}
-// // 		_, err = atdb.AddDocToArray[model.User](config.Mongoconn, "project", prj.ID, "members", docuser)
-// // 		if err != nil {
-// // 			var respn model.Response
-// // 			respn.Status = "Error : Gagal menambahkan member ke project"
-// // 			respn.Response = err.Error()
-// // 			at.WriteJSON(respw, http.StatusExpectationFailed, respn)
-// // 			return
-// // 		}
-// // 	}
-
-// // 	at.WriteJSON(respw, http.StatusOK, docuser)
-// // }
-
-// // func PostDataUserFromWA(respw http.ResponseWriter, req *http.Request) {
-// // 	var resp itmodel.Response
-
-// // 	// Fetch the application profile for WhatsApp
-// // 	prof, err := whatsauth.GetAppProfile(at.GetParam(req), config.Mongoconn)
-// // 	if err != nil {
-// // 		resp.Response = err.Error()
-// // 		at.WriteJSON(respw, http.StatusBadRequest, resp)
-// // 		return
-// // 	}
-
-// // 	// Validate the secret from the request
-// // 	if at.GetSecretFromHeader(req) != prof.Secret {
-// // 		resp.Response = "Salah secret: " + at.GetSecretFromHeader(req)
-// // 		at.WriteJSON(respw, http.StatusUnauthorized, resp)
-// // 		return
-// // 	}
-
-// // 	// Decode the user data from the request body
-// // 	var usr model.User
-// // 	err = json.NewDecoder(req.Body).Decode(&usr)
-// // 	if err != nil {
-// // 		resp.Response = "Error : Body tidak valid"
-// // 		resp.Info = err.Error()
-// // 		at.WriteJSON(respw, http.StatusBadRequest, resp)
-// // 		return
-// // 	}
-
-// // 	// Check if the user exists in the database
-// // 	docuser, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user", bson.M{"phonenumber": usr.PhoneNumber})
-// // 	if err != nil {
-// // 		idusr, err := atdb.InsertOneDoc(config.Mongoconn, "user", usr)
-// // 		if err != nil {
-// // 			resp.Response = "Gagal Insert Database"
-// // 			resp.Info = err.Error()
-// // 			at.WriteJSON(respw, http.StatusNotModified, resp)
-// // 			return
-// // 		}
-// // 		resp.Info = idusr.Hex()
-// // 		at.WriteJSON(respw, http.StatusOK, resp)
-// // 		return
-// // 	}
-
-// // 	// Update the user's data
-// // 	docuser.Name = usr.Name
-// // 	docuser.Email = usr.Email
-
-// // 	_, err = atdb.ReplaceOneDoc(config.Mongoconn, "user", bson.M{"phonenumber": usr.PhoneNumber}, docuser)
-// // 	if err != nil {
-// // 		resp.Response = "Gagal replaceonedoc"
-// // 		resp.Info = err.Error()
-// // 		at.WriteJSON(respw, http.StatusConflict, resp)
-// // 		return
-// // 	}
-
-// // 	// Update user membership in projects (if needed)
-// // 	existingprjs, err := atdb.GetAllDoc[[]model.Project](config.Mongoconn, "project", bson.M{"members._id": docuser.ID})
-// // 	if err != nil || len(existingprjs) == 0 {
-// // 		resp.Response = "belum terdaftar di project manapun"
-// // 		at.WriteJSON(respw, http.StatusOK, resp)
-// // 		return
-// // 	}
-
-// // 	// Loop through and update the projects where the user is a member
-// // 	for _, prj := range existingprjs {
-// // 		memberToDelete := model.User{PhoneNumber: docuser.PhoneNumber}
-// // 		_, err := atdb.DeleteDocFromArray[model.User](config.Mongoconn, "project", prj.ID, "members", memberToDelete)
-// // 		if err != nil {
-// // 			resp.Response = "Error : Data project tidak di temukan"
-// // 			resp.Info = err.Error()
-// // 			at.WriteJSON(respw, http.StatusNotFound, resp)
-// // 			return
-// // 		}
-// // 		_, err = atdb.AddDocToArray[model.User](config.Mongoconn, "project", prj.ID, "members", docuser)
-// // 		if err != nil {
-// // 			resp.Response = "Error : Gagal menambahkan member ke project"
-// // 			resp.Info = err.Error()
-// // 			at.WriteJSON(respw, http.StatusExpectationFailed, resp)
-// // 			return
-// // 		}
-// // 	}
-
-// // 	resp.Info = docuser.ID.Hex()
-// // 	resp.Info = docuser.Email
-// // 	at.WriteJSON(respw, http.StatusOK, resp)
-// // }
-
+// // Helper function to send error responses
+// func sendErrorResponse(w http.ResponseWriter, message string, statusCode int, err error, info string) {
+// 	var resp model.Response
+// 	resp.Status = "Error"
+// 	resp.Response = message
+// 	if err != nil {
+// 		resp.Info = err.Error()
+// 	} else {
+// 		resp.Info = info
+// 	}
+// 	at.WriteJSON(w, statusCode, resp)
+// }

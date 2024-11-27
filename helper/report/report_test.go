@@ -1,11 +1,8 @@
 package report
 
 import (
-	"fmt"
 	"os"
-	"testing"
 
-	"github.com/gocroot/config"
 	"github.com/gocroot/helper/atdb"
 )
 
@@ -14,16 +11,16 @@ var mongoinfo = atdb.DBInfo{
 	DBName:   "domyid",
 }
 
-var Mongoconn, ErrorMongoconn = atdb.MongoConnect(mongoinfo)
+// var Mongoconn, ErrorMongoconn = atdb.MongoConnect(mongoinfo)
 
-func TestGenerateReport(t *testing.T) {
-	config.WAAPIToken = "v4.public."
-	fmt.Println(mongoinfo.DBString)
-	err := RekapMeetingKemarin(Mongoconn)
-	fmt.Println(err)
-	//fmt.Println(md)
+// func TestGenerateReport(t *testing.T) {
+// 	config.WAAPIToken = "v4.public."
+// 	fmt.Println(mongoinfo.DBString)
+// 	err := RekapMeetingKemarin(Mongoconn)
+// 	fmt.Println(err)
+// 	//fmt.Println(md)
 
-}
+// 
 
 /* func TestGenerateReportLayanan(t *testing.T) {
 	gid := "6281313112053-1492882006"

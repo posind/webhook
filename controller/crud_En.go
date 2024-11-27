@@ -140,8 +140,6 @@ func UpdateProhibitedItem(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Successfully updated item: %+v", item)
 }
 
-
-
 func DeleteProhibitedItem(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	destination := query.Get("destination")
@@ -149,6 +147,14 @@ func DeleteProhibitedItem(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("Received query parameters - destination: %s, prohibited_items: %s", destination, prohibitedItems)
 
+	// Validasi parameter
+	if destination == "" && prohibitedItems == "" {
+		helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Validation error", "details": "At least one query parameter (destination or prohibited_items) must be provided"})
+		log.Println("Validation error: No query parameters provided")
+		return
+	}
+
+	// Buat filter berdasarkan parameter yang diberikan
 	filter := bson.M{}
 	if destination != "" {
 		filter["destination"] = destination
@@ -157,12 +163,9 @@ func DeleteProhibitedItem(w http.ResponseWriter, r *http.Request) {
 		filter["prohibited_items"] = prohibitedItems
 	}
 
-	if len(filter) == 0 {
-		helper.WriteJSON(w, http.StatusBadRequest, "No query parameters provided")
-		log.Println("Validation error: No query parameters provided")
-		return
-	}
+	log.Printf("Filter created: %+v", filter)
 
+	// Hapus dokumen
 	collection := config.Mongoconn.Collection("prohibited_items_en")
 	deleteResult, err := collection.DeleteOne(context.Background(), filter)
 	if err != nil {
@@ -172,11 +175,11 @@ func DeleteProhibitedItem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if deleteResult.DeletedCount == 0 {
-		helper.WriteJSON(w, http.StatusNotFound, "No items found to delete")
+		helper.WriteJSON(w, http.StatusNotFound, map[string]string{"error": "No items found to delete", "details": "No documents matched the filter"})
 		log.Printf("No document found for filter: %+v", filter)
 		return
 	}
 
-	helper.WriteJSON(w, http.StatusOK, "Item deleted successfully")
+	helper.WriteJSON(w, http.StatusOK, map[string]string{"message": "Item deleted successfully"})
 	log.Printf("Successfully deleted item for filter: %+v", filter)
 }
