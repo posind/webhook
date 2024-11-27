@@ -138,12 +138,14 @@ func UpdateProhibitedItem(w http.ResponseWriter, r *http.Request) {
 }
 
 func DeleteProhibitedItem(w http.ResponseWriter, r *http.Request) {
+	// Ambil query parameters
 	query := r.URL.Query()
 	destination := query.Get("destination")
 	prohibitedItems := query.Get("prohibited_items")
 
 	log.Printf("Received query parameters - destination: %s, prohibited_items: %s", destination, prohibitedItems)
 
+	// Buat filter berdasarkan parameter
 	filter := bson.M{}
 	if destination != "" {
 		filter["destination"] = destination
@@ -152,27 +154,35 @@ func DeleteProhibitedItem(w http.ResponseWriter, r *http.Request) {
 		filter["prohibited_items"] = prohibitedItems
 	}
 
+	// Jika tidak ada parameter, hapus semua data (opsional, tambahkan konfirmasi jika diperlukan)
 	if len(filter) == 0 {
-		helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Validation error", "details": "At least one query parameter (destination or prohibited_items) must be provided"})
-		log.Println("Validation error: No query parameters provided")
-		return
+		log.Println("No query parameters provided. Proceeding with full collection deletion.")
 	}
 
 	collection := config.Mongoconn.Collection("prohibited_items_en")
-	deleteResult, err := collection.DeleteOne(context.Background(), filter)
+
+	// Hapus data berdasarkan filter
+	deleteResult, err := collection.DeleteMany(context.Background(), filter) // Gunakan DeleteMany untuk penghapusan lebih fleksibel
 	if err != nil {
 		helper.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "Failed to delete item", "details": err.Error()})
 		log.Printf("Error deleting document: %v", err)
 		return
 	}
 
+	// Jika tidak ada dokumen yang dihapus
 	if deleteResult.DeletedCount == 0 {
-		helper.WriteJSON(w, http.StatusNotFound, "No items found to delete")
+		helper.WriteJSON(w, http.StatusNotFound, map[string]string{"error": "No items found to delete", "details": "No documents matched the filter"})
 		log.Printf("No document found for filter: %+v", filter)
 		return
 	}
 
-	helper.WriteJSON(w, http.StatusOK, map[string]string{"message": "Item deleted successfully"})
-	log.Printf("Successfully deleted item for filter: %+v", filter)
+	// Berikan respons berhasil
+	helper.WriteJSON(w, http.StatusOK, map[string]interface{}{
+		"message":        "Item(s) deleted successfully",
+		"deleted_count":  deleteResult.DeletedCount,
+		"applied_filter": filter,
+	})
+	log.Printf("Successfully deleted %d items for filter: %+v", deleteResult.DeletedCount, filter)
 }
+
 
