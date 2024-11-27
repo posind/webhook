@@ -7,7 +7,6 @@ import (
 	"net/http"
 
 	"github.com/gocroot/config"
-	"github.com/gocroot/helper/atdb"
 	"github.com/gocroot/model"
 	"github.com/kimseokgis/backend-ai/helper"
 	"go.mongodb.org/mongo-driver/bson"
@@ -60,6 +59,7 @@ func GetProhibitedItem(w http.ResponseWriter, r *http.Request) {
 	helper.WriteJSON(w, http.StatusOK, items)
 	log.Printf("Successfully retrieved items: %+v", items)
 }
+
 
 func PostProhibitedItem(w http.ResponseWriter, r *http.Request) {
 	var newItem model.ProhibitedItems
@@ -119,22 +119,24 @@ func UpdateProhibitedItem(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Filter: %+v, Update: %+v", filter, update)
 
 	// Update data di database
-	result, err := atdb.UpdateOneDoc(config.Mongoconn, "prohibited_items_en", filter, update)
+	collection := config.Mongoconn.Collection("prohibited_items_en")
+	result, err := collection.UpdateOne(context.Background(), filter, update)
 	if err != nil {
 		helper.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "Failed to update document", "details": err.Error()})
 		log.Printf("Error updating document: %v", err)
 		return
 	}
 
-	if result.ModifiedCount == 0 {
+	if result.MatchedCount == 0 {
 		helper.WriteJSON(w, http.StatusNotFound, "No document found to update")
 		log.Printf("No document found for filter: %+v", filter)
 		return
 	}
 
-	helper.WriteJSON(w, http.StatusOK, item)
+	helper.WriteJSON(w, http.StatusOK, map[string]string{"message": "Document updated successfully"})
 	log.Printf("Successfully updated item: %+v", item)
 }
+
 func DeleteProhibitedItem(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	destination := query.Get("destination")
@@ -151,7 +153,7 @@ func DeleteProhibitedItem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(filter) == 0 {
-		helper.WriteJSON(w, http.StatusBadRequest, "No query parameters provided")
+		helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Validation error", "details": "At least one query parameter (destination or prohibited_items) must be provided"})
 		log.Println("Validation error: No query parameters provided")
 		return
 	}
@@ -170,6 +172,7 @@ func DeleteProhibitedItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	helper.WriteJSON(w, http.StatusOK, "Item deleted successfully")
+	helper.WriteJSON(w, http.StatusOK, map[string]string{"message": "Item deleted successfully"})
 	log.Printf("Successfully deleted item for filter: %+v", filter)
 }
+
