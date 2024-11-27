@@ -23,7 +23,7 @@ func URL(w http.ResponseWriter, r *http.Request) {
 	case method == "POST" && path == "/register":
 		controller.Register(w, r)
 	case method == "POST" && path == "/login":
-		controller.QRLogin(w, r)
+		controller.Login(w, r)
 
 	//user data
 	// case method == "GET" && path == "get/data/user":
@@ -45,8 +45,6 @@ func URL(w http.ResponseWriter, r *http.Request) {
 	// ProhibitedItem Routes (English)
 	case method == "GET" && path == "/get/prohibited-items/en":
 		controller.GetProhibitedItem(w, r)
-	case method == "PUT" && path == "/itemid":
-		controller.EnsureIDItemExists(w, r)
 	case method == "POST" && path == "/post/prohibited-items/en":
 		controller.PostProhibitedItem(w, r)
 	case method == "PUT" && path == "/put/prohibited-items/en":
