@@ -18,7 +18,11 @@ require (
 	google.golang.org/api v0.128.0
 )
 
-require github.com/google/go-querystring v1.1.0 // indirect
+require (
+	github.com/gofiber/fiber/v2 v2.52.5 // indirect
+	github.com/google/go-querystring v1.1.0 // indirect
+	github.com/valyala/bytebufferpool v1.0.0 // indirect
+)
 
 require (
 	aidanwoods.dev/go-result v0.1.0 // indirect

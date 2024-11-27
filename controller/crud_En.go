@@ -7,7 +7,6 @@ import (
 	"net/http"
 
 	"github.com/gocroot/config"
-	"github.com/gocroot/helper/atdb"
 	"github.com/gocroot/model"
 	"github.com/kimseokgis/backend-ai/helper"
 	"go.mongodb.org/mongo-driver/bson"
@@ -106,39 +105,41 @@ func UpdateProhibitedItem(w http.ResponseWriter, r *http.Request) {
 
 	// Validasi ObjectID
 	if item.IDItem.IsZero() {
-		helper.WriteJSON(w, http.StatusBadRequest, "Invalid or missing ID")
-		log.Println("Validation error: Invalid or missing ID")
+		helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid ID format", "details": "ID cannot be empty or invalid"})
+		log.Printf("Validation error: Invalid or empty ID: %v", item.IDItem)
 		return
 	}
 
 	// Define filter dan update
 	filter := bson.M{"_id": item.IDItem}
-	update := bson.M{
-		"$set": bson.M{
-			"prohibited_items": item.ProhibitedItems,
+	update := bson.D{ // Gunakan bson.D untuk memastikan struktur update benar
+		{"$set", bson.M{
 			"destination":      item.Destination,
-		},
+			"prohibited_items": item.ProhibitedItems,
+		}},
 	}
 
 	log.Printf("Filter: %+v, Update: %+v", filter, update)
 
 	// Update data di database
-	result, err := atdb.UpdateOneDoc(config.Mongoconn, "prohibited_items_en", filter, update)
+	collection := config.Mongoconn.Collection("prohibited_items_en")
+	result, err := collection.UpdateOne(context.Background(), filter, update)
 	if err != nil {
 		helper.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "Failed to update document", "details": err.Error()})
 		log.Printf("Error updating document: %v", err)
 		return
 	}
 
-	if result.ModifiedCount == 0 {
-		helper.WriteJSON(w, http.StatusNotFound, "No document found to update")
+	if result.MatchedCount == 0 {
+		helper.WriteJSON(w, http.StatusNotFound, map[string]string{"error": "No document found to update", "details": "Check if the ID is correct"})
 		log.Printf("No document found for filter: %+v", filter)
 		return
 	}
 
-	helper.WriteJSON(w, http.StatusOK, item)
+	helper.WriteJSON(w, http.StatusOK, map[string]string{"message": "Document updated successfully"})
 	log.Printf("Successfully updated item: %+v", item)
 }
+
 
 
 func DeleteProhibitedItem(w http.ResponseWriter, r *http.Request) {
