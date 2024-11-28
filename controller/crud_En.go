@@ -128,15 +128,51 @@ func GetProhibitedItem(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Successfully retrieved items: %+v\n", items)
 }
 
-
-
-
-
-
-
-
-
 func PostProhibitedItem(w http.ResponseWriter, r *http.Request) {
+	var respn model.Response
+
+	// Ambil token login dari header menggunakan at.GetLoginFromHeader
+	tokenLogin := at.GetLoginFromHeader(r)
+	if tokenLogin == "" {
+		respn.Status = "Error: Header Login Hilang"
+		respn.Info = "Header login tidak ditemukan."
+		respn.Data = nil
+		at.WriteJSON(w, http.StatusUnauthorized, respn)
+		log.Println("Header login tidak ditemukan")
+		return
+	}
+
+	// Log token untuk debugging
+	log.Printf("Token yang diterima: %s", tokenLogin)
+
+	// Decode token menggunakan public key dari config
+	privateKey, err := watoken.DecodeGetId(config.PublicKey, tokenLogin)
+	if err != nil {
+		// Log kunci publik untuk memastikan kunci yang digunakan benar
+		log.Printf("Kunci Publik yang digunakan: %s", config.PublicKey)
+		log.Printf("Error saat validasi token: %v", err)
+
+		respn.Status = "Error: Token Tidak Valid"
+		respn.Info = "Token yang diberikan tidak valid: " + err.Error()
+		respn.Data = nil
+		at.WriteJSON(w, http.StatusUnauthorized, respn)
+		return
+	}
+
+	// Log private key yang berhasil didapatkan
+	log.Printf("Private Key dari token: %s", privateKey)
+
+	// Cari data pengguna menggunakan private key dari token
+	userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user", bson.M{"private": privateKey})
+	if err != nil || userData.PhoneNumber == "" {
+		respn.Status = "Error: Tidak Berizin"
+		respn.Info = "Anda tidak memiliki izin untuk mengakses data ini."
+		respn.Data = nil
+		at.WriteJSON(w, http.StatusForbidden, respn)
+		log.Printf("Pengguna tidak memiliki izin. Private key: %s\n", privateKey)
+		return
+	}
+
 	var newItem model.ProhibitedItems
 	if err := json.NewDecoder(r.Body).Decode(&newItem); err != nil {
 		helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid request payload", "details": err.Error()})
@@ -144,19 +180,16 @@ func PostProhibitedItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Generate a new ObjectID for the item
 	newItem.IDItem = primitive.NewObjectID()
 
-	// Validate required fields
 	if newItem.Destination == "" || newItem.ProhibitedItems == "" {
 		helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Validation error", "details": "Destination and Prohibited Items cannot be empty"})
 		log.Println("Validation error: Destination or Prohibited Items is empty")
 		return
 	}
 
-	// Insert item into the database
 	collection := config.Mongoconn.Collection("prohibited_items_en")
-	_, err := collection.InsertOne(context.Background(), newItem)
+	_, err = collection.InsertOne(context.Background(), newItem)
 	if err != nil {
 		helper.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "Failed to insert item", "details": err.Error()})
 		log.Printf("Error inserting item: %v", err)
@@ -168,6 +201,50 @@ func PostProhibitedItem(w http.ResponseWriter, r *http.Request) {
 }
 
 func UpdateProhibitedItem(w http.ResponseWriter, r *http.Request) {
+	var respn model.Response
+
+	// Ambil token login dari header menggunakan at.GetLoginFromHeader
+	tokenLogin := at.GetLoginFromHeader(r)
+	if tokenLogin == "" {
+		respn.Status = "Error: Header Login Hilang"
+		respn.Info = "Header login tidak ditemukan."
+		respn.Data = nil
+		at.WriteJSON(w, http.StatusUnauthorized, respn)
+		log.Println("Header login tidak ditemukan")
+		return
+	}
+
+	// Log token untuk debugging
+	log.Printf("Token yang diterima: %s", tokenLogin)
+
+	// Decode token menggunakan public key dari config
+	privateKey, err := watoken.DecodeGetId(config.PublicKey, tokenLogin)
+	if err != nil {
+		// Log kunci publik untuk memastikan kunci yang digunakan benar
+		log.Printf("Kunci Publik yang digunakan: %s", config.PublicKey)
+		log.Printf("Error saat validasi token: %v", err)
+
+		respn.Status = "Error: Token Tidak Valid"
+		respn.Info = "Token yang diberikan tidak valid: " + err.Error()
+		respn.Data = nil
+		at.WriteJSON(w, http.StatusUnauthorized, respn)
+		return
+	}
+
+	// Log private key yang berhasil didapatkan
+	log.Printf("Private Key dari token: %s", privateKey)
+
+	// Cari data pengguna menggunakan private key dari token
+	userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user", bson.M{"private": privateKey})
+	if err != nil || userData.PhoneNumber == "" {
+		respn.Status = "Error: Tidak Berizin"
+		respn.Info = "Anda tidak memiliki izin untuk mengakses data ini."
+		respn.Data = nil
+		at.WriteJSON(w, http.StatusForbidden, respn)
+		log.Printf("Pengguna tidak memiliki izin. Private key: %s\n", privateKey)
+		return
+	}
+
 	var item model.ProhibitedItems
 	if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
 		helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid request payload", "details": err.Error()})
@@ -175,14 +252,12 @@ func UpdateProhibitedItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validasi ObjectID
 	if item.IDItem.IsZero() {
 		helper.WriteJSON(w, http.StatusBadRequest, "Invalid or missing ID")
 		log.Println("Validation error: Invalid or missing ID")
 		return
 	}
 
-	// Define filter dan update
 	filter := bson.M{"_id": item.IDItem}
 	update := bson.M{
 		"$set": bson.M{
@@ -193,7 +268,6 @@ func UpdateProhibitedItem(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("Filter: %+v, Update: %+v", filter, update)
 
-	// Update data di database
 	collection := config.Mongoconn.Collection("prohibited_items_en")
 	result, err := collection.UpdateOne(context.Background(), filter, update)
 	if err != nil {
@@ -212,15 +286,58 @@ func UpdateProhibitedItem(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Successfully updated item: %+v", item)
 }
 
+
 func DeleteProhibitedItem(w http.ResponseWriter, r *http.Request) {
-	// Ambil query parameters
+	var respn model.Response
+
+	// Ambil token login dari header menggunakan at.GetLoginFromHeader
+	tokenLogin := at.GetLoginFromHeader(r)
+	if tokenLogin == "" {
+		respn.Status = "Error: Header Login Hilang"
+		respn.Info = "Header login tidak ditemukan."
+		respn.Data = nil
+		at.WriteJSON(w, http.StatusUnauthorized, respn)
+		log.Println("Header login tidak ditemukan")
+		return
+	}
+
+	// Log token untuk debugging
+	log.Printf("Token yang diterima: %s", tokenLogin)
+
+	// Decode token menggunakan public key dari config
+	privateKey, err := watoken.DecodeGetId(config.PublicKey, tokenLogin)
+	if err != nil {
+		// Log kunci publik untuk memastikan kunci yang digunakan benar
+		log.Printf("Kunci Publik yang digunakan: %s", config.PublicKey)
+		log.Printf("Error saat validasi token: %v", err)
+
+		respn.Status = "Error: Token Tidak Valid"
+		respn.Info = "Token yang diberikan tidak valid: " + err.Error()
+		respn.Data = nil
+		at.WriteJSON(w, http.StatusUnauthorized, respn)
+		return
+	}
+
+	// Log private key yang berhasil didapatkan
+	log.Printf("Private Key dari token: %s", privateKey)
+
+	// Cari data pengguna menggunakan private key dari token
+	userData, err := atdb.GetOneDoc[model.User](config.Mongoconn, "user", bson.M{"private": privateKey})
+	if err != nil || userData.PhoneNumber == "" {
+		respn.Status = "Error: Tidak Berizin"
+		respn.Info = "Anda tidak memiliki izin untuk mengakses data ini."
+		respn.Data = nil
+		at.WriteJSON(w, http.StatusForbidden, respn)
+		log.Printf("Pengguna tidak memiliki izin. Private key: %s\n", privateKey)
+		return
+	}
+
 	query := r.URL.Query()
 	destination := query.Get("destination")
 	prohibitedItems := query.Get("prohibited_items")
 
 	log.Printf("Received query parameters - destination: %s, prohibited_items: %s", destination, prohibitedItems)
 
-	// Buat filter berdasarkan parameter
 	filter := bson.M{}
 	if destination != "" {
 		filter["destination"] = destination
@@ -229,29 +346,24 @@ func DeleteProhibitedItem(w http.ResponseWriter, r *http.Request) {
 		filter["prohibited_items"] = prohibitedItems
 	}
 
-	// Jika tidak ada parameter, hapus semua data (opsional, tambahkan konfirmasi jika diperlukan)
 	if len(filter) == 0 {
 		log.Println("No query parameters provided. Proceeding with full collection deletion.")
 	}
 
 	collection := config.Mongoconn.Collection("prohibited_items_en")
-
-	// Hapus data berdasarkan filter
-	deleteResult, err := collection.DeleteMany(context.Background(), filter) // Gunakan DeleteMany untuk penghapusan lebih fleksibel
+	deleteResult, err := collection.DeleteMany(context.Background(), filter)
 	if err != nil {
 		helper.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "Failed to delete item", "details": err.Error()})
 		log.Printf("Error deleting document: %v", err)
 		return
 	}
 
-	// Jika tidak ada dokumen yang dihapus
 	if deleteResult.DeletedCount == 0 {
 		helper.WriteJSON(w, http.StatusNotFound, map[string]string{"error": "No items found to delete", "details": "No documents matched the filter"})
 		log.Printf("No document found for filter: %+v", filter)
 		return
 	}
 
-	// Berikan respons berhasil
 	helper.WriteJSON(w, http.StatusOK, map[string]interface{}{
 		"message":        "Item(s) deleted successfully",
 		"deleted_count":  deleteResult.DeletedCount,
@@ -259,5 +371,6 @@ func DeleteProhibitedItem(w http.ResponseWriter, r *http.Request) {
 	})
 	log.Printf("Successfully deleted %d items for filter: %+v", deleteResult.DeletedCount, filter)
 }
+
 
 
