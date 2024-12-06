@@ -8,6 +8,7 @@ import (
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"github.com/gocroot/config"
 	"github.com/gocroot/helper/at"
@@ -15,61 +16,73 @@ import (
 	"github.com/kimseokgis/backend-ai/helper"
 )
 
-// Fungsi untuk mendapatkan item larangan berdasarkan query parameter
 func GetItemLarangan(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	destinasi := query.Get("destinasi")
-	barangTerlarang := query.Get("barang_terlarang")
+	barangTerlarang := query.Get("barang_terlarang") // Sesuai dengan field JSON
 
-	log.Printf("Query yang diterima - destinasi: %s, barang_terlarang: %s", destinasi, barangTerlarang)
+	log.Printf("Received query parameters - destinasi: %s, barang_terlarang: %s", destinasi, barangTerlarang)
 
-	// Buat filter berdasarkan parameter
+	// Buat filter berdasarkan query parameter
 	filter := bson.M{}
 	if destinasi != "" {
-		filter["destinasi"] = destinasi
+		filter["Destinasi"] = destinasi // Sesuai dengan field di database
 	}
 	if barangTerlarang != "" {
-		filter["barang_terlarang"] = barangTerlarang
+		filter["Barang Terlarang"] = barangTerlarang // Sesuai dengan field di database
 	}
 
-	log.Printf("Filter yang dibuat: %+v", filter)
+	log.Printf("Filter created: %+v", filter)
 
-	// Query ke MongoDB
+	// Koneksi ke koleksi MongoDB
 	var items []model.Itemlarangan
-	collection := config.Mongoconn.Collection("item_larangan")
-	cursor, err := collection.Find(context.Background(), filter)
+	collection := config.Mongoconn.Collection("prohibited_items_id")
+	findOptions := options.Find()
+	findOptions.SetLimit(20)
+	cursor, err := collection.Find(context.Background(), filter, findOptions)
 	if err != nil {
-		at.WriteJSON(w, http.StatusInternalServerError, map[string]string{
-			"error":   "Gagal mendapatkan data",
-			"details": err.Error(),
-		})
-		log.Printf("Kesalahan saat mendapatkan data: %v", err)
+		helper.WriteJSON(w, http.StatusInternalServerError, "Error fetching items")
 		return
 	}
 	defer cursor.Close(context.Background())
 
-	// Decode hasil query
-	if err := cursor.All(context.Background(), &items); err != nil {
-		at.WriteJSON(w, http.StatusInternalServerError, map[string]string{
-			"error":   "Gagal memproses data",
-			"details": err.Error(),
-		})
-		log.Printf("Kesalahan saat memproses data: %v", err)
-		return
+	// Decode data ke model
+	for cursor.Next(context.Background()) {
+		var raw bson.M
+		if err := cursor.Decode(&raw); err != nil {
+			log.Printf("Error decoding raw item: %v", err)
+			continue
+		}
+
+		// Map field MongoDB ke model
+		item := model.Itemlarangan{
+			IDItem: raw["_id"].(primitive.ObjectID),
+			Destinasi: func() string {
+				if dest, ok := raw["Destinasi"].(string); ok {
+					return dest
+				}
+				return ""
+			}(),
+			BarangTerlarang: func() string {
+				if prohibited, ok := raw["Barang Terlarang"].(string); ok {
+					return prohibited
+				}
+				return ""
+			}(),
+		}
+		items = append(items, item)
 	}
 
-	// Jika tidak ada hasil
+	// Cek jika tidak ada item yang ditemukan
 	if len(items) == 0 {
-		at.WriteJSON(w, http.StatusNotFound, map[string]string{
-			"message": "Tidak ada data yang ditemukan",
-		})
-		log.Println("Tidak ada data yang sesuai dengan filter")
+		helper.WriteJSON(w, http.StatusNotFound, "No items found")
 		return
 	}
 
-	at.WriteJSON(w, http.StatusOK, items)
-	log.Printf("Berhasil mendapatkan %d item", len(items))
+	// Tampilkan hasil dalam JSON
+	helper.WriteJSON(w, http.StatusOK, items)
 }
+
 
 // Fungsi untuk menambahkan item larangan
 func PostItemLarangan(w http.ResponseWriter, r *http.Request) {

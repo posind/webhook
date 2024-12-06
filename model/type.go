@@ -77,13 +77,13 @@ type DestinationCode struct {
 }
 
 type ProhibitedItems struct {
-	IDItem          primitive.ObjectID `json:"id_item" bson:"_id,omitempty"`
+	IDItem          primitive.ObjectID `json:"id_item" bson:"_id"`
 	Destination     string             `json:"destination" bson:"Destination"`
 	ProhibitedItems string             `json:"prohibited_items" bson:"Prohibited Items"`
 }
 
 type Itemlarangan struct {
-    IDItem          primitive.ObjectID `bson:"_id,omitempty" json:"id_item,omitempty"`
+    IDItem          primitive.ObjectID `bson:"_id" json:"id_item"`
     Destinasi       string             `bson:"destinasi" json:"destinasi"`
     BarangTerlarang string             `bson:"barang_terlarang" json:"barang_terlarang"`
 }

@@ -11,61 +11,58 @@ import (
 	"github.com/kimseokgis/backend-ai/helper"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 func GetProhibitedItem(w http.ResponseWriter, r *http.Request) {
+	// Ambil query parameter dari URL
 	query := r.URL.Query()
-	destination := query.Get("destination")
-	prohibitedItems := query.Get("prohibited_items")
+	destinasi := query.Get("destination")          // Sesuai dengan model JSON
+	barangTerlarang := query.Get("prohibited_items") // Sesuai dengan model JSON
 
-	log.Printf("Received query parameters - destination: %s, prohibited_items: %s", destination, prohibitedItems)
+	log.Printf("Received query parameters - destination: %s, prohibited_items: %s", destinasi, barangTerlarang)
 
-	// Buat filter berdasarkan parameter
+	// Buat filter untuk query MongoDB
 	filter := bson.M{}
-	if destination != "" {
-		filter["destination"] = destination
+	if destinasi != "" {
+		filter["Destination"] = destinasi // Sesuaikan dengan nama field di MongoDB
 	}
-	if prohibitedItems != "" {
-		filter["prohibited_items"] = prohibitedItems
+	if barangTerlarang != "" {
+		filter["Prohibited Items"] = barangTerlarang // Sesuaikan dengan nama field di MongoDB
 	}
 
 	log.Printf("Filter created: %+v", filter)
 
-	// Query ke MongoDB
-	var items []model.ProhibitedItems
+	// Koneksi ke koleksi MongoDB
 	collection := config.Mongoconn.Collection("prohibited_items_en")
-	cursor, err := collection.Find(context.Background(), filter) // Tidak ada limit, ambil semua data yang cocok
+	findOptions := options.Find()
+	findOptions.SetLimit(20)
+
+	// Query data dari MongoDB
+	cursor, err := collection.Find(context.Background(), filter, findOptions)
 	if err != nil {
-		helper.WriteJSON(w, http.StatusInternalServerError, map[string]string{
-			"error":   "Error fetching items",
-			"details": err.Error(),
-		})
 		log.Printf("Error fetching items: %v", err)
+		helper.WriteJSON(w, http.StatusInternalServerError, "Error fetching items")
 		return
 	}
 	defer cursor.Close(context.Background())
 
-	// Decode hasil query ke dalam slice
-	if err := cursor.All(context.Background(), &items); err != nil {
-		helper.WriteJSON(w, http.StatusInternalServerError, map[string]string{
-			"error":   "Error decoding items",
-			"details": err.Error(),
-		})
+	// Decode hasil query ke dalam slice model ProhibitedItems
+	var items []model.ProhibitedItems
+	if err = cursor.All(context.Background(), &items); err != nil {
 		log.Printf("Error decoding items: %v", err)
+		helper.WriteJSON(w, http.StatusInternalServerError, "Error decoding items")
 		return
 	}
 
-	// Cek apakah hasil kosong
+	// Jika tidak ada data yang ditemukan
 	if len(items) == 0 {
-		helper.WriteJSON(w, http.StatusNotFound, map[string]string{
-			"message": "No items found",
-		})
-		log.Println("No items found for the given filter")
+		helper.WriteJSON(w, http.StatusNotFound, "No items found")
 		return
 	}
 
+	// Kirim hasil dalam format JSON
 	helper.WriteJSON(w, http.StatusOK, items)
-	log.Printf("Successfully retrieved items: %d items", len(items))
 }
 
 
