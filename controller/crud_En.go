@@ -148,37 +148,51 @@ func UpdateProhibitedItem(w http.ResponseWriter, r *http.Request) {
 }
 
 func DeleteProhibitedItem(w http.ResponseWriter, r *http.Request) {
-	var filter bson.M
+    var filter bson.M
 
-	// Decode JSON payload untuk filter
-	if err := json.NewDecoder(r.Body).Decode(&filter); err != nil {
-		log.Printf("Error decoding request payload: %v", err)
-		helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid request payload", "details": err.Error()})
-		return
-	}
+    // Decode JSON payload untuk filter
+    if err := json.NewDecoder(r.Body).Decode(&filter); err != nil {
+        log.Printf("Error decoding request payload: %v", err)
+        helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid request payload", "details": err.Error()})
+        return
+    }
 
-	log.Printf("Filter created: %+v", filter)
+    log.Printf("Filter received: %+v", filter)
 
-	if len(filter) == 0 {
-		log.Println("No query parameters or JSON payload provided, aborting delete.")
-		helper.WriteJSON(w, http.StatusBadRequest, "No filter provided for delete operation")
-		return
-	}
+    // Validasi dan konversi _id ke ObjectID
+    if id, ok := filter["_id"].(string); ok {
+        objectID, err := primitive.ObjectIDFromHex(id)
+        if err != nil {
+            log.Printf("Invalid ObjectID: %v", err)
+            helper.WriteJSON(w, http.StatusBadRequest, "Invalid ObjectID format")
+            return
+        }
+        filter["_id"] = objectID
+    } else {
+        log.Println("Missing or invalid _id in request payload")
+        helper.WriteJSON(w, http.StatusBadRequest, "Missing or invalid _id in request payload")
+        return
+    }
 
-	collection := config.Mongoconn.Collection("prohibited_items_en")
-	deleteResult, err := collection.DeleteOne(context.Background(), filter)
-	if err != nil {
-		log.Printf("Error deleting items: %v", err)
-		helper.WriteJSON(w, http.StatusInternalServerError, "Error deleting items")
-		return
-	}
+    log.Printf("Filter after conversion: %+v", filter)
 
-	if deleteResult.DeletedCount == 0 {
-		helper.WriteJSON(w, http.StatusNotFound, "No items found to delete")
-		return
-	}
+    collection := config.Mongoconn.Collection("prohibited_items_en")
+    deleteResult, err := collection.DeleteOne(context.Background(), filter)
+    if err != nil {
+        log.Printf("Error deleting items: %v", err)
+        helper.WriteJSON(w, http.StatusInternalServerError, "Error deleting items")
+        return
+    }
 
-	helper.WriteJSON(w, http.StatusOK, "Item deleted successfully")
+    if deleteResult.DeletedCount == 0 {
+        log.Println("No items found to delete")
+        helper.WriteJSON(w, http.StatusNotFound, "No items found to delete")
+        return
+    }
+
+    log.Println("Item deleted successfully")
+    helper.WriteJSON(w, http.StatusOK, "Item deleted successfully")
 }
+
 
 
