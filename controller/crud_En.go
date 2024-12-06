@@ -148,48 +148,36 @@ func UpdateProhibitedItem(w http.ResponseWriter, r *http.Request) {
 }
 
 func DeleteProhibitedItem(w http.ResponseWriter, r *http.Request) {
-	var payload struct {
-		Destination     string `json:"destination"`
-		ProhibitedItems string `json:"prohibited_items"`
-	}
+	var filter bson.M
 
-	// Decode JSON payload
-	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+	// Decode JSON payload untuk filter
+	if err := json.NewDecoder(r.Body).Decode(&filter); err != nil {
 		log.Printf("Error decoding request payload: %v", err)
 		helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid request payload", "details": err.Error()})
 		return
 	}
 
-	// Validate payload
-	if payload.Destination == "" || payload.ProhibitedItems == "" {
-		log.Println("Validation error: Missing required fields in payload")
-		helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Validation error", "details": "Destination and Prohibited Items are required"})
+	log.Printf("Filter created: %+v", filter)
+
+	if len(filter) == 0 {
+		log.Println("No query parameters or JSON payload provided, aborting delete.")
+		helper.WriteJSON(w, http.StatusBadRequest, "No filter provided for delete operation")
 		return
 	}
 
-	// Create filter
-	filter := bson.M{
-		"destination":     payload.Destination,
-		"prohibited_items": payload.ProhibitedItems,
-	}
-	log.Printf("Filter: %+v", filter)
-
-	// Delete document from MongoDB
 	collection := config.Mongoconn.Collection("prohibited_items_en")
 	deleteResult, err := collection.DeleteOne(context.Background(), filter)
 	if err != nil {
-		log.Printf("Error deleting item: %v", err)
-		helper.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "Failed to delete item", "details": err.Error()})
+		log.Printf("Error deleting items: %v", err)
+		helper.WriteJSON(w, http.StatusInternalServerError, "Error deleting items")
 		return
 	}
 
 	if deleteResult.DeletedCount == 0 {
-		log.Println("No items found to delete with the given filter")
 		helper.WriteJSON(w, http.StatusNotFound, "No items found to delete")
 		return
 	}
 
-	log.Println("Item deleted successfully")
 	helper.WriteJSON(w, http.StatusOK, "Item deleted successfully")
 }
 
