@@ -3,7 +3,6 @@ package controller
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 
@@ -151,6 +150,7 @@ func UpdateProhibitedItem(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Successfully updated item: %+v", item)
 }
 
+// DeleteProhibitedItemByField deletes an item based on provided fields.
 func DeleteProhibitedItem(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	destination := query.Get("destination")
@@ -158,7 +158,6 @@ func DeleteProhibitedItem(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("Received query parameters - destination: %s, prohibited_items: %s", destination, prohibitedItems)
 
-	// Buat filter berdasarkan query parameters
 	filter := bson.M{}
 	if destination != "" {
 		filter["destination"] = destination
@@ -167,45 +166,25 @@ func DeleteProhibitedItem(w http.ResponseWriter, r *http.Request) {
 		filter["prohibited_items"] = prohibitedItems
 	}
 
-	// Validasi filter: Pastikan ada setidaknya satu parameter
+	log.Printf("Filter created: %+v", filter)
+
 	if len(filter) == 0 {
-		helper.WriteJSON(w, http.StatusBadRequest, map[string]string{
-			"error":   "Validation error",
-			"details": "At least one query parameter ('destination' or 'prohibited_items') is required",
-		})
-		log.Println("Validation error: No query parameters provided")
-		return
+		log.Println("No query parameters provided, returning all items.")
 	}
 
-	log.Printf("Filter created for deletion: %+v", filter)
-
-	// Delete dokumen menggunakan filter
 	collection := config.Mongoconn.Collection("prohibited_items_en")
-	deleteResult, err := collection.DeleteMany(context.Background(), filter) // Menggunakan DeleteMany untuk mendukung penghapusan banyak dokumen
+	deleteResult, err := collection.DeleteOne(context.Background(), filter)
 	if err != nil {
-		helper.WriteJSON(w, http.StatusInternalServerError, map[string]string{
-			"error":   "Failed to delete items",
-			"details": err.Error(),
-		})
-		log.Printf("Error deleting documents: %v", err)
+		log.Printf("Error deleting items: %v", err)
+		helper.WriteJSON(w, http.StatusInternalServerError, "Error deleting items")
 		return
 	}
 
-	// Cek apakah ada dokumen yang dihapus
 	if deleteResult.DeletedCount == 0 {
-		helper.WriteJSON(w, http.StatusNotFound, map[string]string{
-			"message": "No items found to delete",
-		})
-		log.Printf("No documents found for filter: %+v", filter)
+		helper.WriteJSON(w, http.StatusNotFound, "No items found to delete")
 		return
 	}
 
-	// Respons jika berhasil
-	helper.WriteJSON(w, http.StatusOK, map[string]string{
-		"message":       "Items deleted successfully",
-		"deleted_count": fmt.Sprintf("%d", deleteResult.DeletedCount),
-	})
-	log.Printf("Successfully deleted %d items for filter: %+v", deleteResult.DeletedCount, filter)
+	helper.WriteJSON(w, http.StatusOK, "Item deleted successfully")
 }
-
 
