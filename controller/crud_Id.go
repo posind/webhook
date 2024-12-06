@@ -126,7 +126,7 @@ func PostItemLarangan(w http.ResponseWriter, r *http.Request) {
 	at.WriteJSON(w, http.StatusOK, itemBaru)
 	log.Printf("Berhasil menambahkan item baru: %+v", itemBaru)
 }
-
+// update item
 func UpdateItemLarangan(w http.ResponseWriter, r *http.Request) {
 	var item model.Itemlarangan
 
