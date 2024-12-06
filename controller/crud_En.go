@@ -147,26 +147,22 @@ func UpdateProhibitedItem(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Successfully updated item: %+v", item)
 }
 
-// DeleteProhibitedItemByField deletes an item based on provided fields.
 func DeleteProhibitedItem(w http.ResponseWriter, r *http.Request) {
-	query := r.URL.Query()
-	destination := query.Get("destination")
-	prohibitedItems := query.Get("prohibited_items")
+	var filter bson.M
 
-	log.Printf("Received query parameters - destination: %s, prohibited_items: %s", destination, prohibitedItems)
-
-	filter := bson.M{}
-	if destination != "" {
-		filter["destination"] = destination
-	}
-	if prohibitedItems != "" {
-		filter["prohibited_items"] = prohibitedItems
+	// Decode JSON payload untuk filter
+	if err := json.NewDecoder(r.Body).Decode(&filter); err != nil {
+		log.Printf("Error decoding request payload: %v", err)
+		helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid request payload", "details": err.Error()})
+		return
 	}
 
 	log.Printf("Filter created: %+v", filter)
 
 	if len(filter) == 0 {
-		log.Println("No query parameters provided, returning all items.")
+		log.Println("No query parameters or JSON payload provided, aborting delete.")
+		helper.WriteJSON(w, http.StatusBadRequest, "No filter provided for delete operation")
+		return
 	}
 
 	collection := config.Mongoconn.Collection("prohibited_items_en")
