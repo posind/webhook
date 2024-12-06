@@ -28,7 +28,7 @@ func GetProhibitedItem(w http.ResponseWriter, r *http.Request) {
 		filter["Destination"] = destinasi // Sesuaikan dengan nama field di MongoDB
 	}
 	if barangTerlarang != "" {
-		filter["Prohibited Items"] = barangTerlarang // Sesuaikan dengan nama field di MongoDB
+		filter["prohibited_items"] = barangTerlarang // Sesuaikan dengan nama field di MongoDB
 	}
 
 	log.Printf("Filter created: %+v", filter)
