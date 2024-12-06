@@ -163,7 +163,7 @@ func DeleteProhibitedItem(w http.ResponseWriter, r *http.Request) {
     if id, ok := filter["_id"].(string); ok {
         objectID, err := primitive.ObjectIDFromHex(id)
         if err != nil {
-            log.Printf("Invalid ObjectID: %v", err)
+            log.Printf("Invalid ObjectID format: %v", err)
             helper.WriteJSON(w, http.StatusBadRequest, "Invalid ObjectID format")
             return
         }
@@ -176,6 +176,7 @@ func DeleteProhibitedItem(w http.ResponseWriter, r *http.Request) {
 
     log.Printf("Filter after conversion: %+v", filter)
 
+    // Hapus dokumen dari koleksi
     collection := config.Mongoconn.Collection("prohibited_items_en")
     deleteResult, err := collection.DeleteOne(context.Background(), filter)
     if err != nil {
