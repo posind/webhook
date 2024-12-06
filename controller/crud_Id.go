@@ -58,13 +58,13 @@ func GetItemLarangan(w http.ResponseWriter, r *http.Request) {
 		item := model.Itemlarangan{
 			IDItem: raw["_id"].(primitive.ObjectID),
 			Destinasi: func() string {
-				if dest, ok := raw["Destinasi"].(string); ok {
+				if dest, ok := raw["Destinasi"].(string); ok { //sesuaikan dengan field di database
 					return dest
 				}
 				return ""
 			}(),
 			BarangTerlarang: func() string {
-				if prohibited, ok := raw["Barang Terlarang"].(string); ok {
+				if prohibited, ok := raw["Barang Terlarang"].(string); ok { //sesuaikan dengan field dalam database
 					return prohibited
 				}
 				return ""
@@ -112,7 +112,7 @@ func PostItemLarangan(w http.ResponseWriter, r *http.Request) {
 	itemBaru.IDItem = primitive.NewObjectID()
 
 	// Insert ke database
-	collection := config.Mongoconn.Collection("item_larangan")
+	collection := config.Mongoconn.Collection("prohibited_items_id")
 	_, err := collection.InsertOne(context.Background(), itemBaru)
 	if err != nil {
 		at.WriteJSON(w, http.StatusInternalServerError, map[string]string{
@@ -163,7 +163,7 @@ func UpdateItemLarangan(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Filter: %+v, Update: %+v", filter, update)
 
 	// Update database
-	collection := config.Mongoconn.Collection("item_larangan")
+	collection := config.Mongoconn.Collection("prohibited_items_id")
 	result, err := collection.UpdateOne(context.Background(), filter, update)
 	if err != nil {
 		at.WriteJSON(w, http.StatusInternalServerError, map[string]string{
@@ -192,7 +192,7 @@ func DeleteItemLarangan(w http.ResponseWriter, r *http.Request) {
 	destinasi := query.Get("destinasi")
 	barangTerlarang := query.Get("barang_terlarang")
 
-	log.Printf("Received query parameters - destination: %s, prohibited_items: %s", destinasi, barangTerlarang)
+	log.Printf("Received query parameters - destinasi: %s, barang_terlarang: %s", destinasi, barangTerlarang)
 
 	filter := bson.M{}
 	if destinasi != "" {
