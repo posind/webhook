@@ -84,8 +84,8 @@ type ProhibitedItems struct {
 
 type Itemlarangan struct {
     IDItem          primitive.ObjectID `bson:"_id" json:"id_item"`
-    Destinasi       string             `bson:"destinasi" json:"destinasi"`
-    BarangTerlarang string             `bson:"barang_terlarang" json:"barang_terlarang"`
+    Destinasi       string             `bson:"Destinasi" json:"destinasi"`
+    BarangTerlarang string             `bson:"Barang Terlarang" json:"barang_terlarang"`
 }
 
 type LogInfo struct {
