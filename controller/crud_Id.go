@@ -127,11 +127,10 @@ func PostItemLarangan(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Berhasil menambahkan item baru: %+v", itemBaru)
 }
 
-// Fungsi untuk memperbarui item larangan
 func UpdateItemLarangan(w http.ResponseWriter, r *http.Request) {
 	var item model.Itemlarangan
 
-	// Decode JSON
+	// Decode JSON dari body request
 	if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
 		at.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error":   "Payload tidak valid",
@@ -141,7 +140,7 @@ func UpdateItemLarangan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validasi ObjectID
+	// Validasi ObjectID (konversi jika diperlukan)
 	if item.IDItem.IsZero() {
 		at.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error":   "Validasi gagal",
@@ -151,8 +150,10 @@ func UpdateItemLarangan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Filter dan update
+	// Filter berdasarkan ObjectID
 	filter := bson.M{"_id": item.IDItem}
+
+	// Membuat objek update
 	update := bson.M{
 		"$set": bson.M{
 			"destinasi":       item.Destinasi,
@@ -162,8 +163,10 @@ func UpdateItemLarangan(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("Filter: %+v, Update: %+v", filter, update)
 
-	// Update database
+	// Akses koleksi MongoDB
 	collection := config.Mongoconn.Collection("prohibited_items_id")
+
+	// Update data di database
 	result, err := collection.UpdateOne(context.Background(), filter, update)
 	if err != nil {
 		at.WriteJSON(w, http.StatusInternalServerError, map[string]string{
@@ -174,6 +177,7 @@ func UpdateItemLarangan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Periksa apakah dokumen diperbarui
 	if result.ModifiedCount == 0 {
 		at.WriteJSON(w, http.StatusNotFound, map[string]string{
 			"message": "Tidak ada dokumen yang diperbarui",
@@ -182,11 +186,15 @@ func UpdateItemLarangan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	at.WriteJSON(w, http.StatusOK, item)
+	// Berhasil diperbarui, kirim respons
+	at.WriteJSON(w, http.StatusOK, map[string]interface{}{
+		"message": "Data berhasil diperbarui",
+		"item":    item,
+	})
 	log.Printf("Berhasil memperbarui item: %+v", item)
 }
 
-// DeleteProhibitedItemByField deletes an item based on provided fields.
+// DeleteProhibitedItem deletes an item based on provided fields.
 func DeleteItemLarangan(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	destinasi := query.Get("destinasi")
