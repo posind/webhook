@@ -28,7 +28,7 @@ func GetProhibitedItem(w http.ResponseWriter, r *http.Request) {
 		filter["Destination"] = destinasi // Sesuaikan dengan nama field di MongoDB
 	}
 	if barangTerlarang != "" {
-		filter["prohibited_items"] = barangTerlarang // Sesuaikan dengan nama field di MongoDB
+		filter["Prohibited Items"] = barangTerlarang // Sesuaikan dengan nama field di MongoDB
 	}
 
 	log.Printf("Filter created: %+v", filter)
@@ -180,4 +180,5 @@ func DeleteProhibitedItem(w http.ResponseWriter, r *http.Request) {
 
 	helper.WriteJSON(w, http.StatusOK, "Item deleted successfully")
 }
+
 
