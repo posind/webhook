@@ -102,7 +102,7 @@ func PostProhibitedItem(w http.ResponseWriter, r *http.Request) {
 func UpdateProhibitedItem(w http.ResponseWriter, r *http.Request) {
     var item model.ProhibitedItems
 
-    // Decode JSON payload ke model `ProhibitedItems`
+    // Decode JSON payload ke struct `ProhibitedItems`
     if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
         log.Printf("Error decoding request payload: %v", err)
         helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid request payload", "details": err.Error()})
@@ -161,6 +161,7 @@ func UpdateProhibitedItem(w http.ResponseWriter, r *http.Request) {
     log.Println("Item updated successfully")
     helper.WriteJSON(w, http.StatusOK, map[string]string{"message": "Item updated successfully"})
 }
+
 
 
 func DeleteProhibitedItem(w http.ResponseWriter, r *http.Request) {
