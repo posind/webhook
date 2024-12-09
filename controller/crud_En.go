@@ -134,7 +134,7 @@ func UpdateProhibitedItem(w http.ResponseWriter, r *http.Request) {
     }
 
     // Validasi `destination`
-    destinationValue, exists := requestBody["destination"]
+    destinationValue, exists := requestBody["Destination"]
     if !exists {
         log.Println("Missing 'destination' in payload")
         helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Validation error", "details": "Missing 'destination'"})
@@ -149,7 +149,7 @@ func UpdateProhibitedItem(w http.ResponseWriter, r *http.Request) {
     }
 
     // Validasi `prohibited_items`
-    prohibitedItemsValue, exists := requestBody["prohibited_items"]
+    prohibitedItemsValue, exists := requestBody["Prohibited Items"]
     if !exists {
         log.Println("Missing 'prohibited_items' in payload")
         helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Validation error", "details": "Missing 'prohibited_items'"})
