@@ -112,21 +112,21 @@ func UpdateProhibitedItem(w http.ResponseWriter, r *http.Request) {
     log.Printf("Request body received: %+v", requestBody)
 
     // Validasi `id_item`
-    idItemValue, exists := requestBody["id_item"]
+    idItemValue, exists := requestBody["_id"]
     if !exists {
-        log.Println("Missing 'id_item' in payload")
-        helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Validation error", "details": "Missing 'id_item'"})
+        log.Println("Missing '_id' in payload")
+        helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Validation error", "details": "Missing '_id'"})
         return
     }
 
-    idItem, ok := idItemValue.(string)
-    if !ok || idItem == "" {
+    _id, ok := idItemValue.(string)
+    if !ok || _id == "" {
         log.Println("Invalid 'id_item' format in payload")
         helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Validation error", "details": "Invalid 'id_item' format"})
         return
     }
 
-    objectID, err := primitive.ObjectIDFromHex(idItem)
+    objectID, err := primitive.ObjectIDFromHex(_id)
     if err != nil {
         log.Printf("Invalid ObjectID format for 'id_item': %v", err)
         helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid ObjectID format", "details": err.Error()})
