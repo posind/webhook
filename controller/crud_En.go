@@ -112,10 +112,17 @@ func UpdateProhibitedItem(w http.ResponseWriter, r *http.Request) {
     log.Printf("Request body received: %+v", requestBody)
 
     // Validasi `id_item`
-    idItem, ok := requestBody["id_item"].(string)
+    idItemValue, exists := requestBody["id_item"]
+    if !exists {
+        log.Println("Missing 'id_item' in payload")
+        helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Validation error", "details": "Missing 'id_item'"})
+        return
+    }
+
+    idItem, ok := idItemValue.(string)
     if !ok || idItem == "" {
-        log.Println("Missing or invalid 'id_item'")
-        helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Validation error", "details": "Missing or invalid 'id_item'"})
+        log.Println("Invalid 'id_item' format in payload")
+        helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Validation error", "details": "Invalid 'id_item' format"})
         return
     }
 
@@ -127,18 +134,32 @@ func UpdateProhibitedItem(w http.ResponseWriter, r *http.Request) {
     }
 
     // Validasi `destination`
-    destination, ok := requestBody["destination"].(string)
+    destinationValue, exists := requestBody["destination"]
+    if !exists {
+        log.Println("Missing 'destination' in payload")
+        helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Validation error", "details": "Missing 'destination'"})
+        return
+    }
+
+    destination, ok := destinationValue.(string)
     if !ok || destination == "" {
-        log.Println("Missing or invalid 'destination'")
-        helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Validation error", "details": "Missing or invalid 'destination'"})
+        log.Println("Invalid 'destination' format in payload")
+        helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Validation error", "details": "Invalid 'destination' format"})
         return
     }
 
     // Validasi `prohibited_items`
-    prohibitedItems, ok := requestBody["prohibited_items"].(string)
+    prohibitedItemsValue, exists := requestBody["prohibited_items"]
+    if !exists {
+        log.Println("Missing 'prohibited_items' in payload")
+        helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Validation error", "details": "Missing 'prohibited_items'"})
+        return
+    }
+
+    prohibitedItems, ok := prohibitedItemsValue.(string)
     if !ok || prohibitedItems == "" {
-        log.Println("Missing or invalid 'prohibited_items'")
-        helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Validation error", "details": "Missing or invalid 'prohibited_items'"})
+        log.Println("Invalid 'prohibited_items' format in payload")
+        helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Validation error", "details": "Invalid 'prohibited_items' format"})
         return
     }
 
@@ -171,6 +192,7 @@ func UpdateProhibitedItem(w http.ResponseWriter, r *http.Request) {
     log.Println("Item updated successfully")
     helper.WriteJSON(w, http.StatusOK, map[string]string{"message": "Item updated successfully"})
 }
+
 
 
 
