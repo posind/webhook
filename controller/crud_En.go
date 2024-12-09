@@ -100,75 +100,44 @@ func PostProhibitedItem(w http.ResponseWriter, r *http.Request) {
 }
 
 func UpdateProhibitedItem(w http.ResponseWriter, r *http.Request) {
-    var requestBody map[string]interface{}
+    var item model.ProhibitedItems
 
-    // Decode JSON payload menjadi map
-    if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
+    // Decode JSON payload ke model `ProhibitedItems`
+    if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
         log.Printf("Error decoding request payload: %v", err)
         helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid request payload", "details": err.Error()})
         return
     }
 
-    log.Printf("Request body received: %+v", requestBody)
+    log.Printf("Request body received: %+v", item)
 
     // Validasi `id_item`
-    idItemValue, exists := requestBody["_id"]
-    if !exists {
-        log.Println("Missing '_id' in payload")
-        helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Validation error", "details": "Missing '_id'"})
-        return
-    }
-
-    _id, ok := idItemValue.(string)
-    if !ok || _id == "" {
-        log.Println("Invalid 'id_item' format in payload")
-        helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Validation error", "details": "Invalid 'id_item' format"})
-        return
-    }
-
-    objectID, err := primitive.ObjectIDFromHex(_id)
-    if err != nil {
-        log.Printf("Invalid ObjectID format for 'id_item': %v", err)
-        helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid ObjectID format", "details": err.Error()})
+    if item.IDItem.IsZero() {
+        log.Println("Missing or invalid 'id_item'")
+        helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Validation error", "details": "Missing or invalid 'id_item'"})
         return
     }
 
     // Validasi `destination`
-    destinationValue, exists := requestBody["Destination"]
-    if !exists {
-        log.Println("Missing 'destination' in payload")
-        helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Validation error", "details": "Missing 'destination'"})
-        return
-    }
-
-    destination, ok := destinationValue.(string)
-    if !ok || destination == "" {
-        log.Println("Invalid 'destination' format in payload")
-        helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Validation error", "details": "Invalid 'destination' format"})
+    if item.Destination == "" {
+        log.Println("Missing or invalid 'destination'")
+        helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Validation error", "details": "Missing or invalid 'destination'"})
         return
     }
 
     // Validasi `prohibited_items`
-    prohibitedItemsValue, exists := requestBody["Prohibited Items"]
-    if !exists {
-        log.Println("Missing 'prohibited_items' in payload")
-        helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Validation error", "details": "Missing 'prohibited_items'"})
-        return
-    }
-
-    prohibitedItems, ok := prohibitedItemsValue.(string)
-    if !ok || prohibitedItems == "" {
-        log.Println("Invalid 'prohibited_items' format in payload")
-        helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Validation error", "details": "Invalid 'prohibited_items' format"})
+    if item.ProhibitedItems == "" {
+        log.Println("Missing or invalid 'prohibited_items'")
+        helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Validation error", "details": "Missing or invalid 'prohibited_items'"})
         return
     }
 
     // Buat filter dan update
-    filter := bson.M{"_id": objectID}
+    filter := bson.M{"_id": item.IDItem}
     update := bson.M{
         "$set": bson.M{
-            "destination":      destination,
-            "prohibited_items": prohibitedItems,
+            "Destination":      item.Destination,
+            "Prohibited Items": item.ProhibitedItems,
         },
     }
 
@@ -192,8 +161,6 @@ func UpdateProhibitedItem(w http.ResponseWriter, r *http.Request) {
     log.Println("Item updated successfully")
     helper.WriteJSON(w, http.StatusOK, map[string]string{"message": "Item updated successfully"})
 }
-
-
 
 
 func DeleteProhibitedItem(w http.ResponseWriter, r *http.Request) {
