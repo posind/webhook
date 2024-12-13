@@ -78,9 +78,8 @@ type DestinationCode struct {
 
 type ProhibitedItems struct {
 	IDItem          primitive.ObjectID `json:"id_item" bson:"_id"`
-	Destination     string             `json:"destination" bson:"destination"`
-	ProhibitedItems string             `json:"prohibited_items" bson:"prohibited_items"`
-	MaxWeight       string             `json:"max_weight" bson:"max_weight"`
+	Destination     string             `json:"destination" bson:"Destination"`
+	ProhibitedItems string             `json:"prohibited_items" bson:"Prohibited Items"`
 }
 
 type Itemlarangan struct {
