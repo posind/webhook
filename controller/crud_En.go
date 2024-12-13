@@ -113,21 +113,21 @@ func UpdateProhibitedItem(w http.ResponseWriter, r *http.Request) {
 
     // Validasi `id_item`
     if item.IDItem.IsZero() {
-        log.Println("Missing or invalid 'id_item'")
+        log.Println("Missing or invalid '_id'")
         helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Validation error", "details": "Missing or invalid 'id_item'"})
         return
     }
 
     // Validasi `destination`
     if item.Destination == "" {
-        log.Println("Missing or invalid 'destination'")
+        log.Println("Missing or invalid 'Destination'")
         helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Validation error", "details": "Missing or invalid 'destination'"})
         return
     }
 
     // Validasi `prohibited_items`
     if item.ProhibitedItems == "" {
-        log.Println("Missing or invalid 'prohibited_items'")
+        log.Println("Missing or invalid 'Prohibited Items'")
         helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Validation error", "details": "Missing or invalid 'prohibited_items'"})
         return
     }
