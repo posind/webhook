@@ -111,7 +111,7 @@ func UpdateProhibitedItem(w http.ResponseWriter, r *http.Request) {
 
     log.Printf("Request body received: %+v", item)
 
-    // Validasi `id_item`
+    // Parse `id_item` dari string ke ObjectID
     if item.IDItem.IsZero() {
         log.Println("Missing or invalid 'id_item'")
         helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Validation error", "details": "Missing or invalid 'id_item'"})
@@ -132,12 +132,20 @@ func UpdateProhibitedItem(w http.ResponseWriter, r *http.Request) {
         return
     }
 
+    // Validasi `max_weight`
+    if item.MaxWeight == "" {
+        log.Println("Missing or invalid 'max_weight'")
+        helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Validation error", "details": "Missing or invalid 'max_weight'"})
+        return
+    }
+
     // Buat filter dan update
     filter := bson.M{"_id": item.IDItem}
     update := bson.M{
         "$set": bson.M{
-            "Destination":      item.Destination,
-            "Prohibited Items": item.ProhibitedItems,
+            "destination":     item.Destination,
+            "prohibited_items": item.ProhibitedItems,
+            "max_weight":      item.MaxWeight,
         },
     }
 
@@ -161,8 +169,6 @@ func UpdateProhibitedItem(w http.ResponseWriter, r *http.Request) {
     log.Println("Item updated successfully")
     helper.WriteJSON(w, http.StatusOK, map[string]string{"message": "Item updated successfully"})
 }
-
-
 
 func DeleteProhibitedItem(w http.ResponseWriter, r *http.Request) {
     var filter bson.M
