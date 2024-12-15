@@ -128,71 +128,66 @@ func PostItemLarangan(w http.ResponseWriter, r *http.Request) {
 }
 // update item
 func UpdateItemLarangan(w http.ResponseWriter, r *http.Request) {
-	var item model.Itemlarangan
+    var item model.Itemlarangan // Gunakan model Itemlarangan
 
-	// Decode JSON dari body request
-	if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
-		at.WriteJSON(w, http.StatusBadRequest, map[string]string{
-			"error":   "Payload tidak valid",
-			"details": err.Error(),
-		})
-		log.Printf("Kesalahan saat decode payload: %v", err)
-		return
-	}
+    // Decode JSON payload
+    if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
+        log.Printf("Error decoding request payload: %v", err)
+        helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid request payload", "details": err.Error()})
+        return
+    }
 
-	// Validasi ObjectID (konversi jika diperlukan)
-	if item.IDItem.IsZero() {
-		at.WriteJSON(w, http.StatusBadRequest, map[string]string{
-			"error":   "Validasi gagal",
-			"details": "ID tidak valid atau kosong",
-		})
-		log.Println("Validasi gagal: ID tidak valid atau kosong")
-		return
-	}
+    // Validasi ObjectID
+    if item.IDItem.IsZero() {
+        helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Missing 'id_item'", "details": "Field 'id_item' is required"})
+        return
+    }
 
-	// Filter berdasarkan ObjectID
-	filter := bson.M{"_id": item.IDItem}
+    id, err := primitive.ObjectIDFromHex(item.IDItem.Hex())
+    if err != nil {
+        log.Printf("Invalid 'id_item': %v", err)
+        helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid 'id_item'", "details": "ObjectID format is invalid"})
+        return
+    }
+    item.IDItem = id
 
-	// Membuat objek update
-	update := bson.M{
-		"$set": bson.M{
-			"destinasi":       item.Destinasi,
-			"barang_terlarang": item.BarangTerlarang,
-		},
-	}
+    // Validasi field lainnya
+    if item.Destinasi == "" || item.BarangTerlarang == "" {
+        helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Validation error", "details": "Missing required fields"})
+        return
+    }
 
-	log.Printf("Filter: %+v, Update: %+v", filter, update)
+    // Filter berdasarkan _id
+    filter := bson.M{"_id": item.IDItem}
 
-	// Akses koleksi MongoDB
-	collection := config.Mongoconn.Collection("prohibited_items_id")
+    // Update data
+    update := bson.M{
+        "$set": bson.M{
+            "Destinasi":          item.Destinasi,
+            "Barang Terlarang":   item.BarangTerlarang,
+        },
+    }
 
-	// Update data di database
-	result, err := collection.UpdateOne(context.Background(), filter, update)
-	if err != nil {
-		at.WriteJSON(w, http.StatusInternalServerError, map[string]string{
-			"error":   "Gagal memperbarui data",
-			"details": err.Error(),
-		})
-		log.Printf("Kesalahan saat memperbarui data: %v", err)
-		return
-	}
+    log.Printf("Filter: %+v", filter)
+    log.Printf("Update: %+v", update)
 
-	// Periksa apakah dokumen diperbarui
-	if result.ModifiedCount == 0 {
-		at.WriteJSON(w, http.StatusNotFound, map[string]string{
-			"message": "Tidak ada dokumen yang diperbarui",
-		})
-		log.Printf("Tidak ada dokumen yang sesuai dengan filter: %+v", filter)
-		return
-	}
+    // Eksekusi update ke MongoDB
+    collection := config.Mongoconn.Collection("prohibited_items_id")
+    updateResult, err := collection.UpdateOne(context.Background(), filter, update)
+    if err != nil {
+        log.Printf("Error updating item: %v", err)
+        helper.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "Failed to update item", "details": err.Error()})
+        return
+    }
 
-	// Berhasil diperbarui, kirim respons
-	at.WriteJSON(w, http.StatusOK, map[string]interface{}{
-		"message": "Data berhasil diperbarui",
-		"item":    item,
-	})
-	log.Printf("Berhasil memperbarui item: %+v", item)
+    if updateResult.MatchedCount == 0 {
+        helper.WriteJSON(w, http.StatusNotFound, map[string]string{"error": "No items found to update", "details": "No matching document found"})
+        return
+    }
+
+    helper.WriteJSON(w, http.StatusOK, map[string]string{"message": "Item updated successfully"})
 }
+
 
 // DeleteProhibitedItem deletes an item based on provided fields.
 func DeleteItemLarangan(w http.ResponseWriter, r *http.Request) {
