@@ -38,7 +38,7 @@ func GetItemLarangan(w http.ResponseWriter, r *http.Request) {
 	var items []model.Itemlarangan
 	collection := config.Mongoconn.Collection("prohibited_items_id")
 	findOptions := options.Find()
-	findOptions.SetLimit(20)
+	findOptions.SetLimit(25)
 	cursor, err := collection.Find(context.Background(), filter, findOptions)
 	if err != nil {
 		helper.WriteJSON(w, http.StatusInternalServerError, "Error fetching items")

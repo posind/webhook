@@ -36,7 +36,7 @@ func GetProhibitedItem(w http.ResponseWriter, r *http.Request) {
 	// Koneksi ke koleksi MongoDB
 	collection := config.Mongoconn.Collection("prohibited_items_en")
 	findOptions := options.Find()
-	findOptions.SetLimit(20)
+	findOptions.SetLimit(25)
 
 	// Query data dari MongoDB
 	cursor, err := collection.Find(context.Background(), filter, findOptions)
