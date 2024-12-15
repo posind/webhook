@@ -105,43 +105,33 @@ func UpdateProhibitedItem(w http.ResponseWriter, r *http.Request) {
     // Decode JSON payload
     if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
         log.Printf("Error decoding request payload: %v", err)
-        helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid request payload", "details": err.Error()})
+        helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid request payload"})
         return
     }
 
-    // Konversi `id_item` ke ObjectID
-    if item.IDItem.Hex() == "" {
-        helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Validation error", "details": "'id_item' is required"})
+    // Validasi ID
+    if item.IDItem.IsZero() {
+        helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Missing 'id_item'"})
         return
     }
 
     id, err := primitive.ObjectIDFromHex(item.IDItem.Hex())
     if err != nil {
-        log.Printf("Invalid 'id_item': %v", err)
-        helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid 'id_item'", "details": err.Error()})
+        log.Printf("Invalid ObjectID: %v", err)
+        helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid 'id_item'"})
         return
     }
-    item.IDItem = id
 
-    // Validasi field lainnya
+    // Validasi field
     if item.Destination == "" || item.ProhibitedItems == "" {
-        helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Validation error", "details": "Missing required fields"})
+        helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Missing required fields"})
         return
     }
 
-    // Cek keberadaan dokumen terlebih dahulu
-    collection := config.Mongoconn.Collection("prohibited_items_en")
-    filter := bson.M{"_id": item.IDItem}
-    var existingItem model.ProhibitedItems
+    // Filter berdasarkan _id
+    filter := bson.M{"_id": id}
 
-    err = collection.FindOne(context.Background(), filter).Decode(&existingItem)
-    if err != nil {
-        log.Printf("Item not found for ID: %v", item.IDItem.Hex())
-        helper.WriteJSON(w, http.StatusNotFound, map[string]string{"error": "Item not found", "details": "No matching document found with provided 'id_item'"})
-        return
-    }
-
-    // Update data
+    // Data yang akan diupdate
     update := bson.M{
         "$set": bson.M{
             "destination":      item.Destination,
@@ -149,20 +139,23 @@ func UpdateProhibitedItem(w http.ResponseWriter, r *http.Request) {
         },
     }
 
-    updateResult, err := collection.UpdateOne(context.Background(), filter, update)
+    // Eksekusi update
+    collection := config.Mongoconn.Collection("prohibited_items_en")
+    result, err := collection.UpdateOne(context.Background(), filter, update)
     if err != nil {
-        log.Printf("Error updating item: %v", err)
-        helper.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "Failed to update item", "details": err.Error()})
+        log.Printf("Error during update: %v", err)
+        helper.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "Update failed"})
         return
     }
 
-    if updateResult.ModifiedCount == 0 {
-        helper.WriteJSON(w, http.StatusNotModified, map[string]string{"message": "No updates made"})
+    if result.MatchedCount == 0 {
+        helper.WriteJSON(w, http.StatusNotFound, map[string]string{"error": "No matching item found"})
         return
     }
 
     helper.WriteJSON(w, http.StatusOK, map[string]string{"message": "Item updated successfully"})
 }
+
 
 
 
