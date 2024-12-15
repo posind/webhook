@@ -110,10 +110,15 @@ func UpdateProhibitedItem(w http.ResponseWriter, r *http.Request) {
     }
 
     // Konversi `id_item` ke ObjectID
+    if item.IDItem.Hex() == "" {
+        helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Validation error", "details": "'id_item' is required"})
+        return
+    }
+
     id, err := primitive.ObjectIDFromHex(item.IDItem.Hex())
     if err != nil {
         log.Printf("Invalid 'id_item': %v", err)
-        helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Validation error", "details": "Invalid 'id_item'"})
+        helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid 'id_item'", "details": err.Error()})
         return
     }
     item.IDItem = id
@@ -124,8 +129,19 @@ func UpdateProhibitedItem(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    // Update filter dan data
+    // Cek keberadaan dokumen terlebih dahulu
+    collection := config.Mongoconn.Collection("prohibited_items_en")
     filter := bson.M{"_id": item.IDItem}
+    var existingItem model.ProhibitedItems
+
+    err = collection.FindOne(context.Background(), filter).Decode(&existingItem)
+    if err != nil {
+        log.Printf("Item not found for ID: %v", item.IDItem.Hex())
+        helper.WriteJSON(w, http.StatusNotFound, map[string]string{"error": "Item not found", "details": "No matching document found with provided 'id_item'"})
+        return
+    }
+
+    // Update data
     update := bson.M{
         "$set": bson.M{
             "destination":      item.Destination,
@@ -133,10 +149,6 @@ func UpdateProhibitedItem(w http.ResponseWriter, r *http.Request) {
         },
     }
 
-    log.Printf("Filter: %+v", filter)
-    log.Printf("Update: %+v", update)
-
-    collection := config.Mongoconn.Collection("prohibited_items_en")
     updateResult, err := collection.UpdateOne(context.Background(), filter, update)
     if err != nil {
         log.Printf("Error updating item: %v", err)
@@ -145,12 +157,13 @@ func UpdateProhibitedItem(w http.ResponseWriter, r *http.Request) {
     }
 
     if updateResult.ModifiedCount == 0 {
-        helper.WriteJSON(w, http.StatusNotFound, map[string]string{"error": "No items found to update"})
+        helper.WriteJSON(w, http.StatusNotModified, map[string]string{"message": "No updates made"})
         return
     }
 
     helper.WriteJSON(w, http.StatusOK, map[string]string{"message": "Item updated successfully"})
 }
+
 
 
 func DeleteProhibitedItem(w http.ResponseWriter, r *http.Request) {
