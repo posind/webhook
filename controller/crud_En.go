@@ -105,51 +105,47 @@ func UpdateProhibitedItem(w http.ResponseWriter, r *http.Request) {
     // Decode JSON payload
     if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
         log.Printf("Error decoding request payload: %v", err)
-        helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid request payload"})
+        helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid request payload", "details": err.Error()})
         return
     }
 
-    // Validasi ID
-    if item.IDItem.IsZero() {
-        helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Missing 'id_item'"})
-        return
-    }
-
+    // Konversi id_item ke ObjectID
     id, err := primitive.ObjectIDFromHex(item.IDItem.Hex())
     if err != nil {
-        log.Printf("Invalid ObjectID: %v", err)
-        helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid 'id_item'"})
+        log.Printf("Invalid 'id_item': %v", err)
+        helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Validation error", "details": "Invalid 'id_item'"})
         return
     }
+    item.IDItem = id
 
-    // Validasi field
+    // Validasi field lainnya
     if item.Destination == "" || item.ProhibitedItems == "" {
-        helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Missing required fields"})
+        helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Validation error", "details": "Missing required fields"})
         return
     }
 
-    // Filter berdasarkan _id
-    filter := bson.M{"_id": id}
-
-    // Data yang akan diupdate
+    // Update filter dan data
+    filter := bson.M{"_id": item.IDItem}
     update := bson.M{
         "$set": bson.M{
-            "destination":      item.Destination,
-            "prohibited_items": item.ProhibitedItems,
+            "Destination":      item.Destination,
+            "Prohibited Items": item.ProhibitedItems,
         },
     }
 
-    // Eksekusi update
+    log.Printf("Filter: %+v", filter)
+    log.Printf("Update: %+v", update)
+
     collection := config.Mongoconn.Collection("prohibited_items_en")
-    result, err := collection.UpdateOne(context.Background(), filter, update)
+    updateResult, err := collection.UpdateOne(context.Background(), filter, update)
     if err != nil {
-        log.Printf("Error during update: %v", err)
-        helper.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "Update failed"})
+        log.Printf("Error updating item: %v", err)
+        helper.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "Failed to update item", "details": err.Error()})
         return
     }
 
-    if result.MatchedCount == 0 {
-        helper.WriteJSON(w, http.StatusNotFound, map[string]string{"error": "No matching item found"})
+    if updateResult.ModifiedCount == 0 {
+        helper.WriteJSON(w, http.StatusNotFound, map[string]string{"error": "No items found to update"})
         return
     }
 
