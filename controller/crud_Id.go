@@ -126,9 +126,10 @@ func PostItemLarangan(w http.ResponseWriter, r *http.Request) {
 	at.WriteJSON(w, http.StatusOK, itemBaru)
 	log.Printf("Berhasil menambahkan item baru: %+v", itemBaru)
 }
-// update item
+
+//Update
 func UpdateItemLarangan(w http.ResponseWriter, r *http.Request) {
-    var item model.Itemlarangan // Gunakan model Itemlarangan
+    var item model.Itemlarangan
 
     // Decode JSON payload
     if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
@@ -137,7 +138,9 @@ func UpdateItemLarangan(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    // Validasi ObjectID
+    log.Printf("Received payload: %+v", item) // Log tambahan
+
+    // Validasi ID (id_item harus valid ObjectID)
     if item.IDItem.IsZero() {
         helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Missing 'id_item'", "details": "Field 'id_item' is required"})
         return
@@ -157,36 +160,32 @@ func UpdateItemLarangan(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    // Filter berdasarkan _id
+    // Filter dan Update
     filter := bson.M{"_id": item.IDItem}
-
-    // Update data
     update := bson.M{
         "$set": bson.M{
-            "Destinasi":          item.Destinasi,
-            "Barang Terlarang":   item.BarangTerlarang,
+            "Destinasi":        item.Destinasi,
+            "Barang Terlarang": item.BarangTerlarang,
         },
     }
 
-    log.Printf("Filter: %+v", filter)
-    log.Printf("Update: %+v", update)
-
-    // Eksekusi update ke MongoDB
+    // Update MongoDB
     collection := config.Mongoconn.Collection("prohibited_items_id")
-    updateResult, err := collection.UpdateOne(context.Background(), filter, update)
+    result, err := collection.UpdateOne(context.Background(), filter, update)
     if err != nil {
         log.Printf("Error updating item: %v", err)
         helper.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "Failed to update item", "details": err.Error()})
         return
     }
 
-    if updateResult.MatchedCount == 0 {
-        helper.WriteJSON(w, http.StatusNotFound, map[string]string{"error": "No items found to update", "details": "No matching document found"})
+    if result.MatchedCount == 0 {
+        helper.WriteJSON(w, http.StatusNotFound, map[string]string{"error": "No items found", "details": "No matching document found"})
         return
     }
 
     helper.WriteJSON(w, http.StatusOK, map[string]string{"message": "Item updated successfully"})
 }
+
 
 
 // DeleteProhibitedItem deletes an item based on provided fields.
