@@ -16,6 +16,7 @@ import (
 	"github.com/kimseokgis/backend-ai/helper"
 )
 
+// GET - Ambil item larangan
 func GetItemLarangan(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	destinasi := query.Get("destinasi")
@@ -23,22 +24,19 @@ func GetItemLarangan(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("Received query parameters - destinasi: %s, barang_terlarang: %s", destinasi, barangTerlarang)
 
-	// Buat filter berdasarkan query parameter
 	filter := bson.M{}
 	if destinasi != "" {
-		filter["Destinasi"] = destinasi // Sesuai dengan field di database
+		filter["Destinasi"] = destinasi
 	}
 	if barangTerlarang != "" {
-		filter["Barang Terlarang"] = barangTerlarang // Sesuai dengan field di database
+		filter["Barang Terlarang"] = barangTerlarang
 	}
 
 	log.Printf("Filter created: %+v", filter)
 
-	// Koneksi ke koleksi MongoDB
 	var items []model.Itemlarangan
 	collection := config.Mongoconn.Collection("prohibited_items_id")
-	findOptions := options.Find()
-	findOptions.SetLimit(100)
+	findOptions := options.Find().SetLimit(100)
 	cursor, err := collection.Find(context.Background(), filter, findOptions)
 	if err != nil {
 		helper.WriteJSON(w, http.StatusInternalServerError, "Error fetching items")
@@ -46,7 +44,6 @@ func GetItemLarangan(w http.ResponseWriter, r *http.Request) {
 	}
 	defer cursor.Close(context.Background())
 
-	// Decode data ke model
 	for cursor.Next(context.Background()) {
 		var raw bson.M
 		if err := cursor.Decode(&raw); err != nil {
@@ -54,17 +51,16 @@ func GetItemLarangan(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		// Map field MongoDB ke model
 		item := model.Itemlarangan{
 			IDItem: raw["_id"].(primitive.ObjectID),
 			Destinasi: func() string {
-				if dest, ok := raw["Destinasi"].(string); ok { //sesuaikan dengan field di database
+				if dest, ok := raw["Destinasi"].(string); ok {
 					return dest
 				}
 				return ""
 			}(),
 			BarangTerlarang: func() string {
-				if prohibited, ok := raw["Barang Terlarang"].(string); ok { //sesuaikan dengan field dalam database
+				if prohibited, ok := raw["Barang Terlarang"].(string); ok {
 					return prohibited
 				}
 				return ""
@@ -73,22 +69,18 @@ func GetItemLarangan(w http.ResponseWriter, r *http.Request) {
 		items = append(items, item)
 	}
 
-	// Cek jika tidak ada item yang ditemukan
 	if len(items) == 0 {
 		helper.WriteJSON(w, http.StatusNotFound, "No items found")
 		return
 	}
 
-	// Tampilkan hasil dalam JSON
 	helper.WriteJSON(w, http.StatusOK, items)
 }
 
-
-// Fungsi untuk menambahkan item larangan
+// POST - Tambah item larangan
 func PostItemLarangan(w http.ResponseWriter, r *http.Request) {
 	var itemBaru model.Itemlarangan
 
-	// Decode JSON
 	if err := json.NewDecoder(r.Body).Decode(&itemBaru); err != nil {
 		at.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error":   "Payload tidak valid",
@@ -98,7 +90,6 @@ func PostItemLarangan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validasi data wajib
 	if itemBaru.Destinasi == "" || itemBaru.BarangTerlarang == "" {
 		at.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error":   "Validasi gagal",
@@ -108,10 +99,8 @@ func PostItemLarangan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Generate ObjectID
 	itemBaru.IDItem = primitive.NewObjectID()
 
-	// Insert ke database
 	collection := config.Mongoconn.Collection("prohibited_items_id")
 	_, err := collection.InsertOne(context.Background(), itemBaru)
 	if err != nil {
@@ -127,117 +116,109 @@ func PostItemLarangan(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Berhasil menambahkan item baru: %+v", itemBaru)
 }
 
-//Update
+// PUT - Update item larangan
 func UpdateItemLarangan(w http.ResponseWriter, r *http.Request) {
-    var item model.Itemlarangan
+	var item model.Itemlarangan
 
-    // Decode JSON payload
-    if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
-        log.Printf("Error decoding request payload: %v", err)
-        helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid request payload", "details": err.Error()})
-        return
-    }
+	if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
+		log.Printf("Error decoding request payload: %v", err)
+		helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid request payload", "details": err.Error()})
+		return
+	}
 
-    log.Printf("Received payload: %+v", item) // Log tambahan
+	log.Printf("Received payload: %+v", item)
 
-    // Validasi ID (id_item harus valid ObjectID)
-    if item.IDItem.IsZero() {
-        helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Missing 'id_item'", "details": "Field 'id_item' is required"})
-        return
-    }
+	if item.IDItem.IsZero() {
+		helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Missing 'id_item'", "details": "Field 'id_item' is required"})
+		return
+	}
 
-    id, err := primitive.ObjectIDFromHex(item.IDItem.Hex())
-    if err != nil {
-        log.Printf("Invalid 'id_item': %v", err)
-        helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid 'id_item'", "details": "ObjectID format is invalid"})
-        return
-    }
-    item.IDItem = id
+	id, err := primitive.ObjectIDFromHex(item.IDItem.Hex())
+	if err != nil {
+		log.Printf("Invalid 'id_item': %v", err)
+		helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid 'id_item'", "details": "ObjectID format is invalid"})
+		return
+	}
+	item.IDItem = id
 
-    // Validasi field lainnya
-    if item.Destinasi == "" || item.BarangTerlarang == "" {
-        helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Validation error", "details": "Missing required fields"})
-        return
-    }
+	if item.Destinasi == "" || item.BarangTerlarang == "" {
+		helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Validation error", "details": "Missing required fields"})
+		return
+	}
 
-    // Filter dan Update
-    filter := bson.M{"_id": item.IDItem}
-    update := bson.M{
-        "$set": bson.M{
-            "Destinasi":        item.Destinasi,
-            "Barang Terlarang": item.BarangTerlarang,
-        },
-    }
+	filter := bson.M{"_id": item.IDItem}
+	update := bson.M{
+		"$set": bson.M{
+			"Destinasi":        item.Destinasi,
+			"Barang Terlarang": item.BarangTerlarang,
+		},
+	}
 
-    // Update MongoDB
-    collection := config.Mongoconn.Collection("prohibited_items_id")
-    result, err := collection.UpdateOne(context.Background(), filter, update)
-    if err != nil {
-        log.Printf("Error updating item: %v", err)
-        helper.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "Failed to update item", "details": err.Error()})
-        return
-    }
+	collection := config.Mongoconn.Collection("prohibited_items_id")
+	result, err := collection.UpdateOne(context.Background(), filter, update)
+	if err != nil {
+		log.Printf("Error updating item: %v", err)
+		helper.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "Failed to update item", "details": err.Error()})
+		return
+	}
 
-    if result.MatchedCount == 0 {
-        helper.WriteJSON(w, http.StatusNotFound, map[string]string{"error": "No items found", "details": "No matching document found"})
-        return
-    }
+	if result.MatchedCount == 0 {
+		helper.WriteJSON(w, http.StatusNotFound, map[string]string{"error": "No items found", "details": "No matching document found"})
+		return
+	}
 
-    helper.WriteJSON(w, http.StatusOK, map[string]string{"message": "Item updated successfully"})
+	helper.WriteJSON(w, http.StatusOK, map[string]string{"message": "Item updated successfully"})
 }
 
-
-
-// DeleteProhibitedItem deletes an item based on provided fields.
+// DELETE - Hapus item larangan
 func DeleteItemLarangan(w http.ResponseWriter, r *http.Request) {
-    var filter bson.M
+	var filter bson.M
 
-    // Decode JSON payload untuk filter
-    if err := json.NewDecoder(r.Body).Decode(&filter); err != nil {
-        log.Printf("Error decoding request payload: %v", err)
-        helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid request payload", "details": err.Error()})
-        return
-    }
+	if err := json.NewDecoder(r.Body).Decode(&filter); err != nil {
+		log.Printf("Error decoding request payload: %v", err)
+		helper.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid request payload", "details": err.Error()})
+		return
+	}
 
-    log.Printf("Filter received: %+v", filter)
+	log.Printf("Filter received: %+v", filter)
 
-    // Validasi dan konversi _id ke ObjectID
-    if id, ok := filter["_id"].(string); ok {
-        objectID, err := primitive.ObjectIDFromHex(id)
-        if err != nil {
-            log.Printf("Invalid ObjectID format: %v", err)
-            helper.WriteJSON(w, http.StatusBadRequest, "Invalid ObjectID format")
-            return
-        }
-        filter["_id"] = objectID
-    } else {
-        log.Println("Missing or invalid _id in request payload")
-        helper.WriteJSON(w, http.StatusBadRequest, "Missing or invalid _id in request payload")
-        return
-    }
+	if id, ok := filter["_id"].(string); ok {
+		objectID, err := primitive.ObjectIDFromHex(id)
+		if err != nil {
+			log.Printf("Invalid ObjectID format: %v", err)
+			helper.WriteJSON(w, http.StatusBadRequest, "Invalid ObjectID format")
+			return
+		}
+		filter["_id"] = objectID
+	} else {
+		log.Println("Missing or invalid _id in request payload")
+		helper.WriteJSON(w, http.StatusBadRequest, "Missing or invalid _id in request payload")
+		return
+	}
 
-    log.Printf("Filter after conversion: %+v", filter)
+	log.Printf("Filter after conversion: %+v", filter)
 
-    // Hapus dokumen dari koleksi
-    collection := config.Mongoconn.Collection("prohibited_items_id")
-    deleteResult, err := collection.DeleteOne(context.Background(), filter)
-    if err != nil {
-        log.Printf("Error deleting items: %v", err)
-        helper.WriteJSON(w, http.StatusInternalServerError, "Error deleting items")
-        return
-    }
+	collection := config.Mongoconn.Collection("prohibited_items_id")
+	deleteResult, err := collection.DeleteOne(context.Background(), filter)
+	if err != nil {
+		log.Printf("Error deleting items: %v", err)
+		helper.WriteJSON(w, http.StatusInternalServerError, "Error deleting items")
+		return
+	}
 
-    if deleteResult.DeletedCount == 0 {
-        log.Println("No items found to delete")
-        helper.WriteJSON(w, http.StatusNotFound, "No items found to delete")
-        return
-    }
+	if deleteResult.DeletedCount == 0 {
+		log.Println("No items found to delete")
+		helper.WriteJSON(w, http.StatusNotFound, "No items found to delete")
+		return
+	}
 
-    log.Println("Item deleted successfully")
-    helper.WriteJSON(w, http.StatusOK, "Item deleted successfully")
+	log.Println("Item deleted successfully")
+	helper.WriteJSON(w, http.StatusOK, "Item deleted successfully")
 }
 
 
-
-
-
+func PingHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("[CI/CD TEST] Endpoint /ping berhasil diakses")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("pong"))
+}

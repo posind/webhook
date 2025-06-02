@@ -61,6 +61,9 @@ func URL(w http.ResponseWriter, r *http.Request) {
 		controller.UpdateItemLarangan(w, r)
 	case method == "DELETE" && path == "/data/barang":
 		controller.DeleteItemLarangan(w, r)
+
+	case method == "GET" && path == "/ping":
+		controller.PingHandler(w, r)
 	default:
 		controller.NotFound(w, r)
 	}
