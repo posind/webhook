@@ -1,4 +1,4 @@
-# Deplong Golang CI/CD to Google Cloud Platform
+# Deplong Golang CI/CD to Google Cloud Platform.
 
 This is a simple Golang Model-Controller template using [Functions Framework for Go](https://github.com/GoogleCloudPlatform/functions-framework-go) and mongodb.com as the database host. It is compatible with Google Cloud Function CI/CD deployment.
 
